@@ -95,12 +95,107 @@ public class DashboardService {
     }
 
     public Map<String, Object> generateReport(String startDate, String endDate) {
-        // Simplified report generation
         Map<String, Object> report = new HashMap<>();
         report.put("startDate", startDate);
         report.put("endDate", endDate);
         report.put("generatedAt", LocalDateTime.now());
 
+        // Get all workers with their helmets and statistics
+        List<Worker> workers = workerRepository.findAll();
+        List<Helmet> allHelmets = helmetRepository.findAll();
+        
+        List<Map<String, Object>> workerReports = workers.stream()
+            .map(worker -> {
+                Map<String, Object> workerData = new HashMap<>();
+                workerData.put("id", worker.getId());
+                workerData.put("name", worker.getFullName());
+                workerData.put("employeeId", worker.getEmployeeId());
+                workerData.put("position", worker.getPosition());
+                workerData.put("department", worker.getDepartment());
+                
+                // Find helmet assigned to this worker
+                Helmet helmet = allHelmets.stream()
+                    .filter(h -> h.getWorker() != null && h.getWorker().getId().equals(worker.getId()))
+                    .findFirst()
+                    .orElse(null);
+                
+                if (helmet != null) {
+                    workerData.put("helmetId", "HELMET-" + String.format("%03d", helmet.getHelmetId()));
+                    workerData.put("batteryLevel", helmet.getBatteryLevel());
+                    workerData.put("status", helmet.getStatus());
+                    
+                    // Calculate working hours (mock calculation - in real system, track actual hours)
+                    double workingHours = 8.0 + (Math.random() * 2.0 - 1.0); // 7-9 hours
+                    workerData.put("workingHours", Math.round(workingHours * 10) / 10.0);
+                    
+                    // Calculate violations count from alerts
+                    List<Alert> workerAlerts = alertRepository.findAll().stream()
+                        .filter(a -> a.getHelmet() != null && a.getHelmet().getId().equals(helmet.getId()))
+                        .toList();
+                    workerData.put("violations", workerAlerts.size());
+                    workerData.put("criticalAlerts", workerAlerts.stream()
+                        .filter(a -> a.getSeverity().name().equals("CRITICAL"))
+                        .count());
+                    
+                    // Calculate efficiency based on status and alerts
+                    double efficiency = 95.0 - (workerAlerts.size() * 5.0);
+                    if (efficiency < 50) efficiency = 50;
+                    workerData.put("efficiency", Math.round(efficiency * 10) / 10.0);
+                    
+                    // Danger zone entries (mock data)
+                    workerData.put("dangerZoneEntries", (int)(Math.random() * 5));
+                    
+                    // Fatigue level (mock data)
+                    String[] fatigueLevels = {"Thấp", "Trung bình", "Cao"};
+                    workerData.put("fatigueLevel", fatigueLevels[(int)(Math.random() * 3)]);
+                } else {
+                    workerData.put("helmetId", "Chưa gán");
+                    workerData.put("workingHours", 0.0);
+                    workerData.put("violations", 0);
+                    workerData.put("efficiency", 0.0);
+                    workerData.put("dangerZoneEntries", 0);
+                    workerData.put("fatigueLevel", "N/A");
+                }
+                
+                return workerData;
+            })
+            .toList();
+        
+        report.put("workers", workerReports);
+        
+        // Summary statistics
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("totalWorkers", workers.size());
+        
+        // Count active workers by checking helmets
+        long activeWorkers = allHelmets.stream()
+            .filter(h -> h.getWorker() != null && h.getStatus() == HelmetStatus.ACTIVE)
+            .count();
+        summary.put("activeWorkers", activeWorkers);
+        
+        double totalHours = workerReports.stream()
+            .mapToDouble(w -> (Double)w.getOrDefault("workingHours", 0.0))
+            .sum();
+        summary.put("totalWorkingHours", Math.round(totalHours * 10) / 10.0);
+        
+        double avgEfficiency = workerReports.stream()
+            .mapToDouble(w -> (Double)w.getOrDefault("efficiency", 0.0))
+            .average()
+            .orElse(0.0);
+        summary.put("averageEfficiency", Math.round(avgEfficiency * 10) / 10.0);
+        
+        long totalViolations = workerReports.stream()
+            .mapToLong(w -> ((Integer)w.getOrDefault("violations", 0)).longValue())
+            .sum();
+        summary.put("totalViolations", totalViolations);
+        
+        long totalCriticalAlerts = workerReports.stream()
+            .mapToLong(w -> ((Long)w.getOrDefault("criticalAlerts", 0L)))
+            .sum();
+        summary.put("totalCriticalAlerts", totalCriticalAlerts);
+        
+        report.put("summary", summary);
+        
         return report;
     }
 }
