@@ -162,26 +162,13 @@ function openEmployeeModal(mode, workerId = null) {
         
         const worker = allWorkers.find(w => w.id === workerId);
         if (worker) {
-            document.getElementById('employeeName').value = worker.name || '';
-            document.getElementById('employeePhone').value = worker.phone || '';
+            document.getElementById('employeeName').value = worker.name || worker.fullName || '';
+            document.getElementById('employeePhone').value = worker.phone || worker.phoneNumber || '';
             document.getElementById('employeeId').value = worker.employeeId || '';
-            document.getElementById('employeePosition').value = worker.position || '';
+            document.getElementById('employeeLocation').value = worker.position || '';
             
             form.dataset.workerId = workerId;
         }
-        
-        // Populate form with existing data
-        const name = card.querySelector('h3').textContent;
-        const phone = card.querySelector('.meta-item:nth-child(1)').textContent.trim().replace(/\s+/g, ' ').split(' ')[1];
-        const location = card.querySelector('.meta-item:nth-child(2)').textContent.trim();
-        const employeeId = card.querySelector('.detail-item:nth-child(1) strong').textContent;
-        
-        document.getElementById('employeeName').value = name;
-        document.getElementById('employeePhone').value = phone;
-        document.getElementById('employeeId').value = employeeId;
-        
-        // Store card reference for update
-        form.dataset.editCard = card.dataset.cardId || Date.now();
     }
     
     modal.classList.add('active');
