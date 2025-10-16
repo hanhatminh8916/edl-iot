@@ -144,4 +144,45 @@ window.addEventListener("load", function() {
         setTimeout(loadWorkers, 500);
     }
     setInterval(loadWorkers, 10000);
+    
+    // Fullscreen button handler
+    const btnExpand = document.querySelector('.btn-expand');
+    if (btnExpand) {
+        btnExpand.addEventListener('click', function() {
+            const mapCard = document.querySelector('.card');
+            const mapContainer = document.getElementById('map');
+            
+            if (!document.fullscreenElement) {
+                // Enter fullscreen
+                if (mapCard.requestFullscreen) {
+                    mapCard.requestFullscreen();
+                } else if (mapCard.webkitRequestFullscreen) { // Safari
+                    mapCard.webkitRequestFullscreen();
+                } else if (mapCard.msRequestFullscreen) { // IE11
+                    mapCard.msRequestFullscreen();
+                }
+                this.querySelector('i').classList.replace('fa-expand', 'fa-compress');
+            } else {
+                // Exit fullscreen
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) { // Safari
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) { // IE11
+                    document.msExitFullscreen();
+                }
+                this.querySelector('i').classList.replace('fa-compress', 'fa-expand');
+            }
+        });
+        
+        // Handle ESC key to change icon back
+        document.addEventListener('fullscreenchange', function() {
+            if (!document.fullscreenElement) {
+                const icon = btnExpand.querySelector('i');
+                if (icon.classList.contains('fa-compress')) {
+                    icon.classList.replace('fa-compress', 'fa-expand');
+                }
+            }
+        });
+    }
 });
