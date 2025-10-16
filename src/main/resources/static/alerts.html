@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDL SafeWork - Hệ thống cảnh báo</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/alerts.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <i class="fas fa-hard-hat"></i>
+            <h1>EDL SafeWork</h1>
+        </div>
+        <div class="header-center">
+            <h2>Hệ thống giám sát cảnh báo công trường</h2>
+        </div>
+        <div class="header-right">
+            <div class="notification-icon">
+                <i class="fas fa-bell"></i>
+                <span class="badge">3</span>
+            </div>
+            <div class="admin-profile">
+                <i class="fas fa-user-circle"></i>
+                <span>Admin</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <nav class="nav-menu">
+                <a href="index.html" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Tổng quan</span>
+                </a>
+                <a href="location.html" class="nav-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Giám sát vị trí</span>
+                </a>
+                <a href="employees.html" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>Quản lý công nhân</span>
+                </a>
+                <a href="alerts.html" class="nav-item active">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Cảnh báo</span>
+                </a>
+                <a href="reports.html" class="nav-item">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Báo cáo</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Cài đặt</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content alerts-page">
+            <!-- Page Header -->
+            <div class="page-header">
+                <div>
+                    <h1>Hệ thống cảnh báo</h1>
+                    <p>Quản lý và theo dõi các cảnh báo an toàn công trường</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-secondary">
+                        <i class="fas fa-print"></i>
+                        Cài đặt
+                    </button>
+                </div>
+            </div>
+
+            <!-- Alert Statistics -->
+            <div class="alert-stats">
+                <div class="alert-stat-card">
+                    <div class="alert-stat-icon critical">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <div class="alert-stat-info">
+                        <div class="alert-stat-label">Tổng cảnh báo</div>
+                        <div class="alert-stat-value">4</div>
+                    </div>
+                </div>
+
+                <div class="alert-stat-card">
+                    <div class="alert-stat-icon danger">
+                        <i class="fas fa-fire"></i>
+                    </div>
+                    <div class="alert-stat-info">
+                        <div class="alert-stat-label">Đang hoạt động</div>
+                        <div class="alert-stat-value">1</div>
+                    </div>
+                </div>
+
+                <div class="alert-stat-card">
+                    <div class="alert-stat-icon warning">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <div class="alert-stat-info">
+                        <div class="alert-stat-label">Đã xác nhận</div>
+                        <div class="alert-stat-value">1</div>
+                    </div>
+                </div>
+
+                <div class="alert-stat-card">
+                    <div class="alert-stat-icon success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="alert-stat-info">
+                        <div class="alert-stat-label">Đã giải quyết</div>
+                        <div class="alert-stat-value">2</div>
+                    </div>
+                </div>
+
+                <div class="alert-stat-card">
+                    <div class="alert-stat-icon info">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="alert-stat-info">
+                        <div class="alert-stat-label">Nghiêm trọng</div>
+                        <div class="alert-stat-value">2</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerts Table -->
+            <div class="card alerts-card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-list"></i>
+                        <h3>Danh sách cảnh báo</h3>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="card-subtitle">Theo dõi và xử lý các cảnh báo tức thời</p>
+
+                    <!-- Search and Filter -->
+                    <div class="table-controls">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="searchInput" placeholder="Tìm kiếm theo tên công nhân hoặc nội dung cảnh báo...">
+                        </div>
+                        <div class="filter-group">
+                            <select class="filter-select" id="filterStatus">
+                                <option value="">Tất cả</option>
+                                <option value="active">Đang hoạt động</option>
+                                <option value="acknowledged">Đã xác nhận</option>
+                                <option value="resolved">Đã giải quyết</option>
+                            </select>
+                            <select class="filter-select" id="filterSeverity">
+                                <option value="">Tất cả mức độ</option>
+                                <option value="critical">Nghiêm trọng</option>
+                                <option value="warning">Cảnh báo</option>
+                                <option value="info">Thông tin</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Alerts Table -->
+                    <div class="table-container">
+                        <table class="alerts-table">
+                            <thead>
+                                <tr>
+                                    <th>Chọn</th>
+                                    <th>Công nhân</th>
+                                    <th>Loại cảnh báo</th>
+                                    <th>Mức độ</th>
+                                    <th>Thời gian</th>
+                                    <th>Trạng thái</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Alert 1 - Active Critical -->
+                                <tr class="alert-row" data-status="active" data-severity="critical">
+                                    <td>
+                                        <input type="checkbox" class="alert-checkbox">
+                                    </td>
+                                    <td>
+                                        <div class="worker-cell">
+                                            <div class="worker-avatar-small">TTB</div>
+                                            <div class="worker-details">
+                                                <div class="worker-name">Trần Thị Bình</div>
+                                                <div class="worker-id">Công nhân trạng thái</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="alert-type">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            <span>Công nhân đã vượt ra ngoài vùng an toàn Cần công trường</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="severity-badge critical">Nghiêm trọng</span>
+                                    </td>
+                                    <td>
+                                        <div class="time-cell">
+                                            <div class="time-date">14/10/25 14:30:05</div>
+                                            <div class="time-location">
+                                                <i class="fas fa-map-marker-alt"></i>
+                                                ID: 2
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge active">Đang hoạt động</span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-action view" title="Xem chi tiết">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn-action acknowledge" title="Xác nhận">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- Alert 2 - Acknowledged Warning -->
+                                <tr class="alert-row" data-status="acknowledged" data-severity="warning">
+                                    <td>
+                                        <input type="checkbox" class="alert-checkbox">
+                                    </td>
+                                    <td>
+                                        <div class="worker-cell">
+                                            <div class="worker-avatar-small">LVC</div>
+                                            <div class="worker-details">
+                                                <div class="worker-name">Lê Văn Cường</div>
+                                                <div class="worker-id">Công nhân làm việc</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="alert-type">
+                                            <i class="fas fa-hard-hat"></i>
+                                            <span>Công nhân đã vào khu vực nghiêm cấm - Mất vũng nguy hiểm</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="severity-badge warning">Nghiêm trọng</span>
+                                    </td>
+                                    <td>
+                                        <div class="time-cell">
+                                            <div class="time-date">14/10/25 14:28:25</div>
+                                            <div class="time-location">
+                                                <i class="fas fa-map-marker-alt"></i>
+                                                ID: 3
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge acknowledged">Đã xác nhận</span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-action view" title="Xem chi tiết">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn-action resolve" title="Giải quyết">
+                                                <i class="fas fa-check-double"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- Add more alert rows as needed -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="pagination">
+                        <div class="pagination-info">
+                            Hiển thị 1-2 trong tổng số 2 cảnh báo
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="pagination-btn" disabled>
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <button class="pagination-btn active">1</button>
+                            <button class="pagination-btn" disabled>
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script src="js/alerts.js"></script>
+</body>
+</html>

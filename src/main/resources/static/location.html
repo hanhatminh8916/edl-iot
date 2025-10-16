@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDL SafeWork - Giám sát vị trí thời gian thực</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/location.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <i class="fas fa-hard-hat"></i>
+            <h1>EDL SafeWork</h1>
+        </div>
+        <div class="header-center">
+            <h2>Hệ thống giám sát vị trí công trường</h2>
+        </div>
+        <div class="header-right">
+            <div class="notification-icon">
+                <i class="fas fa-bell"></i>
+                <span class="badge">3</span>
+            </div>
+            <div class="admin-profile">
+                <i class="fas fa-user-circle"></i>
+                <span>Admin</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <nav class="nav-menu">
+                <a href="index.html" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Tổng quan</span>
+                </a>
+                <a href="location.html" class="nav-item active">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Giám sát vị trí</span>
+                </a>
+                <a href="employees.html" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>Quản lý công nhân</span>
+                </a>
+                <a href="alerts.html" class="nav-item">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Cảnh báo</span>
+                </a>
+                <a href="reports.html" class="nav-item">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Báo cáo</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Cài đặt</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content location-page">
+            <!-- Page Header -->
+            <div class="page-header">
+                <div>
+                    <h1>Giám sát vị trí thời gian thực</h1>
+                    <p>Theo dõi vị trí và trạng thái của tất cả công nhân trên công trường</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-secondary">
+                        <i class="fas fa-print"></i>
+                        Cài đặt
+                    </button>
+                    <button class="btn-primary">
+                        <i class="fas fa-sync-alt"></i>
+                        Đồng bộ dữ liệu
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status Cards -->
+            <div class="status-cards">
+                <div class="status-card">
+                    <div class="status-icon green">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div class="status-info">
+                        <div class="status-label">Tổng số</div>
+                        <div class="status-value">4</div>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <div class="status-icon blue">
+                        <i class="fas fa-broadcast-tower"></i>
+                    </div>
+                    <div class="status-info">
+                        <div class="status-label">An toàn</div>
+                        <div class="status-value">2</div>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <div class="status-icon orange">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <div class="status-info">
+                        <div class="status-label">Cảnh báo</div>
+                        <div class="status-value">1</div>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <div class="status-icon red">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="status-info">
+                        <div class="status-label">Nguy hiểm</div>
+                        <div class="status-value">1</div>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <div class="status-icon gray">
+                        <i class="fas fa-signal"></i>
+                    </div>
+                    <div class="status-info">
+                        <div class="status-label">Mất tín hiệu</div>
+                        <div class="status-value">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map and Workers Layout -->
+            <div class="map-layout">
+                <!-- Map Section -->
+                <div class="map-section">
+                    <div class="card map-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fas fa-map"></i>
+                                <h3>Bản đồ công trường</h3>
+                            </div>
+                            <button class="btn-expand">
+                                <i class="fas fa-expand"></i>
+                            </button>
+                        </div>
+                        <div class="card-body map-body">
+                            <p class="map-subtitle">Cập nhật vị trí mới nhất: 14:38:27</p>
+                            <div id="map" class="map-container">
+                                <!-- Bản đồ Leaflet sẽ hiển thị ở đây -->
+                            </div>
+                            <div class="map-legend">
+                                <div class="legend-item">
+                                    <span class="legend-marker" style="background-color: #10b981; width: 16px; height: 16px; border-radius: 50%; display: inline-block; border: 2px solid white;"></span>
+                                    <span>An toàn</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-marker" style="background-color: #f59e0b; width: 16px; height: 16px; border-radius: 50%; display: inline-block; border: 2px solid white;"></span>
+                                    <span>Cảnh báo</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-marker" style="background-color: #ef4444; width: 16px; height: 16px; border-radius: 50%; display: inline-block; border: 2px solid white;"></span>
+                                    <span>Pin yếu</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-marker" style="background-color: #94a3b8; width: 16px; height: 16px; border-radius: 50%; display: inline-block; border: 2px solid white;"></span>
+                                    <span>Ngoại tuyến</span>
+                                </div>
+                            </div>
+                            <button class="btn-show-more">
+                                <i class="fas fa-chevron-down"></i>
+                                Đóng bảng bên
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Workers List Section -->
+                <div class="workers-section">
+                    <div class="card workers-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fas fa-users"></i>
+                                <h3>Danh sách công nhân</h3>
+                            </div>
+                        </div>
+                        <div class="card-body workers-body">
+                            <p class="card-subtitle">Theo dõi vị trí và trạng thái</p>
+                            
+                            <!-- Worker List -->
+                            <div class="worker-list">
+                                <!-- Worker 1 -->
+                                <div class="worker-item">
+                                    <div class="worker-avatar">NVA</div>
+                                    <div class="worker-info">
+                                        <h4>Nguyễn Văn An ▼</h4>
+                                        <p>ID: 1</p>
+                                    </div>
+                                    <span class="worker-status safe">An toàn</span>
+                                </div>
+
+                                <!-- Worker 2 -->
+                                <div class="worker-item">
+                                    <div class="worker-avatar">TTB</div>
+                                    <div class="worker-info">
+                                        <h4>Trần Thị Bình ▼</h4>
+                                        <p>ID: 2</p>
+                                    </div>
+                                    <span class="worker-status warning">Cảnh báo</span>
+                                </div>
+
+                                <!-- Worker 3 -->
+                                <div class="worker-item">
+                                    <div class="worker-avatar">LVC</div>
+                                    <div class="worker-info">
+                                        <h4>Lê Văn Cường ▼</h4>
+                                        <p>ID: 3</p>
+                                    </div>
+                                    <span class="worker-status danger">Nguy hiểm</span>
+                                </div>
+
+                                <!-- Worker 4 -->
+                                <div class="worker-item">
+                                    <div class="worker-avatar">PTD</div>
+                                    <div class="worker-info">
+                                        <h4>Phạm Thị Dung ▼</h4>
+                                        <p>ID: 4</p>
+                                    </div>
+                                    <span class="worker-status safe">An toàn</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Map Libraries -->
+    <!-- Using Leaflet (OpenStreetMap) - no API key needed -->
+    <!-- To use Google Maps instead, add: -->
+    <!-- <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script> -->
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/location.js"></script>
+</body>
+</html>

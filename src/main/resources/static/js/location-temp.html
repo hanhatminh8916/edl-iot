@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Location Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #ccc;
+        }
+        .info {
+            padding: 10px;
+            background: #f0f0f0;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h2>Test Bản đồ vị trí công nhân</h2>
+        <p>Kiểm tra xem dữ liệu từ API có hiển thị không</p>
+        <button onclick="loadData()">Tải lại dữ liệu</button>
+    </div>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        console.log('🚀 Script started');
+        
+        let map;
+        let markers = [];
+
+        // Initialize map
+        function initMap() {
+            console.log('Initializing map...');
+            map = L.map('map').setView([10.7626, 106.6601], 15);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+            
+            console.log('✓ Map initialized');
+        }
+
+        // Load data from API
+        async function loadData() {
+            console.log('📡 Loading data from API...');
+            
+            try {
+                const response = await fetch('/api/dashboard/map-data');
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('✓ Data loaded:', data);
+                console.log('Number of workers:', data.length);
+                
+                // Clear old markers
+                markers.forEach(m => map.removeLayer(m));
+                markers = [];
+                
+                // Add markers
+                data.forEach((worker, index) => {
+                    console.log(`Adding marker ${index + 1}:`, worker.name);
+                    
+                    if (!worker.helmet || !worker.helmet.lastLocation) {
+                        console.warn(`No location for ${worker.name}`);
+                        return;
+                    }
+                    
+                    const lat = worker.helmet.lastLocation.latitude;
+                    const lon = worker.helmet.lastLocation.longitude;
+                    console.log(`  Position: [${lat}, ${lon}]`);
+                    
+                    // Determine color
+                    let color = '#10b981'; // Green
+                    if (worker.helmet.status === 'ALERT') {
+                        color = '#f59e0b'; // Yellow
+                    } else if (worker.helmet.status === 'INACTIVE') {
+                        color = '#ef4444'; // Red
+                    }
+                    
+                    // Create icon
+                    const icon = L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    });
+                    
+                    // Add marker
+                    const marker = L.marker([lat, lon], { icon: icon }).addTo(map);
+                    
+                    // Add popup
+                    marker.bindPopup(`
+                        <strong>${worker.name}</strong><br>
+                        Mã mũ: ${worker.helmet.helmetId}<br>
+                        Trạng thái: ${worker.helmet.status}<br>
+                        Pin: ${worker.helmet.batteryLevel}%
+                    `);
+                    
+                    markers.push(marker);
+                    console.log(`  ✓ Marker added`);
+                });
+                
+                console.log(`✅ Total ${markers.length} markers added`);
+                
+                // Fit bounds
+                if (markers.length > 0) {
+                    const group = L.featureGroup(markers);
+                    map.fitBounds(group.getBounds().pad(0.1));
+                    console.log('📍 Map bounds adjusted');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error:', error);
+                alert('Lỗi khi tải dữ liệu: ' + error.message);
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('load', function() {
+            console.log('Window loaded');
+            initMap();
+            setTimeout(loadData, 500);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,673 @@
+// Location Page JavaScript
+const API_BASE_URL = '/api';
+
+// Global variables
+let map;
+let markers = [];
+let workersData = [];
+
+// Wait for everything to load
+window.addEventListener('load', function() {
+    console.log('Window loaded, initializing...');
+    
+    // Make sure Leaflet is loaded
+    if (typeof L === 'undefined') {
+        console.error('Leaflet not loaded yet, waiting...');
+        setTimeout(() => {
+            initializeMap();
+            loadWorkers();
+        }, 1000);
+    } else {
+        // Initialize map first
+        initializeMap();
+        
+        // Then load workers data from API
+        setTimeout(loadWorkers, 500);
+    }
+    
+    // Handle expand button
+    const btnExpand = document.querySelector('.btn-expand');
+    if (btnExpand) {
+        btnExpand.addEventListener('click', function() {
+            toggleFullscreen();
+        });
+    }
+    
+    // Handle show more button
+    const btnShowMore = document.querySelector('.btn-show-more');
+    if (btnShowMore) {
+        btnShowMore.addEventListener('click', function() {
+            const icon = this.querySelector('i');
+            const workersSection = document.querySelector('.workers-section');
+            
+            if (workersSection.style.display === 'none') {
+                workersSection.style.display = 'block';
+                icon.className = 'fas fa-chevron-down';
+                this.innerHTML = '<i class="fas fa-chevron-down"></i> Đóng bảng bên';
+            } else {
+                workersSection.style.display = 'none';
+                icon.className = 'fas fa-chevron-up';
+                this.innerHTML = '<i class="fas fa-chevron-up"></i> Mở bảng bên';
+            }
+        });
+    }
+    
+    // Handle sync button
+    const btnSync = document.querySelector('.btn-primary');
+    if (btnSync) {
+        btnSync.addEventListener('click', function() {
+            syncData();
+        });
+    }
+    
+    // Auto update location every 10 seconds
+    setInterval(loadWorkers, 10000);
+});
+
+// Load workers data from API
+async function loadWorkers() {
+    console.log('Loading workers from API...');
+    try {
+        const url = `${API_BASE_URL}/dashboard/map-data`;
+        console.log('Fetching from:', url);
+        
+        const response = await fetch(url);
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        workersData = await response.json();
+        console.log('Workers data loaded:', workersData);
+        console.log('Number of workers:', workersData.length);
+        
+        displayWorkersList(workersData);
+        updateMapMarkers(workersData);
+        
+    } catch (error) {
+        console.error('❌ Error loading workers:', error);
+        console.log('Using hardcoded data as fallback...');
+        // Use hardcoded data as fallback
+        useHardcodedData();
+    }
+}
+
+// Use hardcoded data as fallback
+function useHardcodedData() {
+    // Dữ liệu cứng mẫu - vị trí gần khu công nghiệp Tân Bình, TP.HCM
+    workersData = [
+        {
+            id: 1,
+            name: 'Nguyễn Văn An',
+            helmet: {
+                helmetId: 'HELMET-001',
+                status: 'ACTIVE',
+                batteryLevel: 85,
+                lastLocation: {
+                    latitude: 10.8231,
+                    longitude: 106.6297
+                }
+            }
+        },
+        {
+            id: 2,
+            name: 'Trần Thị Bình',
+            helmet: {
+                helmetId: 'HELMET-002',
+                status: 'ACTIVE',
+                batteryLevel: 72,
+                lastLocation: {
+                    latitude: 10.8241,
+                    longitude: 106.6307
+                }
+            }
+        },
+        {
+            id: 3,
+            name: 'Lê Văn Cường',
+            helmet: {
+                helmetId: 'HELMET-003',
+                status: 'ACTIVE',
+                batteryLevel: 91,
+                lastLocation: {
+                    latitude: 10.8251,
+                    longitude: 106.6287
+                }
+            }
+        },
+        {
+            id: 4,
+            name: 'Phạm Thị Dung',
+            helmet: {
+                helmetId: 'HELMET-004',
+                status: 'ACTIVE',
+                batteryLevel: 45,
+                lastLocation: {
+                    latitude: 10.8221,
+                    longitude: 106.6317
+                }
+            }
+        },
+        {
+            id: 5,
+            name: 'Hoàng Văn Em',
+            helmet: {
+                helmetId: 'HELMET-005',
+                status: 'OFFLINE',
+                batteryLevel: 15,
+                lastLocation: {
+                    latitude: 10.8261,
+                    longitude: 106.6277
+                }
+            }
+        }
+    ];
+    
+    displayWorkersList(workersData);
+    updateMapMarkers(workersData);
+}
+
+// Initialize Map (supports both Google Maps and Leaflet)
+function initializeMap() {
+    console.log('Initializing map...');
+    
+    // Check if map div exists
+    const mapDiv = document.getElementById('map');
+    if (!mapDiv) {
+        console.error('Map div not found!');
+        return;
+    }
+    
+    console.log('Map div found:', mapDiv);
+    console.log('Leaflet available?', typeof L !== 'undefined');
+    console.log('Google Maps available?', typeof google !== 'undefined');
+    
+    // Default center: Tân Bình, TP.HCM (khu công nghiệp)
+    const defaultCenter = { lat: 10.8231, lng: 106.6297 };
+    
+    try {
+        // Check if Google Maps is available
+        if (typeof google !== 'undefined' && google.maps) {
+            // Use Google Maps
+            map = new google.maps.Map(mapDiv, {
+                center: defaultCenter,
+                zoom: 16,
+                mapTypeId: 'roadmap',
+                styles: [
+                    {
+                        featureType: 'poi',
+                        elementType: 'labels',
+                        stylers: [{ visibility: 'off' }]
+                    }
+                ]
+            });
+            console.log('✓ Google Maps initialized successfully');
+        } else if (typeof L !== 'undefined') {
+            // Fallback to Leaflet (OpenStreetMap)
+            console.log('Using Leaflet...');
+            map = L.map('map').setView([defaultCenter.lat, defaultCenter.lng], 16);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+            
+            map.isLeaflet = true;
+            console.log('✓ Leaflet Map initialized successfully');
+        } else {
+            console.error('❌ No map library available (neither Google Maps nor Leaflet)');
+            mapDiv.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ef4444;"><p>Không thể tải thư viện bản đồ. Vui lòng kiểm tra kết nối internet.</p></div>';
+            return;
+        }
+    } catch (error) {
+        console.error('Error initializing map:', error);
+        mapDiv.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ef4444;"><p>Lỗi khi khởi tạo bản đồ: ' + error.message + '</p></div>';
+    }
+}
+
+// Update map markers with workers data
+function updateMapMarkers(workers) {
+    console.log('updateMapMarkers called with:', workers);
+    console.log('Map object exists?', !!map);
+    console.log('Workers array length:', workers ? workers.length : 0);
+    
+    if (!map) {
+        console.error('❌ Map not initialized!');
+        return;
+    }
+    
+    if (!workers || workers.length === 0) {
+        console.warn('⚠️ No workers data to display');
+        return;
+    }
+    
+    if (map.isLeaflet) {
+        console.log('Using Leaflet markers...');
+        updateLeafletMarkers(workers);
+    } else {
+        console.log('Using Google Maps markers...');
+        updateGoogleMarkers(workers);
+    }
+}
+
+// Update Google Maps markers
+function updateGoogleMarkers(workers) {
+    // Clear existing markers
+    markers.forEach(marker => marker.setMap(null));
+    markers = [];
+    
+    // Add new markers
+    workers.forEach(worker => {
+        if (!worker.helmet || !worker.helmet.lastLocation) return;
+        
+        const position = {
+            lat: worker.helmet.lastLocation.latitude,
+            lng: worker.helmet.lastLocation.longitude
+        };
+        
+        // Determine marker color based on status
+        const status = worker.helmet.status;
+        const battery = worker.helmet.batteryLevel;
+        let markerColor = '#10b981'; // Green - Active
+        let statusText = 'An toàn';
+        
+        if (status === 'OFFLINE') {
+            markerColor = '#94a3b8'; // Gray - Offline
+            statusText = 'Ngoại tuyến';
+        } else if (battery < 20) {
+            markerColor = '#ef4444'; // Red - Low battery
+            statusText = 'Pin yếu';
+        } else if (battery < 50) {
+            markerColor = '#f59e0b'; // Yellow - Warning
+            statusText = 'Cảnh báo';
+        }
+        
+        // Create marker icon
+        const markerIcon = {
+            path: google.maps.SymbolPath.CIRCLE,
+            fillColor: markerColor,
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 3,
+            scale: 10
+        };
+        
+        // Create marker
+        const marker = new google.maps.Marker({
+            position: position,
+            map: map,
+            icon: markerIcon,
+            title: worker.name,
+            animation: google.maps.Animation.DROP
+        });
+        
+        // Create info window
+        const infoContent = `
+            <div style="padding: 10px; font-family: Arial, sans-serif;">
+                <h3 style="margin: 0 0 8px 0; color: #1e293b; font-size: 16px;">
+                    <i class="fas fa-user"></i> ${worker.name}
+                </h3>
+                <div style="font-size: 14px; color: #64748b;">
+                    <p style="margin: 4px 0;"><strong>Mã mũ:</strong> ${worker.helmet.helmetId}</p>
+                    <p style="margin: 4px 0;"><strong>Trạng thái:</strong> 
+                        <span style="color: ${markerColor}; font-weight: 600;">${statusText}</span>
+                    </p>
+                    <p style="margin: 4px 0;"><strong>Pin:</strong> 
+                        <span style="color: ${battery < 20 ? '#ef4444' : battery < 50 ? '#f59e0b' : '#10b981'};">
+                            ${battery}%
+                        </span>
+                    </p>
+                    <p style="margin: 4px 0;"><strong>Vị trí:</strong> ${position.lat.toFixed(6)}, ${position.lng.toFixed(6)}</p>
+                </div>
+            </div>
+        `;
+        
+        const infoWindow = new google.maps.InfoWindow({
+            content: infoContent
+        });
+        
+        marker.addListener('click', function() {
+            // Close all other info windows
+            markers.forEach(m => {
+                if (m.infoWindow) m.infoWindow.close();
+            });
+            infoWindow.open(map, marker);
+        });
+        
+        marker.infoWindow = infoWindow;
+        markers.push(marker);
+    });
+    
+    // Fit map to show all markers
+    if (markers.length > 0) {
+        const bounds = new google.maps.LatLngBounds();
+        markers.forEach(marker => bounds.extend(marker.getPosition()));
+        map.fitBounds(bounds);
+        
+        // Set a maximum zoom level
+        const listener = google.maps.event.addListener(map, 'idle', function() {
+            if (map.getZoom() > 17) map.setZoom(17);
+            google.maps.event.removeListener(listener);
+        });
+    }
+}
+
+// Update Leaflet markers
+function updateLeafletMarkers(workers) {
+    console.log('🗺️ updateLeafletMarkers called, workers:', workers.length);
+    
+    // Clear existing markers
+    markers.forEach(marker => map.removeLayer(marker));
+    markers = [];
+    console.log('Cleared old markers');
+    
+    // Create custom marker icons
+    const createIcon = (color) => L.divIcon({
+        className: 'custom-marker',
+        html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+    });
+    
+    // Add new markers
+    workers.forEach((worker, index) => {
+        console.log(`Processing worker ${index + 1}:`, worker.name);
+        
+        if (!worker.helmet) {
+            console.warn(`  ⚠️ Worker ${worker.name} has no helmet data`);
+            return;
+        }
+        
+        if (!worker.helmet.lastLocation) {
+            console.warn(`  ⚠️ Worker ${worker.name} has no location data`);
+            return;
+        }
+        
+        const position = [
+            worker.helmet.lastLocation.latitude,
+            worker.helmet.lastLocation.longitude
+        ];
+        console.log(`  📍 Position:`, position);
+        
+        // Determine marker color based on status
+        const status = worker.helmet.status;
+        const battery = worker.helmet.batteryLevel;
+        let markerColor = '#10b981'; // Green - Active
+        let statusText = 'An toàn';
+        
+        if (status === 'OFFLINE' || status === 'INACTIVE') {
+            markerColor = '#94a3b8'; // Gray - Offline
+            statusText = 'Ngoại tuyến';
+        } else if (status === 'ALERT') {
+            markerColor = '#f59e0b'; // Yellow - Alert
+            statusText = 'Cảnh báo';
+        } else if (battery < 20) {
+            markerColor = '#ef4444'; // Red - Low battery
+            statusText = 'Pin yếu';
+        } else if (battery < 50) {
+            markerColor = '#f59e0b'; // Yellow - Warning
+            statusText = 'Cảnh báo';
+        }
+        
+        console.log(`  🎨 Color: ${markerColor}, Status: ${statusText}`);
+        
+        // Create marker
+        const marker = L.marker(position, {
+            icon: createIcon(markerColor)
+        }).addTo(map);
+        
+        console.log(`  ✓ Marker added for ${worker.name}`);
+        
+        // Create popup
+        const popupContent = `
+            <div style="padding: 5px; font-family: Arial, sans-serif; min-width: 200px;">
+                <h3 style="margin: 0 0 8px 0; color: #1e293b; font-size: 14px;">
+                    <i class="fas fa-user"></i> ${worker.name}
+                </h3>
+                <div style="font-size: 12px; color: #64748b;">
+                    <p style="margin: 3px 0;"><strong>Mã mũ:</strong> ${worker.helmet.helmetId}</p>
+                    <p style="margin: 3px 0;"><strong>Trạng thái:</strong> 
+                        <span style="color: ${markerColor}; font-weight: 600;">${statusText}</span>
+                    </p>
+                    <p style="margin: 3px 0;"><strong>Pin:</strong> 
+                        <span style="color: ${battery < 20 ? '#ef4444' : battery < 50 ? '#f59e0b' : '#10b981'};">
+                            ${battery}%
+                        </span>
+                    </p>
+                </div>
+            </div>
+        `;
+        
+        marker.bindPopup(popupContent);
+        marker.workerId = worker.id;
+        markers.push(marker);
+    });
+    
+    console.log(`✅ Total markers added: ${markers.length}`);
+    
+    // Fit map to show all markers
+    if (markers.length > 0) {
+        const group = L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.1));
+        console.log('📍 Map bounds adjusted to show all markers');
+    } else {
+        console.warn('⚠️ No markers to display on map');
+    }
+}
+
+// Display workers list in sidebar
+function displayWorkersList(workers) {
+    const workersList = document.querySelector('.workers-list');
+    if (!workersList) return;
+    
+    if (workers.length === 0) {
+        workersList.innerHTML = '<p style="text-align: center; color: #94a3b8; padding: 2rem;">Không có công nhân nào</p>';
+        return;
+    }
+    
+    workersList.innerHTML = workers.map(worker => {
+        const helmet = worker.helmet || {};
+        const status = helmet.status || 'OFFLINE';
+        const battery = helmet.batteryLevel || 0;
+        const helmetId = helmet.helmetId || 'N/A';
+        
+        // Determine status info
+        let statusClass, statusIcon, statusText;
+        if (status === 'OFFLINE') {
+            statusClass = 'offline';
+            statusIcon = 'fa-power-off';
+            statusText = 'Ngoại tuyến';
+        } else if (battery < 20) {
+            statusClass = 'danger';
+            statusIcon = 'fa-exclamation-triangle';
+            statusText = 'Pin yếu';
+        } else if (battery < 50) {
+            statusClass = 'warning';
+            statusIcon = 'fa-exclamation-circle';
+            statusText = 'Cảnh báo';
+        } else {
+            statusClass = 'active';
+            statusIcon = 'fa-check-circle';
+            statusText = 'An toàn';
+        }
+        
+        return `
+            <div class="worker-item" onclick="centerMapOnWorker(${worker.id})">
+                <div class="worker-info">
+                    <div class="worker-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div>
+                        <h4>${worker.name}</h4>
+                        <p>${helmetId}</p>
+                    </div>
+                </div>
+                <div class="worker-meta">
+                    <span class="worker-status ${statusClass}">
+                        <i class="fas ${statusIcon}"></i> ${statusText}
+                    </span>
+                    <span class="battery-level">
+                        <i class="fas fa-battery-${battery > 80 ? 'full' : battery > 60 ? 'three-quarters' : battery > 40 ? 'half' : battery > 20 ? 'quarter' : 'empty'}"></i>
+                        ${battery}%
+                    </span>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    updateStatusCards(workers);
+}
+
+// Center map on specific worker
+function centerMapOnWorker(workerId) {
+    const worker = workersData.find(w => w.id === workerId);
+    if (!worker || !worker.helmet || !worker.helmet.lastLocation) {
+        showNotification('Không tìm thấy vị trí công nhân', 'error');
+        return;
+    }
+    
+    const lat = worker.helmet.lastLocation.latitude;
+    const lng = worker.helmet.lastLocation.longitude;
+    
+    if (map.isLeaflet) {
+        // Leaflet map
+        map.setView([lat, lng], 18);
+        
+        // Find and open popup
+        const marker = markers.find(m => m.workerId === workerId);
+        if (marker) {
+            marker.openPopup();
+        }
+    } else {
+        // Google Maps
+        const position = { lat, lng };
+        map.setCenter(position);
+        map.setZoom(18);
+        
+        // Find and click the marker to show info window
+        const marker = markers.find((m) => {
+            const markerPos = m.getPosition();
+            return Math.abs(markerPos.lat() - lat) < 0.00001 && 
+                   Math.abs(markerPos.lng() - lng) < 0.00001;
+        });
+        
+        if (marker && marker.infoWindow) {
+            // Close all other info windows
+            markers.forEach(m => {
+                if (m.infoWindow) m.infoWindow.close();
+            });
+            marker.infoWindow.open(map, marker);
+        }
+    }
+    
+    showNotification(`Đang hiển thị vị trí của ${worker.name}`, 'info');
+}
+
+// Toggle fullscreen
+function toggleFullscreen() {
+    const mapCard = document.querySelector('.map-card');
+    
+    if (!document.fullscreenElement) {
+        mapCard.requestFullscreen().catch(err => {
+            console.log(`Error attempting to enable fullscreen: ${err.message}`);
+        });
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+// Sync data - reload from API
+async function syncData() {
+    const btn = document.querySelector('.btn-primary');
+    if (!btn) return;
+    
+    const originalHTML = btn.innerHTML;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang đồng bộ...';
+    
+    try {
+        await loadWorkers();
+        
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        
+        // Update timestamp
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('vi-VN');
+        const subtitle = document.querySelector('.map-subtitle');
+        if (subtitle) {
+            subtitle.textContent = `Cập nhật vị trí mới nhất: ${timeString}`;
+        }
+        
+        showNotification('Đã đồng bộ dữ liệu thành công!', 'success');
+        
+    } catch (error) {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        showNotification('Lỗi khi đồng bộ dữ liệu', 'error');
+    }
+}
+
+// Update status cards with workers statistics
+function updateStatusCards(workers) {
+    if (!workers || workers.length === 0) return;
+    
+    const total = workers.length;
+    const active = workers.filter(w => w.helmet && w.helmet.status === 'ACTIVE').length;
+    const warning = workers.filter(w => w.helmet && w.helmet.status === 'ACTIVE' && w.helmet.batteryLevel < 50 && w.helmet.batteryLevel >= 20).length;
+    const offline = workers.filter(w => !w.helmet || w.helmet.status === 'OFFLINE').length;
+    
+    const statusValues = document.querySelectorAll('.status-value');
+    if (statusValues[0]) statusValues[0].textContent = total;
+    if (statusValues[1]) statusValues[1].textContent = active;
+    if (statusValues[2]) statusValues[2].textContent = warning;
+    if (statusValues[3]) statusValues[3].textContent = offline;
+    
+    statusValues.forEach(value => {
+        value.style.transform = 'scale(1.1)';
+        value.style.transition = 'transform 0.2s ease';
+        
+        setTimeout(() => {
+            value.style.transform = 'scale(1)';
+        }, 200);
+    });
+}
+
+// Show notification
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        padding: 1rem 1.5rem;
+        background-color: ${type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#2563eb'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        animation: slideIn 0.3s ease-out;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
+
+// Make functions globally accessible
+window.centerMapOnWorker = centerMapOnWorker;
+window.syncData = syncData;
+
+// Make sure Google Maps callback is available
+window.initMap = initializeMap;

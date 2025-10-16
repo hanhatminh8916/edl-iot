@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            color: #1e293b;
+        }
+    </style>
+</head>
+<body>
+    <h1>🗺️ Test Leaflet Map</h1>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        console.log('Leaflet loaded:', typeof L !== 'undefined');
+        
+        // Initialize map
+        const map = L.map('map').setView([10.8231, 106.6297], 15);
+        
+        // Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+        
+        console.log('Map initialized');
+        
+        // Add some test markers
+        const workers = [
+            { name: 'Nguyễn Văn An', lat: 10.8231, lng: 106.6297, color: '#10b981' },
+            { name: 'Trần Thị Bình', lat: 10.8241, lng: 106.6307, color: '#f59e0b' },
+            { name: 'Lê Văn Cường', lat: 10.8251, lng: 106.6287, color: '#10b981' },
+            { name: 'Phạm Thị Dung', lat: 10.8221, lng: 106.6317, color: '#ef4444' },
+            { name: 'Hoàng Văn Em', lat: 10.8261, lng: 106.6277, color: '#94a3b8' }
+        ];
+        
+        workers.forEach(worker => {
+            const icon = L.divIcon({
+                className: 'custom-marker',
+                html: `<div style="background-color: ${worker.color}; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+            
+            const marker = L.marker([worker.lat, worker.lng], { icon: icon }).addTo(map);
+            marker.bindPopup(`<b>${worker.name}</b><br>Vị trí: ${worker.lat}, ${worker.lng}`);
+        });
+        
+        console.log('Added', workers.length, 'markers');
+    </script>
+</body>
+</html>

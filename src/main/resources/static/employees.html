@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDL SafeWork - Quản lý công nhân</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/employees.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <i class="fas fa-hard-hat"></i>
+            <h1>EDL SafeWork</h1>
+        </div>
+        <div class="header-center">
+            <h2>Hệ thống giám sát công trường</h2>
+        </div>
+        <div class="header-right">
+            <div class="notification-icon">
+                <i class="fas fa-bell"></i>
+                <span class="badge">3</span>
+            </div>
+            <div class="admin-profile">
+                <i class="fas fa-user-circle"></i>
+                <span>Admin</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <nav class="nav-menu">
+                <a href="index.html" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Tổng quan</span>
+                </a>
+                <a href="location.html" class="nav-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Giám sát vị trí</span>
+                </a>
+                <a href="employees.html" class="nav-item active">
+                    <i class="fas fa-users"></i>
+                    <span>Quản lý công nhân</span>
+                </a>
+                <a href="alerts.html" class="nav-item">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Cảnh báo</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Báo cáo</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Cài đặt</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content employees-page">
+            <!-- Page Header -->
+            <div class="page-header">
+                <div>
+                    <h1>Quản lý công nhân</h1>
+                    <p>Thêm, sửa, xóa thông tin công nhân và gán thiết bị</p>
+                </div>
+                <button class="btn-add-employee">
+                    <i class="fas fa-plus"></i>
+                    Thêm công nhân
+                </button>
+            </div>
+
+            <!-- Employee Statistics -->
+            <div class="employee-stats">
+                <div class="employee-stat-card">
+                    <div class="employee-stat-icon total">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="employee-stat-info">
+                        <div class="employee-stat-label">Tổng công nhân</div>
+                        <div class="employee-stat-value">4</div>
+                    </div>
+                </div>
+
+                <div class="employee-stat-card">
+                    <div class="employee-stat-icon active">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div class="employee-stat-info">
+                        <div class="employee-stat-label">Đang hoạt động</div>
+                        <div class="employee-stat-value">2</div>
+                    </div>
+                </div>
+
+                <div class="employee-stat-card">
+                    <div class="employee-stat-icon inactive">
+                        <i class="fas fa-user-times"></i>
+                    </div>
+                    <div class="employee-stat-info">
+                        <div class="employee-stat-label">Cảnh báo</div>
+                        <div class="employee-stat-value">1</div>
+                    </div>
+                </div>
+
+                <div class="employee-stat-card">
+                    <div class="employee-stat-icon offline">
+                        <i class="fas fa-user-slash"></i>
+                    </div>
+                    <div class="employee-stat-info">
+                        <div class="employee-stat-label">Không hoạt động</div>
+                        <div class="employee-stat-value">1</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Employees List -->
+            <div class="card employees-card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-list"></i>
+                        <h3>Danh sách công nhân</h3>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="card-subtitle">Quản lý thông tin chi tiết của từng công nhân</p>
+
+                    <!-- Search and Filter -->
+                    <div class="table-controls">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="employeeSearchInput" placeholder="Tìm kiếm theo tên, số điện thoại hoặc vị trí...">
+                        </div>
+                        <div class="filter-group">
+                            <select class="filter-select" id="filterEmployeeStatus">
+                                <option value="">Tất cả</option>
+                                <option value="active">Đang hoạt động</option>
+                                <option value="inactive">Cảnh báo</option>
+                                <option value="offline">Không hoạt động</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Employees List -->
+                    <div class="employees-list">
+                        <!-- Employee 1 -->
+                        <div class="employee-card" data-status="active">
+                            <div class="employee-header">
+                                <div class="employee-main-info">
+                                    <div class="employee-avatar-large">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <div class="employee-info">
+                                        <h3>Nguyễn Văn An</h3>
+                                        <div class="employee-meta">
+                                            <span class="meta-item">
+                                                <i class="fas fa-phone"></i>
+                                                0902345678
+                                            </span>
+                                            <span class="meta-item">
+                                                <i class="fas fa-map-marker-alt"></i>
+                                                1 - Khu đông
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="employee-actions">
+                                    <button class="btn-icon edit" title="Sửa thông tin">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn-icon delete" title="Xóa">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="employee-details">
+                                <div class="detail-item">
+                                    <i class="fas fa-id-card"></i>
+                                    <span>ID:</span>
+                                    <strong>DEV001</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-clock"></i>
+                                    <span>Thời gian:</span>
+                                    <strong>7.8h</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    <span>Làm việc:</span>
+                                    <strong>2 phút trước</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-battery-three-quarters"></i>
+                                    <span>Pin:</span>
+                                    <strong class="battery-good">78%</strong>
+                                </div>
+                                <div class="detail-item status">
+                                    <span class="status-badge-large active">
+                                        <i class="fas fa-circle"></i>
+                                        Đang làm việc
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Employee 2 -->
+                        <div class="employee-card" data-status="inactive">
+                            <div class="employee-header">
+                                <div class="employee-main-info">
+                                    <div class="employee-avatar-large">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <div class="employee-info">
+                                        <h3>Trần Thị Bình</h3>
+                                        <div class="employee-meta">
+                                            <span class="meta-item">
+                                                <i class="fas fa-phone"></i>
+                                                0902345689
+                                            </span>
+                                            <span class="meta-item">
+                                                <i class="fas fa-map-marker-alt"></i>
+                                                2 - Bắc
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="employee-actions">
+                                    <button class="btn-icon edit" title="Sửa thông tin">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn-icon delete" title="Xóa">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="employee-details">
+                                <div class="detail-item">
+                                    <i class="fas fa-id-card"></i>
+                                    <span>ID:</span>
+                                    <strong>DEV002</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-clock"></i>
+                                    <span>Thời gian:</span>
+                                    <strong>6.2h</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    <span>Làm việc:</span>
+                                    <strong>5 phút trước</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-battery-quarter"></i>
+                                    <span>Pin:</span>
+                                    <strong class="battery-low">25%</strong>
+                                </div>
+                                <div class="detail-item status">
+                                    <span class="status-badge-large warning">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        Cảnh báo
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Employee 3 -->
+                        <div class="employee-card" data-status="active">
+                            <div class="employee-header">
+                                <div class="employee-main-info">
+                                    <div class="employee-avatar-large">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <div class="employee-info">
+                                        <h3>Lê Văn Cường</h3>
+                                        <div class="employee-meta">
+                                            <span class="meta-item">
+                                                <i class="fas fa-phone"></i>
+                                                0902345687
+                                            </span>
+                                            <span class="meta-item">
+                                                <i class="fas fa-map-marker-alt"></i>
+                                                3 - Khu đông
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="employee-actions">
+                                    <button class="btn-icon edit" title="Sửa thông tin">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn-icon delete" title="Xóa">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="employee-details">
+                                <div class="detail-item">
+                                    <i class="fas fa-id-card"></i>
+                                    <span>ID:</span>
+                                    <strong>DEV003</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-clock"></i>
+                                    <span>Thời gian:</span>
+                                    <strong>8.5h</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    <span>Làm việc:</span>
+                                    <strong>Không hoạt động</strong>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-battery-full"></i>
+                                    <span>Pin:</span>
+                                    <strong class="battery-good">92%</strong>
+                                </div>
+                                <div class="detail-item status">
+                                    <span class="status-badge-large inactive">
+                                        <i class="fas fa-circle"></i>
+                                        Không hoạt động
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Employee Modal -->
+    <div id="employeeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Thêm công nhân mới</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="employeeForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="employeeName">Họ và tên <span class="required">*</span></label>
+                            <input type="text" id="employeeName" name="employeeName" required placeholder="Nhập họ và tên">
+                        </div>
+                        <div class="form-group">
+                            <label for="employeePhone">Số điện thoại <span class="required">*</span></label>
+                            <input type="tel" id="employeePhone" name="employeePhone" required placeholder="Nhập số điện thoại">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="employeeId">Mã nhân viên <span class="required">*</span></label>
+                            <input type="text" id="employeeId" name="employeeId" required placeholder="VD: DEV001">
+                        </div>
+                        <div class="form-group">
+                            <label for="employeeLocation">Khu vực <span class="required">*</span></label>
+                            <select id="employeeLocation" name="employeeLocation" required>
+                                <option value="">Chọn khu vực</option>
+                                <option value="1">1 - Khu đông</option>
+                                <option value="2">2 - Bắc</option>
+                                <option value="3">3 - Khu đông</option>
+                                <option value="4">4 - Nam</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="employeeDevice">Thiết bị</label>
+                            <input type="text" id="employeeDevice" name="employeeDevice" placeholder="Mã thiết bị (tùy chọn)">
+                        </div>
+                        <div class="form-group">
+                            <label for="employeeStatus">Trạng thái</label>
+                            <select id="employeeStatus" name="employeeStatus">
+                                <option value="active">Đang hoạt động</option>
+                                <option value="inactive">Không hoạt động</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="employeeNotes">Ghi chú</label>
+                        <textarea id="employeeNotes" name="employeeNotes" rows="3" placeholder="Thêm ghi chú (tùy chọn)"></textarea>
+                    </div>
+                    
+                    <div class="form-section-title">
+                        <i class="fas fa-microchip"></i>
+                        <span>Thông tin phần cứng mũ bảo hộ</span>
+                    </div>
+                    
+                    <div class="hardware-info">
+                        <div class="hardware-item">
+                            <i class="fas fa-microchip"></i>
+                            <span>MCU: ESP32</span>
+                        </div>
+                        <div class="hardware-item">
+                            <i class="fas fa-compass"></i>
+                            <span>IMU: MPU-9250</span>
+                        </div>
+                        <div class="hardware-item">
+                            <i class="fas fa-broadcast-tower"></i>
+                            <span>UWB: DW1000-Qorvo</span>
+                        </div>
+                        <div class="hardware-item">
+                            <i class="fas fa-satellite-dish"></i>
+                            <span>GPS: u-blox NEO-6M</span>
+                        </div>
+                        <div class="hardware-item">
+                            <i class="fas fa-wifi"></i>
+                            <span>RF: NRF24L01+PA+LNA</span>
+                        </div>
+                        <div class="hardware-item">
+                            <i class="fas fa-battery-full"></i>
+                            <span>Monitor: INA219 DC</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel">Hủy</button>
+                <button type="submit" form="employeeForm" class="btn-submit">Lưu thông tin</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script src="js/employees.js"></script>
+</body>
+</html>
