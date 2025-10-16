@@ -56,12 +56,24 @@ public class DataInitializer implements CommandLineRunner {
         workerRepository.save(worker4);
         workerRepository.save(worker5);
 
-        // Create Helmets
-        Helmet helmet1 = createHelmet(1, worker1, HelmetStatus.ACTIVE, 85, 10.762622, 106.660172);
-        Helmet helmet2 = createHelmet(2, worker2, HelmetStatus.ALERT, 45, 10.762800, 106.660300);
-        Helmet helmet3 = createHelmet(3, worker3, HelmetStatus.ACTIVE, 92, 10.762500, 106.660100);
-        Helmet helmet4 = createHelmet(4, worker4, HelmetStatus.INACTIVE, 15, 10.762400, 106.660050);
-        Helmet helmet5 = createHelmet(5, worker5, HelmetStatus.ACTIVE, 78, 10.762700, 106.660250);
+        // Create Helmets with strategic positions
+        // Tâm vòng tròn: 10.7626, 106.6601
+        // Bán kính: 200m
+        
+        // Helmet 1: Trong vòng an toàn (50m từ tâm) - Màu xanh
+        Helmet helmet1 = createHelmet(1, worker1, HelmetStatus.ACTIVE, 85, 10.762800, 106.660300);
+        
+        // Helmet 2: Gần biên, 85% bán kính (170m từ tâm) - Màu cam
+        Helmet helmet2 = createHelmet(2, worker2, HelmetStatus.ACTIVE, 45, 10.764130, 106.660100);
+        
+        // Helmet 3: Ngoài vòng, 120% bán kính (240m từ tâm) - Màu đỏ
+        Helmet helmet3 = createHelmet(3, worker3, HelmetStatus.ACTIVE, 92, 10.764760, 106.660100);
+        
+        // Helmet 4: Trong vòng an toàn (100m từ tâm) - Màu xanh (nhưng INACTIVE nên màu xám)
+        Helmet helmet4 = createHelmet(4, worker4, HelmetStatus.INACTIVE, 15, 10.763500, 106.660100);
+        
+        // Helmet 5: Gần biên, 90% bán kính (180m từ tâm) - Màu cam
+        Helmet helmet5 = createHelmet(5, worker5, HelmetStatus.ACTIVE, 78, 10.760980, 106.660100);
 
         helmetRepository.save(helmet1);
         helmetRepository.save(helmet2);

@@ -45,9 +45,9 @@ function getMarkerColorByDistance(distance) {
     if (percent <= 80) {
         return '#10b981'; // Xanh lá - An toàn (0-80%)
     } else if (percent <= 100) {
-        return '#f59e0b'; // Vàng - Cảnh báo (80-100%)
+        return '#f97316'; // Cam - Gần ra ngoài (80-100%)
     } else {
-        return '#ef4444'; // Đỏ - Nguy hiểm (>100%)
+        return '#ef4444'; // Đỏ - Ngoài vòng (>100%)
     }
 }
 async function loadWorkers() {
