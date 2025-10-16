@@ -1,21 +1,54 @@
 ﻿console.log("location.js loaded");
 var map, markers = [], workersData = [], safeZoneCircle = null;
+// Tọa độ tâm khu vực an toàn (sau này sẽ lấy từ thiết bị beacon/anchor)
+var safeZoneCenter = [10.7626, 106.6601];
+var safeZoneRadius = 200; // Bán kính 200 mét
+
 function initializeMap() {
     console.log("Init map");
-    map = L.map("map").setView([10.7626, 106.6601], 15);
+    map = L.map("map").setView(safeZoneCenter, 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19}).addTo(map);
     
     // Thêm vòng tròn màu xanh - khu vực an toàn
-    safeZoneCircle = L.circle([10.7626, 106.6601], {
+    safeZoneCircle = L.circle(safeZoneCenter, {
         color: '#10b981',      // Màu viền xanh
         fillColor: '#10b981',  // Màu tô xanh
         fillOpacity: 0.2,      // Độ trong suốt 20%
-        radius: 200            // Bán kính 200 mét
+        radius: safeZoneRadius // Bán kính 200 mét
     }).addTo(map);
     
-    safeZoneCircle.bindPopup('<b>Khu vực an toàn</b><br>Bán kính: 200m');
+    safeZoneCircle.bindPopup('<b>Khu vực an toàn</b><br>Bán kính: ' + safeZoneRadius + 'm');
     
     console.log("Map ready");
+}
+
+// Hàm tính khoảng cách giữa 2 điểm (Haversine formula)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    var R = 6371e3; // Bán kính trái đất (mét)
+    var φ1 = lat1 * Math.PI / 180;
+    var φ2 = lat2 * Math.PI / 180;
+    var Δφ = (lat2 - lat1) * Math.PI / 180;
+    var Δλ = (lon2 - lon1) * Math.PI / 180;
+    
+    var a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    
+    return R * c; // Khoảng cách (mét)
+}
+
+// Hàm xác định màu marker dựa trên khoảng cách từ tâm
+function getMarkerColorByDistance(distance) {
+    var percent = (distance / safeZoneRadius) * 100;
+    
+    if (percent <= 80) {
+        return '#10b981'; // Xanh lá - An toàn (0-80%)
+    } else if (percent <= 100) {
+        return '#f59e0b'; // Vàng - Cảnh báo (80-100%)
+    } else {
+        return '#ef4444'; // Đỏ - Nguy hiểm (>100%)
+    }
 }
 async function loadWorkers() {
     console.log("Loading...");
@@ -35,9 +68,33 @@ function updateMapMarkers(workers) {
         var lat = w.helmet.lastLocation.latitude;
         var lon = w.helmet.lastLocation.longitude;
         var battery = w.helmet.batteryLevel;
-        var color = "#10b981";
-        if (w.helmet.status === "ALERT") color = "#f59e0b";
-        if (w.helmet.status === "INACTIVE") color = "#ef4444";
+        
+        // Tính khoảng cách từ worker đến tâm vòng tròn an toàn
+        var distance = calculateDistance(
+            safeZoneCenter[0], safeZoneCenter[1],
+            lat, lon
+        );
+        
+        // Xác định màu dựa trên khoảng cách (ưu tiên cao hơn status)
+        var color = getMarkerColorByDistance(distance);
+        
+        // Nếu helmet INACTIVE (offline) thì vẫn hiển thị màu xám
+        if (w.helmet.status === "INACTIVE") {
+            color = "#6b7280"; // Xám - Offline
+        }
+        
+        // Tạo text mô tả trạng thái
+        var statusText = "";
+        var distancePercent = Math.round((distance / safeZoneRadius) * 100);
+        if (w.helmet.status === "INACTIVE") {
+            statusText = "Offline";
+        } else if (distance > safeZoneRadius) {
+            statusText = "Ngoài khu vực (" + Math.round(distance) + "m)";
+        } else if (distancePercent > 80) {
+            statusText = "Gần biên (" + distancePercent + "%)";
+        } else {
+            statusText = "An toàn (" + Math.round(distance) + "m)";
+        }
         
         // Icon với % pin hiển thị
         var icon = L.divIcon({
@@ -50,7 +107,10 @@ function updateMapMarkers(workers) {
             iconAnchor: [16,16]
         });
         var m = L.marker([lat, lon], {icon: icon}).addTo(map);
-        m.bindPopup("<b>" + w.name + "</b><br>" + w.helmet.helmetId + "<br>Pin: " + w.helmet.batteryLevel + "%");
+        m.bindPopup("<b>" + w.name + "</b><br>" + 
+                   w.helmet.helmetId + "<br>" +
+                   "Pin: " + w.helmet.batteryLevel + "%<br>" +
+                   "<b>" + statusText + "</b>");
         m.workerId = w.id;
         markers.push(m);
     });
