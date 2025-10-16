@@ -37,6 +37,12 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) {
         log.info("Initializing sample data...");
 
+        // Check if data already exists
+        if (workerRepository.count() > 0) {
+            log.info("Data already exists. Skipping initialization.");
+            return;
+        }
+
         // Create Workers
         Worker worker1 = createWorker("Nguyễn Văn An", "NV001", "Kỹ thuật viên", "Phòng Kỹ Thuật", "0901234567");
         Worker worker2 = createWorker("Trần Thị Bình", "NV002", "Giám sát", "Phòng Quản Lý", "0902345678");

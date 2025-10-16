@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:rgb(102,126,234);stop-opacity:0.1" />
+      <stop offset="100%" style="stop-color:rgb(118,75,162);stop-opacity:0.1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="400" height="300" fill="url(#grad1)"/>
+  
+  <!-- Construction Worker with Hard Hat -->
+  <g transform="translate(200, 150)">
+    <!-- Body -->
+    <rect x="-30" y="20" width="60" height="80" rx="10" fill="#667eea" opacity="0.8"/>
+    
+    <!-- Arms -->
+    <rect x="-50" y="30" width="20" height="60" rx="8" fill="#667eea" opacity="0.7"/>
+    <rect x="30" y="30" width="20" height="60" rx="8" fill="#667eea" opacity="0.7"/>
+    
+    <!-- Head -->
+    <circle cx="0" cy="0" r="35" fill="#fbbf24" opacity="0.9"/>
+    
+    <!-- Hard Hat -->
+    <ellipse cx="0" cy="-35" rx="40" ry="12" fill="#ef4444"/>
+    <rect x="-40" y="-35" width="80" height="25" rx="5" fill="#ef4444"/>
+    <rect x="-5" y="-45" width="10" height="10" rx="2" fill="#fee2e2"/>
+    
+    <!-- Face -->
+    <circle cx="-12" cy="-5" r="4" fill="#1f2937"/>
+    <circle cx="12" cy="-5" r="4" fill="#1f2937"/>
+    <path d="M -10 10 Q 0 15 10 10" stroke="#1f2937" stroke-width="2" fill="none"/>
+    
+    <!-- Safety Vest Lines -->
+    <rect x="-25" y="35" width="50" height="4" fill="#fbbf24"/>
+    <rect x="-25" y="55" width="50" height="4" fill="#fbbf24"/>
+  </g>
+  
+  <!-- Safety Icons -->
+  <g opacity="0.3">
+    <!-- Shield Icon -->
+    <path d="M 50 50 L 70 50 L 70 80 Q 60 90 50 80 Z" fill="#10b981"/>
+    
+    <!-- Warning Icon -->
+    <polygon points="350,50 370,80 330,80" fill="#f59e0b"/>
+    <circle cx="350" cy="68" r="3" fill="#fff"/>
+    <rect x="348" y="58" width="4" height="8" fill="#fff"/>
+    
+    <!-- Check Icon -->
+    <circle cx="60" cy="240" r="20" fill="#10b981" opacity="0.5"/>
+    <path d="M 52 240 L 58 246 L 68 234" stroke="#fff" stroke-width="3" fill="none"/>
+    
+    <!-- Location Icon -->
+    <path d="M 340 220 Q 340 210 350 210 Q 360 210 360 220 Q 360 235 350 245 Q 340 235 340 220 Z" fill="#3b82f6"/>
+    <circle cx="350" cy="220" r="5" fill="#fff"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="200" y="270" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#667eea">
+    EDL SafeWork System
+  </text>
+</svg>

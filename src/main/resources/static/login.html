@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDL SafeWork - Đăng nhập</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .login-container {
+            display: flex;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            max-width: 1000px;
+            width: 100%;
+            min-height: 600px;
+        }
+
+        .login-left {
+            flex: 1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-left::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .login-left-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+
+        .logo-container {
+            margin-bottom: 2rem;
+        }
+
+        .logo-icon {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+        }
+
+        .logo-text {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .logo-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .illustration {
+            max-width: 100%;
+            height: auto;
+            margin-top: 2rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .login-right {
+            flex: 1;
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .login-header {
+            margin-bottom: 2rem;
+        }
+
+        .login-header h2 {
+            font-size: 2rem;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-header p {
+            color: #6b7280;
+            font-size: 0.95rem;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-weight: 500;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 1rem;
+            color: #9ca3af;
+            font-size: 1.1rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.875rem 1rem 0.875rem 3rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 0.5rem;
+            transition: color 0.2s;
+        }
+
+        .password-toggle:hover {
+            color: #667eea;
+        }
+
+        .form-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            color: #4b5563;
+        }
+
+        .remember-me input[type="checkbox"] {
+            width: 1.1rem;
+            height: 1.1rem;
+            cursor: pointer;
+        }
+
+        .forgot-password {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .forgot-password:hover {
+            color: #764ba2;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-login::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-login:hover::before {
+            left: 100%;
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .error-message {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 0.875rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .error-message.show {
+            display: flex;
+        }
+
+        .error-message i {
+            font-size: 1.2rem;
+        }
+
+        .success-message {
+            background-color: #d1fae5;
+            color: #065f46;
+            padding: 0.875rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .success-message.show {
+            display: flex;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1.5rem 0;
+            color: #9ca3af;
+            font-size: 0.875rem;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background-color: #e5e7eb;
+        }
+
+        .social-login {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .btn-social {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .btn-social:hover {
+            border-color: #667eea;
+            background-color: #f9fafb;
+        }
+
+        @media (max-width: 768px) {
+            .login-container {
+                flex-direction: column;
+            }
+
+            .login-left {
+                padding: 2rem;
+                min-height: 250px;
+            }
+
+            .logo-icon {
+                font-size: 3rem;
+            }
+
+            .logo-text {
+                font-size: 1.75rem;
+            }
+
+            .illustration {
+                display: none;
+            }
+
+            .login-right {
+                padding: 2rem;
+            }
+
+            .login-header h2 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <!-- Left Side -->
+        <div class="login-left">
+            <div class="login-left-content">
+                <div class="logo-container">
+                    <div class="logo-icon">
+                        <i class="fas fa-hard-hat"></i>
+                    </div>
+                    <h1 class="logo-text">EDL SafeWork</h1>
+                    <p class="logo-subtitle">Hệ thống giám sát an toàn lao động</p>
+                </div>
+                <img src="images/images.png" alt="Safety Illustration" class="illustration">
+            </div>
+        </div>
+
+        <!-- Right Side -->
+        <div class="login-right">
+            <div class="login-header">
+                <h2>Chào mừng trở lại!</h2>
+                <p>Đăng nhập để tiếp tục quản lý hệ thống</p>
+            </div>
+
+            <form class="login-form" id="loginForm">
+                <div class="error-message" id="errorMessage">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span id="errorText">Tên đăng nhập hoặc mật khẩu không đúng!</span>
+                </div>
+
+                <div class="success-message" id="successMessage">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Đăng nhập thành công! Đang chuyển hướng...</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="username">Tên đăng nhập</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-user input-icon"></i>
+                        <input 
+                            type="text" 
+                            id="username" 
+                            name="username" 
+                            class="form-control" 
+                            placeholder="Nhập tên đăng nhập"
+                            required
+                            autocomplete="username"
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Mật khẩu</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            class="form-control" 
+                            placeholder="Nhập mật khẩu"
+                            required
+                            autocomplete="current-password"
+                        >
+                        <button type="button" class="password-toggle" id="togglePassword">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-options">
+                    <label class="remember-me">
+                        <input type="checkbox" id="rememberMe">
+                        <span>Ghi nhớ đăng nhập</span>
+                    </label>
+                    <a href="#" class="forgot-password">Quên mật khẩu?</a>
+                </div>
+
+                <button type="submit" class="btn-login">
+                    <i class="fas fa-sign-in-alt"></i> Đăng nhập
+                </button>
+            </form>
+
+            <div class="divider">hoặc đăng nhập với</div>
+
+            <div class="social-login">
+                <button class="btn-social" onclick="alert('Chức năng đang phát triển')">
+                    <i class="fab fa-google" style="color: #ea4335;"></i>
+                    Google
+                </button>
+                <button class="btn-social" onclick="alert('Chức năng đang phát triển')">
+                    <i class="fab fa-microsoft" style="color: #00a4ef;"></i>
+                    Microsoft
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toggle password visibility
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+
+        togglePassword.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            const icon = this.querySelector('i');
+            icon.classList.toggle('fa-eye');
+            icon.classList.toggle('fa-eye-slash');
+        });
+
+        // Handle login form submission
+        const loginForm = document.getElementById('loginForm');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const usernameInput = document.getElementById('username');
+        const rememberMeCheckbox = document.getElementById('rememberMe');
+
+        // Check if user has saved credentials
+        window.addEventListener('DOMContentLoaded', function() {
+            const savedUsername = localStorage.getItem('savedUsername');
+            if (savedUsername) {
+                usernameInput.value = savedUsername;
+                rememberMeCheckbox.checked = true;
+            }
+        });
+
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = usernameInput.value;
+            const password = passwordInput.value;
+            
+            // Hide messages
+            errorMessage.classList.remove('show');
+            successMessage.classList.remove('show');
+            
+            // Validate credentials
+            if (username === 'vku123' && password === 'emdeplam123') {
+                // Show success message
+                successMessage.classList.add('show');
+                
+                // Save username if remember me is checked
+                if (rememberMeCheckbox.checked) {
+                    localStorage.setItem('savedUsername', username);
+                } else {
+                    localStorage.removeItem('savedUsername');
+                }
+                
+                // Save login state
+                sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('username', username);
+                
+                // Redirect after 1 second
+                setTimeout(function() {
+                    window.location.href = 'index.html';
+                }, 1000);
+            } else {
+                // Show error message
+                errorMessage.classList.add('show');
+                
+                // Shake animation
+                loginForm.style.animation = 'shake 0.5s';
+                setTimeout(() => {
+                    loginForm.style.animation = '';
+                }, 500);
+            }
+        });
+
+        // Forgot password handler
+        document.querySelector('.forgot-password').addEventListener('click', function(e) {
+            e.preventDefault();
+            alert('Vui lòng liên hệ quản trị viên để đặt lại mật khẩu.\nEmail: admin@edlsafework.com\nHotline: 1900-xxxx');
+        });
+
+        // Add shake animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-10px); }
+                75% { transform: translateX(10px); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
