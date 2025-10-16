@@ -138,20 +138,6 @@ function displayWorkers(workers) {
     }).join('');
 }
 
-// Update employee statistics
-function updateEmployeeStats() {
-    const total = allWorkers.length;
-    const active = allWorkers.filter(w => w.helmet?.status === 'ACTIVE').length;
-    const inactive = allWorkers.filter(w => !w.helmet || w.helmet?.status !== 'ACTIVE').length;
-    const lowBattery = allWorkers.filter(w => w.helmet && w.helmet.batteryLevel < 20).length;
-    
-    const statValues = document.querySelectorAll('.stat-value');
-    if (statValues[0]) statValues[0].textContent = total;
-    if (statValues[1]) statValues[1].textContent = active;
-    if (statValues[2]) statValues[2].textContent = inactive;
-    if (statValues[3]) statValues[3].textContent = lowBattery;
-}
-
 function getStatusText(status) {
     const statuses = {
         'ACTIVE': 'Đang làm',
