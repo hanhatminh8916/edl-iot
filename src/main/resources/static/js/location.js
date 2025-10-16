@@ -1,9 +1,20 @@
 ﻿console.log("location.js loaded");
-var map, markers = [], workersData = [];
+var map, markers = [], workersData = [], safeZoneCircle = null;
 function initializeMap() {
     console.log("Init map");
     map = L.map("map").setView([10.7626, 106.6601], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19}).addTo(map);
+    
+    // Thêm vòng tròn màu xanh - khu vực an toàn
+    safeZoneCircle = L.circle([10.7626, 106.6601], {
+        color: '#10b981',      // Màu viền xanh
+        fillColor: '#10b981',  // Màu tô xanh
+        fillOpacity: 0.2,      // Độ trong suốt 20%
+        radius: 200            // Bán kính 200 mét
+    }).addTo(map);
+    
+    safeZoneCircle.bindPopup('<b>Khu vực an toàn</b><br>Bán kính: 200m');
+    
     console.log("Map ready");
 }
 async function loadWorkers() {
