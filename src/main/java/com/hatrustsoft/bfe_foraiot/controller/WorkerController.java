@@ -41,6 +41,7 @@ public class WorkerController {
         w.setPosition((String) payload.getOrDefault("position", ""));
         w.setDepartment((String) payload.getOrDefault("department", ""));
         w.setPhoneNumber((String) payload.getOrDefault("phone", ""));
+        w.setStatus(Worker.WorkerStatus.ACTIVE); // Set default status
         w.setCreatedAt(LocalDateTime.now());
         w.setUpdatedAt(LocalDateTime.now());
 

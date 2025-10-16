@@ -254,15 +254,16 @@ async function saveEmployee() {
 
             if (res.ok) {
                 showNotification('Đã thêm công nhân thành công', 'success');
+                closeEmployeeModal();
+                form.reset();
+                delete form.dataset.workerId;
+                await loadWorkers(); // Reload the list
             } else {
-                showNotification('Lỗi khi thêm công nhân', 'error');
+                const errorText = await res.text();
+                console.error('Server error:', errorText);
+                showNotification('Lỗi khi thêm công nhân: ' + res.status, 'error');
             }
         }
-        
-        closeEmployeeModal();
-        form.reset();
-        delete form.dataset.workerId;
-        await loadWorkers(); // Reload the list
         
     } catch (error) {
         console.error('Error saving worker:', error);
