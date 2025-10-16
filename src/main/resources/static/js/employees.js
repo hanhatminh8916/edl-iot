@@ -49,9 +49,10 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load workers from API
 async function loadWorkers() {
     try {
-        const response = await fetch(`${API_BASE_URL}/dashboard/workers`);
+        const response = await fetch(`${API_BASE_URL}/workers`);
         allWorkers = await response.json();
-        
+
+        // Backend returns list of worker objects with helmet info
         displayWorkers(allWorkers);
         updateEmployeeStats();
     } catch (error) {
@@ -62,7 +63,7 @@ async function loadWorkers() {
 
 // Display workers in grid
 function displayWorkers(workers) {
-    const grid = document.querySelector('.employees-grid');
+    const grid = document.querySelector('.employees-list');
     if (!grid) return;
     
     if (workers.length === 0) {
@@ -97,11 +98,11 @@ function displayWorkers(workers) {
                     </div>
                 </div>
                 <div class="employee-info">
-                    <h3>${worker.name || 'N/A'}</h3>
+                    <h3>${worker.name || worker.fullName || 'N/A'}</h3>
                     <div class="employee-meta">
                         <span class="meta-item">
                             <i class="fas fa-phone"></i>
-                            ${worker.phone || 'N/A'}
+                            ${worker.phone || worker.phoneNumber || 'N/A'}
                         </span>
                         <span class="meta-item">
                             <i class="fas fa-map-marker-alt"></i>
@@ -114,10 +115,10 @@ function displayWorkers(workers) {
                         <span>Mã CN:</span>
                         <strong>${worker.employeeId || 'N/A'}</strong>
                     </div>
-                    <div class="detail-item">
-                        <span>Mũ:</span>
-                        <strong>${helmet?.helmetId || 'Chưa gán'}</strong>
-                    </div>
+                        <div class="detail-item">
+                            <span>Mũ:</span>
+                            <strong>${helmet?.helmetId || (helmet && helmet.helmetId) || 'Chưa gán'}</strong>
+                        </div>
                     <div class="detail-item">
                         <span>Pin:</span>
                         <div class="battery-indicator ${batteryClass}">
@@ -239,7 +240,7 @@ async function saveEmployee() {
         name: formData.get('employeeName'),
         phone: formData.get('employeePhone'),
         employeeId: formData.get('employeeId'),
-        position: formData.get('employeePosition') || ''
+        position: formData.get('employeeLocation') || ''
     };
     
     // Validate
@@ -253,15 +254,23 @@ async function saveEmployee() {
         let response;
         
         if (workerId) {
-            // Update existing worker - Note: API endpoint needs to be created
+            // Update existing worker - endpoint not implemented yet
             showNotification('Chức năng cập nhật đang được phát triển', 'info');
             closeEmployeeModal();
             return;
         } else {
-            // Create new worker - Note: API endpoint needs to be created  
-            showNotification('Chức năng thêm mới đang được phát triển', 'info');
-            closeEmployeeModal();
-            return;
+            // Create new worker - call backend
+            const res = await fetch(`${API_BASE_URL}/workers`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(workerData)
+            });
+
+            if (res.ok) {
+                showNotification('Đã thêm công nhân thành công', 'success');
+            } else {
+                showNotification('Lỗi khi thêm công nhân', 'error');
+            }
         }
         
         closeEmployeeModal();

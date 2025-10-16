@@ -49,12 +49,45 @@ public class DashboardService {
         return data;
     }
 
-    public List<Helmet> getWorkersList(String status) {
-        if (status != null && !status.isEmpty()) {
-            HelmetStatus helmetStatus = HelmetStatus.valueOf(status.toUpperCase());
-            return helmetRepository.findByStatus(helmetStatus);
-        }
-        return helmetRepository.findAll();
+    public List<Map<String, Object>> getWorkersList(String status) {
+        // Build a worker view list that the frontend expects
+        List<Worker> workers = workerRepository.findAll();
+        List<Helmet> allHelmets = helmetRepository.findAll();
+
+        return workers.stream().map(worker -> {
+            Map<String, Object> w = new HashMap<>();
+            w.put("id", worker.getId());
+            w.put("name", worker.getFullName());
+            w.put("employeeId", worker.getEmployeeId());
+            w.put("position", worker.getPosition());
+            w.put("department", worker.getDepartment());
+            w.put("phone", worker.getPhoneNumber());
+
+            // find helmet assigned to this worker (if any)
+            Helmet helmet = allHelmets.stream()
+                    .filter(h -> h.getWorker() != null && h.getWorker().getId().equals(worker.getId()))
+                    .findFirst().orElse(null);
+
+            if (helmet != null) {
+                Map<String, Object> helmetMap = new HashMap<>();
+                helmetMap.put("id", helmet.getId());
+                helmetMap.put("helmetId", "HELMET-" + String.format("%03d", helmet.getHelmetId()));
+                helmetMap.put("batteryLevel", helmet.getBatteryLevel() != null ? helmet.getBatteryLevel() : 0);
+                helmetMap.put("status", helmet.getStatus() != null ? helmet.getStatus().name() : null);
+                Map<String, Object> lastLocation = null;
+                if (helmet.getLastLat() != null && helmet.getLastLon() != null) {
+                    lastLocation = new HashMap<>();
+                    lastLocation.put("latitude", helmet.getLastLat());
+                    lastLocation.put("longitude", helmet.getLastLon());
+                }
+                helmetMap.put("lastLocation", lastLocation);
+                w.put("helmet", helmetMap);
+            } else {
+                w.put("helmet", null);
+            }
+
+            return w;
+        }).toList();
     }
 
     public List<Map<String, Object>> getMapPositions() {
