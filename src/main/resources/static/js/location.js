@@ -19,6 +19,24 @@ function initializeMap() {
     
     safeZoneCircle.bindPopup('<b>Khu vực an toàn</b><br>Bán kính: ' + safeZoneRadius + 'm');
     
+    // Thêm nhãn Hoàng Sa (Paracel Islands)
+    var hoangSaIcon = L.divIcon({
+        className: 'island-label',
+        html: '<div style="background:rgba(255,255,255,0.95);padding:6px 12px;border-radius:6px;border:2px solid #ef4444;box-shadow:0 2px 8px rgba(0,0,0,0.2);white-space:nowrap;font-weight:bold;color:#1f2937;font-size:13px;">🇻🇳 Quần đảo HOÀNG SA<br><span style="font-size:11px;color:#6b7280;">(Việt Nam)</span></div>',
+        iconSize: [140, 45],
+        iconAnchor: [70, 22]
+    });
+    L.marker([16.5, 112.0], {icon: hoangSaIcon}).addTo(map);
+    
+    // Thêm nhãn Trường Sa (Spratly Islands)
+    var truongSaIcon = L.divIcon({
+        className: 'island-label',
+        html: '<div style="background:rgba(255,255,255,0.95);padding:6px 12px;border-radius:6px;border:2px solid #ef4444;box-shadow:0 2px 8px rgba(0,0,0,0.2);white-space:nowrap;font-weight:bold;color:#1f2937;font-size:13px;">🇻🇳 Quần đảo TRƯỜNG SA<br><span style="font-size:11px;color:#6b7280;">(Việt Nam)</span></div>',
+        iconSize: [140, 45],
+        iconAnchor: [70, 22]
+    });
+    L.marker([10.0, 114.0], {icon: truongSaIcon}).addTo(map);
+    
     // Thêm text Hoàng Sa, Trường Sa thuộc Việt Nam
     var sovereigntyControl = L.control({position: 'bottomright'});
     sovereigntyControl.onAdd = function(map) {
