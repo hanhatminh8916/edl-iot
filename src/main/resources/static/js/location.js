@@ -19,6 +19,15 @@ function initializeMap() {
     
     safeZoneCircle.bindPopup('<b>Khu vực an toàn</b><br>Bán kính: ' + safeZoneRadius + 'm');
     
+    // Thêm text Hoàng Sa, Trường Sa thuộc Việt Nam
+    var sovereigntyControl = L.control({position: 'bottomright'});
+    sovereigntyControl.onAdd = function(map) {
+        var div = L.DomUtil.create('div', 'sovereignty-note');
+        div.innerHTML = '<span style="font-size:10px;color:#6b7280;background:rgba(255,255,255,0.9);padding:4px 8px;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,0.1);display:inline-block;">🇻🇳 Hoàng Sa, Trường Sa thuộc Việt Nam</span>';
+        return div;
+    };
+    sovereigntyControl.addTo(map);
+    
     console.log("Map ready");
 }
 

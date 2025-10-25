@@ -43,9 +43,11 @@
             console.log('Initializing map...');
             map = L.map('map').setView([10.7626, 106.6601], 15);
             
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 19
+            // Use CartoDB Positron (no labels) to avoid Chinese text on tiles
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+                attribution: '© OpenStreetMap contributors, © CartoDB',
+                maxZoom: 19,
+                subdomains: 'abcd'
             }).addTo(map);
             
             console.log('✓ Map initialized');
@@ -134,8 +136,43 @@
         window.addEventListener('load', function() {
             console.log('Window loaded');
             initMap();
+            // Add Vietnamese labels for the two archipelagos so they display regardless of tile language
+            addArchipelagoLabels();
             setTimeout(loadData, 500);
         });
+
+        // Add permanent labels for Hoàng Sa and Trường Sa (overlay on top of base tiles)
+        function addArchipelagoLabels() {
+            if (!map) return;
+
+            const labels = [
+                { name: 'Hoàng Sa', lat: 16.5, lon: 112.0 },
+                { name: 'Trường Sa', lat: 8.8, lon: 114.3 }
+            ];
+
+            labels.forEach(l => {
+                const labelIcon = L.divIcon({
+                    className: 'archipelago-label',
+                    html: `<div style="background: rgba(255,255,255,0.95); padding: 8px 16px; border-radius: 6px; border: 2px solid #0066cc; font-weight:700; font-size:18px; color:#0066cc; box-shadow: 0 2px 8px rgba(0,0,0,0.25); white-space: nowrap;">${l.name}</div>`,
+                    iconSize: null
+                });
+
+                // Use marker with interactive=false so it doesn't capture clicks
+                L.marker([l.lat, l.lon], { icon: labelIcon, interactive: false }).addTo(map);
+            });
+
+            // Add sovereignty statement label in the middle
+            const midLat = (16.5 + 8.8) / 2;  // Between Hoàng Sa and Trường Sa
+            const midLon = (112.0 + 114.3) / 2;
+            
+            const statementIcon = L.divIcon({
+                className: 'sovereignty-label',
+                html: `<div style="background: rgba(255,255,255,0.9); padding: 4px 10px; border-radius: 4px; border: 1px solid #da251d; font-weight:600; font-size:12px; color:#da251d; box-shadow: 0 1px 4px rgba(0,0,0,0.2); white-space: nowrap;">Hoàng Sa, Trường Sa là của Việt Nam</div>`,
+                iconSize: null
+            });
+
+            L.marker([midLat, midLon], { icon: statementIcon, interactive: false }).addTo(map);
+        }
     </script>
 </body>
 </html>
