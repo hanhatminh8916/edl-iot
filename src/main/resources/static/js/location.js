@@ -33,9 +33,9 @@ function initializeMap() {
         className: 'island-label',
         html: '<div style="background:#ffffff;padding:12px 20px;border-radius:8px;border:3px solid #ef4444;box-shadow:0 4px 12px rgba(0,0,0,0.3);white-space:nowrap;font-weight:bold;color:#1f2937;font-size:16px;">🇻🇳 Quần đảo TRƯỜNG SA<br><span style="font-size:14px;color:#6b7280;">(Việt Nam)</span></div>',
         iconSize: [240, 70],
-        iconAnchor: [120, 35]
+        iconAnchor: [120, 0]
     });
-    L.marker([10.0, 114.0], {icon: truongSaIcon}).addTo(map);
+    L.marker([9.8, 113.9], {icon: truongSaIcon}).addTo(map);
     
     // Thêm text Hoàng Sa, Trường Sa thuộc Việt Nam
     var sovereigntyControl = L.control({position: 'bottomright'});
