@@ -177,6 +177,46 @@ public class MessengerWebhookController {
         String responseText;
 
         switch (payload) {
+            case "GET_STARTED":
+                responseText = "👋 Xin chào! Chào mừng bạn đến với hệ thống quản lý mũ bảo hộ thông minh!\n\n" +
+                        "📋 Tôi có thể giúp gì cho bạn?\n\n" +
+                        "Gõ 'help' để xem các lệnh có sẵn hoặc sử dụng menu bên trái.";
+                break;
+
+            case "MENU_HOME":
+                responseText = "🏠 TRANG CHỦ\n\n" +
+                        "Chào mừng bạn đến với hệ thống quản lý mũ bảo hộ thông minh.\n\n" +
+                        "Gõ 'help' để xem hướng dẫn!";
+                break;
+
+            case "MENU_HELP":
+                responseText = "📋 HƯỚNG DẪN SỬ DỤNG\n\n" +
+                        "Các lệnh có sẵn:\n\n" +
+                        "• 'subscribe' - Đăng ký nhận thông báo\n" +
+                        "• 'unsubscribe' - Hủy nhận thông báo\n" +
+                        "• 'status' - Kiểm tra trạng thái\n" +
+                        "• 'link [mã nhân viên]' - Liên kết với mã nhân viên\n\n" +
+                        "Hoặc sử dụng menu bên trái để truy cập nhanh!";
+                break;
+
+            case "MENU_SUBSCRIBE":
+                responseText = "✅ Bạn đã đăng ký nhận thông báo cảnh báo nguy hiểm!\n\n" +
+                        "Bạn sẽ nhận được tin nhắn ngay lập tức khi có:\n" +
+                        "🚨 Cảnh báo khí độc\n" +
+                        "🚨 Cảnh báo va đập\n" +
+                        "🚨 Cảnh báo nhiệt độ cao\n\n" +
+                        "Gõ 'unsubscribe' để hủy đăng ký.";
+                // TODO: Cập nhật subscribed = true trong database
+                break;
+
+            case "MENU_STATUS":
+                responseText = "📊 TRẠNG THÁI CỦA BẠN\n\n" +
+                        "✅ Đã đăng ký nhận thông báo\n" +
+                        "🆔 Messenger ID: " + senderId + "\n\n" +
+                        "Để liên kết với mã nhân viên, gõ:\n" +
+                        "link [mã nhân viên của bạn]";
+                break;
+
             case "ALERT_HANDLED":
                 responseText = "✅ Cảm ơn bạn đã xác nhận đã xử lý cảnh báo!";
                 break;
@@ -188,8 +228,7 @@ public class MessengerWebhookController {
 
             case "VIEW_LOCATION":
                 responseText = "📍 Xem vị trí chi tiết tại:\n" +
-                        "https://your-dashboard-url.com/location";
-                // TODO: Gửi link với location cụ thể
+                        "https://edl-safework-iot-bf3ee691c9f6.herokuapp.com/location.html";
                 break;
 
             default:
