@@ -1,13 +1,20 @@
 package com.hatrustsoft.bfe_foraiot.controller;
 
-import com.hatrustsoft.bfe_foraiot.dto.MessengerWebhookDTO;
-import com.hatrustsoft.bfe_foraiot.entity.MessengerUser;
-import com.hatrustsoft.bfe_foraiot.service.MessengerService;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.hatrustsoft.bfe_foraiot.dto.MessengerWebhookDTO;
+import com.hatrustsoft.bfe_foraiot.entity.MessengerUser;
+import com.hatrustsoft.bfe_foraiot.service.MessengerService;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Controller xử lý Webhook từ Facebook Messenger
@@ -32,9 +39,29 @@ public class MessengerWebhookController {
      */
     @GetMapping
     public ResponseEntity<?> verifyWebhook(
-            @RequestParam("hub.mode") String mode,
-            @RequestParam("hub.challenge") String challenge,
-            @RequestParam("hub.verify_token") String token) {
+            @RequestParam(value = "hub.mode", required = false) String mode,
+            @RequestParam(value = "hub.challenge", required = false) String challenge,
+            @RequestParam(value = "hub.verify_token", required = false) String token) {
+
+        // Nếu không có parameters, trả về hướng dẫn
+        if (mode == null || challenge == null || token == null) {
+            String instructions = """
+                    ✅ Messenger Webhook Endpoint is READY!
+                    
+                    📋 Setup Instructions:
+                    1. Go to Facebook Developer Console → Your App → Messenger → Settings
+                    2. In Webhooks section, click "Add Callback URL"
+                    3. Enter:
+                       - Callback URL: https://edl-safework-iot-bf3ee691c9f6.herokuapp.com/api/webhook
+                       - Verify Token: BFE_SECURE_VERIFY_TOKEN_2025
+                    4. Click "Verify and Save"
+                    5. Subscribe to webhook fields: messages, messaging_postbacks
+                    
+                    🧪 Test this endpoint:
+                    GET /api/webhook?hub.mode=subscribe&hub.challenge=test123&hub.verify_token=BFE_SECURE_VERIFY_TOKEN_2025
+                    """;
+            return ResponseEntity.ok(instructions);
+        }
 
         log.info("Webhook verification request - Mode: {}, Token: {}", mode, token);
 
