@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚨 Test Cảnh Báo Nguy Hiểm - Messenger Bot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .form-container {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .severity-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .severity-option {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .severity-option:hover {
+            border-color: #667eea;
+        }
+
+        .severity-option.selected {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .quick-select {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .quick-btn {
+            padding: 10px;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .quick-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 Test Cảnh Báo Nguy Hiểm</h1>
+            <p>Gửi thông báo khẩn cấp qua Messenger Bot</p>
+        </div>
+
+        <div class="form-container">
+            <div id="alertMessage" class="alert"></div>
+
+            <form id="alertForm">
+                <div class="form-group">
+                    <label>👤 Tên nhân viên *</label>
+                    <input type="text" id="employeeName" name="employeeName" required 
+                           placeholder="VD: Nguyễn Văn An">
+                </div>
+
+                <div class="form-group">
+                    <label>🆔 Mã nhân viên *</label>
+                    <input type="text" id="employeeId" name="employeeId" required 
+                           placeholder="VD: NV001">
+                </div>
+
+                <div class="form-group">
+                    <label>💼 Chức vụ *</label>
+                    <input type="text" id="position" name="position" required 
+                           placeholder="VD: Công nhân xây dựng">
+                </div>
+
+                <div class="form-group">
+                    <label>⚠️ Loại cảnh báo *</label>
+                    <select id="alertType" name="alertType" required>
+                        <option value="">-- Chọn loại cảnh báo --</option>
+                        <option value="Khí độc vượt ngưỡng nguy hiểm">🌫️ Khí độc vượt ngưỡng</option>
+                        <option value="Va đập mạnh phát hiện">💥 Va đập mạnh</option>
+                        <option value="Nhiệt độ quá cao - nguy hiểm">🔥 Nhiệt độ quá cao</option>
+                        <option value="Tim mạch bất thường">❤️ Tim mạch bất thường</option>
+                        <option value="Mất kết nối thiết bị">📡 Mất kết nối</option>
+                        <option value="Rơi từ độ cao">⬇️ Rơi từ độ cao</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>📍 Vị trí *</label>
+                    <input type="text" id="location" name="location" required 
+                           placeholder="VD: Tầng 5 - Khu A - Công trường Hòa Khánh">
+                    <div class="quick-select">
+                        <div class="quick-btn" onclick="setLocation('Tầng 5 - Khu A')">Tầng 5 - Khu A</div>
+                        <div class="quick-btn" onclick="setLocation('Tầng 3 - Khu B')">Tầng 3 - Khu B</div>
+                        <div class="quick-btn" onclick="setLocation('Hầm - Khu C')">Hầm - Khu C</div>
+                        <div class="quick-btn" onclick="setLocation('Sân thượng')">Sân thượng</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>🚨 Mức độ nghiêm trọng</label>
+                    <div class="severity-grid">
+                        <div class="severity-option selected" data-severity="Khẩn cấp" 
+                             onclick="selectSeverity(this, 'Khẩn cấp')">
+                            🔴 Khẩn cấp
+                        </div>
+                        <div class="severity-option" data-severity="Nghiêm trọng" 
+                             onclick="selectSeverity(this, 'Nghiêm trọng')">
+                            🟠 Nghiêm trọng
+                        </div>
+                        <div class="severity-option" data-severity="Cảnh báo" 
+                             onclick="selectSeverity(this, 'Cảnh báo')">
+                            🟡 Cảnh báo
+                        </div>
+                    </div>
+                    <input type="hidden" id="severity" name="severity" value="Khẩn cấp">
+                </div>
+
+                <div class="form-group">
+                    <label>📝 Mô tả chi tiết (tùy chọn)</label>
+                    <textarea id="description" name="description" 
+                              placeholder="VD: Phát hiện nồng độ CO vượt 500ppm, nhân viên có biểu hiện chóng mặt..."></textarea>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 10px;">Đang gửi cảnh báo...</p>
+                </div>
+
+                <button type="submit" class="btn" id="submitBtn">
+                    🚨 GỬI CẢNH BÁO NGAY
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let selectedSeverity = 'Khẩn cấp';
+
+        function selectSeverity(element, severity) {
+            document.querySelectorAll('.severity-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            element.classList.add('selected');
+            selectedSeverity = severity;
+            document.getElementById('severity').value = severity;
+        }
+
+        function setLocation(loc) {
+            document.getElementById('location').value = loc;
+        }
+
+        document.getElementById('alertForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
+            });
+
+            const alertMessage = document.getElementById('alertMessage');
+            const loading = document.getElementById('loading');
+            const submitBtn = document.getElementById('submitBtn');
+
+            // Show loading
+            loading.style.display = 'block';
+            submitBtn.disabled = true;
+            alertMessage.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/alert/send-form', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams(data)
+                });
+
+                const result = await response.json();
+
+                loading.style.display = 'none';
+                submitBtn.disabled = false;
+
+                if (response.ok) {
+                    alertMessage.className = 'alert success';
+                    alertMessage.innerHTML = `
+                        <strong>✅ Thành công!</strong><br>
+                        Đã gửi cảnh báo cho <strong>${result.employee}</strong><br>
+                        Tại: ${result.location}<br>
+                        Loại: ${result.alertType}
+                    `;
+                    alertMessage.style.display = 'block';
+
+                    // Reset form sau 3 giây
+                    setTimeout(() => {
+                        // Keep employee info, reset others
+                        document.getElementById('alertType').value = '';
+                        document.getElementById('description').value = '';
+                    }, 3000);
+                } else {
+                    throw new Error(result.message || 'Có lỗi xảy ra');
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                submitBtn.disabled = false;
+                alertMessage.className = 'alert error';
+                alertMessage.innerHTML = `<strong>❌ Lỗi!</strong><br>${error.message}`;
+                alertMessage.style.display = 'block';
+            }
+
+            // Auto hide alert after 5 seconds
+            setTimeout(() => {
+                alertMessage.style.display = 'none';
+            }, 5000);
+        });
+    </script>
+</body>
+</html>
