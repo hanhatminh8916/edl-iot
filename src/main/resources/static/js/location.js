@@ -1,25 +1,70 @@
 ﻿console.log("location.js loaded");
-var map, markers = [], workersData = [], safeZoneCircle = null;
+var map, markers = [], workersData = [], drawnItems = null, activePolygon = null;
 // Tọa độ tâm khu vực an toàn - ĐÀ NẴNG (cập nhật từ dữ liệu thực tế MQTT)
 var safeZoneCenter = [15.97331, 108.25183];
-var safeZoneRadius = 200; // Bán kính 200 mét
+var safeZoneRadius = 200; // Bán kính 200 mét (chỉ để tham khảo, giờ dùng polygon vẽ tay)
 
 function initializeMap() {
-    console.log("Init map");
+    console.log("Init map with Geo-Fencing");
     map = L.map("map").setView(safeZoneCenter, 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19}).addTo(map);
     
-    // Thêm vòng tròn màu xanh - khu vực an toàn
-    safeZoneCircle = L.circle(safeZoneCenter, {
-        color: '#10b981',      // Màu viền xanh
-        fillColor: '#10b981',  // Màu tô xanh
-        fillOpacity: 0.2,      // Độ trong suốt 20%
-        radius: safeZoneRadius // Bán kính 200 mét
-    }).addTo(map);
+    // ✅ Khởi tạo Leaflet Draw để vẽ polygon (vùng an toàn)
+    drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+
+    const drawControl = new L.Control.Draw({
+        draw: {
+            polygon: {
+                shapeOptions: {
+                    color: '#10b981',
+                    fillColor: '#10b981',
+                    fillOpacity: 0.2
+                }
+            },
+            marker: false,
+            circle: false,
+            rectangle: false,
+            polyline: false,
+            circlemarker: false
+        },
+        edit: { 
+            featureGroup: drawnItems,
+            remove: true
+        }
+    });
+    map.addControl(drawControl);
+
+    // ✅ Khi vẽ xong polygon
+    map.on(L.Draw.Event.CREATED, function (e) {
+        drawnItems.clearLayers(); // Xóa polygon cũ
+        const layer = e.layer;
+        drawnItems.addLayer(layer);
+        activePolygon = layer;
+        document.getElementById("alertBox").style.display = "none";
+        console.log("✅ Polygon created:", layer.getLatLngs());
+        
+        // Lưu polygon vào localStorage
+        localStorage.setItem('safeZonePolygon', JSON.stringify(layer.getLatLngs()));
+    });
+
+    // ✅ Load polygon đã lưu từ localStorage
+    const savedPolygon = localStorage.getItem('safeZonePolygon');
+    if (savedPolygon) {
+        try {
+            const latlngs = JSON.parse(savedPolygon);
+            activePolygon = L.polygon(latlngs, {
+                color: '#10b981',
+                fillColor: '#10b981',
+                fillOpacity: 0.2
+            }).addTo(drawnItems);
+            console.log("✅ Loaded saved polygon");
+        } catch (e) {
+            console.error("Error loading polygon:", e);
+        }
+    }
     
-    safeZoneCircle.bindPopup('<b>Khu vực an toàn</b><br>Bán kính: ' + safeZoneRadius + 'm');
-    
-    // Thêm nhãn Hoàng Sa (Paracel Islands) - to hơn để che chữ Trung Quốc
+    // Thêm nhãn Hoàng Sa, Trường Sa
     var hoangSaIcon = L.divIcon({
         className: 'island-label',
         html: '<div style="background:#ffffff;padding:12px 20px;border-radius:8px;border:3px solid #ef4444;box-shadow:0 4px 12px rgba(0,0,0,0.3);white-space:nowrap;font-weight:bold;color:#1f2937;font-size:16px;">🇻🇳 Quần đảo HOÀNG SA<br><span style="font-size:14px;color:#6b7280;">(Việt Nam)</span></div>',
@@ -28,7 +73,6 @@ function initializeMap() {
     });
     L.marker([16.5, 112.0], {icon: hoangSaIcon}).addTo(map);
     
-    // Thêm nhãn Trường Sa (Spratly Islands) - to hơn để che chữ Trung Quốc
     var truongSaIcon = L.divIcon({
         className: 'island-label',
         html: '<div style="background:#ffffff;padding:12px 20px;border-radius:8px;border:3px solid #ef4444;box-shadow:0 4px 12px rgba(0,0,0,0.3);white-space:nowrap;font-weight:bold;color:#1f2937;font-size:16px;">🇻🇳 Quần đảo TRƯỜNG SA<br><span style="font-size:14px;color:#6b7280;">(Việt Nam)</span></div>',
@@ -37,7 +81,6 @@ function initializeMap() {
     });
     L.marker([9.8, 113.9], {icon: truongSaIcon}).addTo(map);
     
-    // Thêm text Hoàng Sa, Trường Sa thuộc Việt Nam
     var sovereigntyControl = L.control({position: 'bottomright'});
     sovereigntyControl.onAdd = function(map) {
         var div = L.DomUtil.create('div', 'sovereignty-note');
@@ -46,10 +89,28 @@ function initializeMap() {
     };
     sovereigntyControl.addTo(map);
     
-    console.log("Map ready");
+    console.log("Map ready with Geo-Fencing");
 }
 
-// Hàm tính khoảng cách giữa 2 điểm (Haversine formula)
+// ✅ Hàm kiểm tra điểm có nằm trong polygon không (Point in Polygon algorithm)
+function isInsidePolygon(lat, lon, polygon) {
+    if (!polygon) return true; // Nếu chưa vẽ polygon thì coi như luôn an toàn
+    
+    const x = lon, y = lat;
+    let inside = false;
+    const vs = polygon.getLatLngs()[0];
+    
+    for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        const xi = vs[i].lng, yi = vs[i].lat;
+        const xj = vs[j].lng, yj = vs[j].lat;
+        const intersect = ((yi > y) !== (yj > y)) &&
+                          (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+// Hàm tính khoảng cách giữa 2 điểm (Haversine formula) - giữ lại cho tham khảo
 function calculateDistance(lat1, lon1, lat2, lon2) {
     var R = 6371e3; // Bán kính trái đất (mét)
     var φ1 = lat1 * Math.PI / 180;
@@ -65,65 +126,82 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c; // Khoảng cách (mét)
 }
 
-// Hàm xác định màu marker dựa trên khoảng cách từ tâm
-function getMarkerColorByDistance(distance) {
-    var percent = (distance / safeZoneRadius) * 100;
-    
-    if (percent <= 80) {
-        return '#10b981'; // Xanh lá - An toàn (0-80%)
-    } else if (percent <= 100) {
-        return '#f97316'; // Cam - Gần ra ngoài (80-100%)
-    } else {
-        return '#ef4444'; // Đỏ - Ngoài vòng (>100%)
+// ✅ Xác định màu marker dựa trên polygon và status
+function getMarkerColor(lat, lon, status) {
+    // OFFLINE (xám) - Ưu tiên cao nhất
+    if (status === "INACTIVE") {
+        return '#6b7280'; // Xám
     }
+    
+    // ALERT (đỏ) - Lỗi hệ thống (battery, voltage, current)
+    if (status === "ALERT") {
+        return '#ef4444'; // Đỏ
+    }
+    
+    // Kiểm tra Geo-Fence (trong/ngoài polygon)
+    const inside = isInsidePolygon(lat, lon, activePolygon);
+    
+    if (!inside) {
+        return '#ef4444'; // Đỏ - Ra ngoài vùng an toàn
+    }
+    
+    return '#10b981'; // Xanh lá - An toàn
 }
 async function loadWorkers() {
-    console.log("Loading...");
+    console.log("Loading workers data...");
     try {
-        var res = await fetch("/api/dashboard/map-data-realtime");
+        var res = await fetch("/api/location/map-data");
         workersData = await res.json();
-        console.log("Loaded:", workersData.length);
+        console.log("Loaded:", workersData.length, "workers");
         updateMapMarkers(workersData);
         displayWorkersList(workersData);
-    } catch(e) { console.error(e); }
+        
+        // Cập nhật thời gian
+        const now = new Date();
+        document.getElementById("lastUpdate").textContent = 
+            now.getHours().toString().padStart(2, '0') + ':' + 
+            now.getMinutes().toString().padStart(2, '0') + ':' + 
+            now.getSeconds().toString().padStart(2, '0');
+    } catch(e) { 
+        console.error("Error loading workers:", e); 
+    }
 }
 function updateMapMarkers(workers) {
     markers.forEach(function(m) { map.removeLayer(m); });
     markers = [];
+    
+    const alertBox = document.getElementById("alertBox");
+    let hasOutOfBounds = false;
+    
     workers.forEach(function(w) {
         if (!w.helmet || !w.helmet.lastLocation) return;
         var lat = w.helmet.lastLocation.latitude;
         var lon = w.helmet.lastLocation.longitude;
         var battery = w.helmet.batteryLevel;
+        var status = w.helmet.status; // ACTIVE, ALERT, INACTIVE
         
-        // Tính khoảng cách từ worker đến tâm vòng tròn an toàn
-        var distance = calculateDistance(
-            safeZoneCenter[0], safeZoneCenter[1],
-            lat, lon
-        );
+        // ✅ Xác định màu dựa trên polygon và status
+        var color = getMarkerColor(lat, lon, status);
         
-        // Xác định màu dựa trên khoảng cách (ưu tiên cao hơn status)
-        var color = getMarkerColorByDistance(distance);
-        
-        // Nếu helmet INACTIVE (offline) thì vẫn hiển thị màu xám
-        if (w.helmet.status === "INACTIVE") {
-            color = "#6b7280"; // Xám - Offline
+        // ✅ Kiểm tra ra ngoài vùng an toàn
+        const inside = isInsidePolygon(lat, lon, activePolygon);
+        if (!inside && status !== "INACTIVE") {
+            hasOutOfBounds = true;
         }
         
-        // Tạo text mô tả trạng thái
+        // ✅ Tạo text mô tả trạng thái
         var statusText = "";
-        var distancePercent = Math.round((distance / safeZoneRadius) * 100);
-        if (w.helmet.status === "INACTIVE") {
-            statusText = "Offline";
-        } else if (distance > safeZoneRadius) {
-            statusText = "Ngoài khu vực (" + Math.round(distance) + "m)";
-        } else if (distancePercent > 80) {
-            statusText = "Gần biên (" + distancePercent + "%)";
+        if (status === "INACTIVE") {
+            statusText = "Offline (vị trí cuối cùng)";
+        } else if (!inside) {
+            statusText = "⚠️ Ra ngoài vùng an toàn!";
+        } else if (status === "ALERT") {
+            statusText = "⚠️ Cảnh báo hệ thống";
         } else {
-            statusText = "An toàn (" + Math.round(distance) + "m)";
+            statusText = "✅ An toàn";
         }
         
-        // Icon với % pin hiển thị
+        // ✅ Icon với % pin hiển thị
         var icon = L.divIcon({
             className: 'custom-marker-with-label',
             html: "<div style=\"text-align:center;\">" +
@@ -133,14 +211,23 @@ function updateMapMarkers(workers) {
             iconSize: [32,32], 
             iconAnchor: [16,16]
         });
+        
         var m = L.marker([lat, lon], {icon: icon}).addTo(map);
         m.bindPopup("<b>" + w.name + "</b><br>" + 
-                   w.helmet.helmetId + "<br>" +
+                   "MAC: " + w.helmet.helmetId + "<br>" +
                    "Pin: " + w.helmet.batteryLevel + "%<br>" +
                    "<b>" + statusText + "</b>");
         m.workerId = w.id;
         markers.push(m);
     });
+    
+    // ✅ Hiển thị/ẩn Alert Box
+    if (hasOutOfBounds) {
+        alertBox.style.display = "block";
+    } else {
+        alertBox.style.display = "none";
+    }
+    
     if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.1));
 }
 function displayWorkersList(workers) {

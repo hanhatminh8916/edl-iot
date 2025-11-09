@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/location.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
 </head>
 <body>
     <!-- Header -->
@@ -151,7 +152,18 @@
                             </button>
                         </div>
                         <div class="card-body map-body">
-                            <p class="map-subtitle">Cập nhật vị trí mới nhất: 14:38:27</p>
+                            <p class="map-subtitle">Cập nhật vị trí mới nhất: <span id="lastUpdate">--</span></p>
+                            
+                            <!-- Alert Box - Geo-Fence -->
+                            <div id="alertBox" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); padding: 10px 20px; background-color: #ff4444; color: white; border-radius: 8px; font-weight: bold; display: none; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                                🚨 Nhân viên ra khỏi khu vực an toàn!
+                            </div>
+                            
+                            <!-- Hint Box -->
+                            <div id="hint" style="position: absolute; top: 10px; right: 10px; background-color: white; padding: 8px 12px; border-radius: 8px; font-size: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 999;">
+                                🖱️ Click biểu tượng <span style="color: #667eea;">▢</span> để vẽ vùng giới hạn an toàn
+                            </div>
+                            
                             <div id="map" class="map-container">
                                 <!-- Bản đồ Leaflet sẽ hiển thị ở đây -->
                             </div>
@@ -243,11 +255,8 @@
     </div>
 
     <!-- Map Libraries -->
-    <!-- Using Leaflet (OpenStreetMap) - no API key needed -->
-    <!-- To use Google Maps instead, add: -->
-    <!-- <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script> -->
-    
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/location.js"></script>
 </body>
