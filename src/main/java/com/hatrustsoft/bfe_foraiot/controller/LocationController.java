@@ -20,7 +20,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/api/dashboard")
+@RequestMapping("/api/location")
 @CrossOrigin(origins = "*")
 @Slf4j
 public class LocationController {
@@ -35,7 +35,7 @@ public class LocationController {
      * API trả về dữ liệu bản đồ cho location.html
      * Format tương thích với code hiện tại
      */
-    @GetMapping("/map-data-realtime")
+    @GetMapping("/map-data")
     public ResponseEntity<List<WorkerMapData>> getMapData() {
         List<WorkerMapData> result = new ArrayList<>();
 
