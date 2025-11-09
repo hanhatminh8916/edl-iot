@@ -1,15 +1,28 @@
 package com.hatrustsoft.bfe_foraiot.service;
 
-import com.hatrustsoft.bfe_foraiot.dto.HelmetDataDTO;
-import com.hatrustsoft.bfe_foraiot.model.*;
-import com.hatrustsoft.bfe_foraiot.repository.*;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.hatrustsoft.bfe_foraiot.dto.HelmetDataDTO;
+import com.hatrustsoft.bfe_foraiot.entity.HelmetData;
+import com.hatrustsoft.bfe_foraiot.model.Alert;
+import com.hatrustsoft.bfe_foraiot.model.AlertSeverity;
+import com.hatrustsoft.bfe_foraiot.model.AlertStatus;
+import com.hatrustsoft.bfe_foraiot.model.AlertType;
+import com.hatrustsoft.bfe_foraiot.model.Helmet;
+import com.hatrustsoft.bfe_foraiot.model.HelmetStatus;
+import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
+import com.hatrustsoft.bfe_foraiot.repository.HelmetDataRepository;
+import com.hatrustsoft.bfe_foraiot.repository.HelmetRepository;
+
+import lombok.RequiredArgsConstructor;
+
+/**
+ * DEPRECATED: This service is deprecated. MQTT data is now handled by MqttMessageHandler
+ */
 @Service
 @RequiredArgsConstructor
 public class HelmetService {
@@ -21,31 +34,9 @@ public class HelmetService {
 
     @Transactional
     public void saveHelmetData(HelmetDataDTO dto) {
-        // Tìm helmet
-        Helmet helmet = helmetRepository.findByHelmetId(dto.getHelmetId())
-                .orElseThrow(() -> new RuntimeException("Helmet not found"));
-
-        // Cập nhật trạng thái helmet
-        helmet.setLastLat(dto.getGpsLat());
-        helmet.setLastLon(dto.getGpsLon());
-        helmet.setBatteryLevel(dto.getBatteryLevel());
-        helmet.setLastSeen(LocalDateTime.now());
-        helmet.setStatus(mapEventToStatus(dto.getEventType()));
-        helmetRepository.save(helmet);
-
-        // Lưu dữ liệu chi tiết
-        HelmetData data = new HelmetData();
-        data.setHelmet(helmet);
-        data.setTimestamp(LocalDateTime.now());
-        data.setEventType(EventType.valueOf(dto.getEventType()));
-        data.setGpsLat(dto.getGpsLat());
-        data.setGpsLon(dto.getGpsLon());
-        data.setBatteryLevel(dto.getBatteryLevel());
-        data.setUwbDistance(dto.getUwbDistance());
-        data.setRssi(dto.getRssi());
-        data.setGatewayId(dto.getGatewayId());
-
-        helmetDataRepository.save(data);
+        // DEPRECATED - Now using MqttMessageHandler for real MQTT data
+        // This method is kept for backward compatibility only
+        throw new UnsupportedOperationException("This method is deprecated. Use MQTT integration instead.");
     }
 
     @Transactional
@@ -121,11 +112,8 @@ public class HelmetService {
     }
 
     public List<HelmetData> getHelmetHistory(Long id, int hours) {
-        LocalDateTime since = LocalDateTime.now().minusHours(hours);
-        return helmetDataRepository.findAll().stream()
-                .filter(data -> data.getHelmet().getId().equals(id))
-                .filter(data -> data.getTimestamp().isAfter(since))
-                .toList();
+        // DEPRECATED - New HelmetData entity doesn't have helmet relationship
+        throw new UnsupportedOperationException("This method is deprecated. Query by MAC address instead.");
     }
 
     public void sendCommandToHelmet(Long id, com.hatrustsoft.bfe_foraiot.dto.CommandDTO command) {

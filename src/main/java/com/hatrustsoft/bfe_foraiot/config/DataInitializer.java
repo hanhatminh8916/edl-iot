@@ -1,7 +1,6 @@
 package com.hatrustsoft.bfe_foraiot.config;
 
 import java.time.LocalDateTime;
-import java.util.Random;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -10,9 +9,7 @@ import com.hatrustsoft.bfe_foraiot.model.Alert;
 import com.hatrustsoft.bfe_foraiot.model.AlertSeverity;
 import com.hatrustsoft.bfe_foraiot.model.AlertStatus;
 import com.hatrustsoft.bfe_foraiot.model.AlertType;
-import com.hatrustsoft.bfe_foraiot.model.EventType;
 import com.hatrustsoft.bfe_foraiot.model.Helmet;
-import com.hatrustsoft.bfe_foraiot.model.HelmetData;
 import com.hatrustsoft.bfe_foraiot.model.HelmetStatus;
 import com.hatrustsoft.bfe_foraiot.model.Worker;
 import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
@@ -89,7 +86,8 @@ public class DataInitializer implements CommandLineRunner {
         createAlert(helmet4, AlertType.LOW_BATTERY, AlertSeverity.INFO,
             "Mức pin thấp - cần sạc ngay", 10.762400, 106.660050);
 
-        // Create Helmet Data
+        // Create Helmet Data (COMMENTED OUT - using new schema from MQTT)
+        /*
         Random random = new Random();
         for (Helmet helmet : helmetRepository.findAll()) {
             for (int i = 0; i < 5; i++) {
@@ -106,6 +104,7 @@ public class DataInitializer implements CommandLineRunner {
                 helmetDataRepository.save(data);
             }
         }
+        */
 
         log.info("Sample data initialized successfully!");
         log.info("Created {} workers, {} helmets, {} alerts", 

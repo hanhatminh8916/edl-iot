@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Nhân viên & MAC Address</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .employees-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .employees-table th,
+        .employees-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .employees-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .employees-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .mac-badge {
+            background: #e7f3ff;
+            color: #0066cc;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .no-mac {
+            color: #999;
+            font-style: italic;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-sm {
+            padding: 8px 15px;
+            font-size: 0.9em;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-header {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Quản lý Nhân viên & Helmet MAC Address</h1>
+            <p>Hệ thống IoT - EDL SafeWork</p>
+        </div>
+
+        <div class="content">
+            <!-- Alert Messages -->
+            <div id="alertSuccess" class="alert alert-success"></div>
+            <div id="alertError" class="alert alert-error"></div>
+
+            <!-- Add Employee Form -->
+            <div class="section">
+                <h2 class="section-title">➕ Thêm Nhân Viên Mới</h2>
+                <form id="addEmployeeForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="employeeId">Mã NV *</label>
+                            <input type="text" id="employeeId" required placeholder="VD: NV001">
+                        </div>
+                        <div class="form-group">
+                            <label for="employeeName">Họ tên *</label>
+                            <input type="text" id="employeeName" required placeholder="VD: Nguyễn Văn An">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="position">Vị trí</label>
+                            <input type="text" id="position" placeholder="VD: Công nhân">
+                        </div>
+                        <div class="form-group">
+                            <label for="department">Phòng ban</label>
+                            <input type="text" id="department" placeholder="VD: Sản xuất">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="macAddress">MAC Address Helmet</label>
+                            <input type="text" id="macAddress" placeholder="VD: A48D004AEC24" pattern="[A-Fa-f0-9]{12}">
+                            <small style="color: #666;">12 ký tự hex (A-F, 0-9)</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="phoneNumber">Số điện thoại</label>
+                            <input type="tel" id="phoneNumber" placeholder="VD: 0901234567">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" placeholder="VD: nva@company.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="status">Trạng thái</label>
+                            <select id="status">
+                                <option value="ACTIVE">Hoạt động</option>
+                                <option value="INACTIVE">Không hoạt động</option>
+                                <option value="ON_LEAVE">Nghỉ phép</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Thêm nhân viên</button>
+                </form>
+            </div>
+
+            <!-- Employee List -->
+            <div class="section">
+                <h2 class="section-title">👥 Danh sách Nhân Viên</h2>
+                <table class="employees-table">
+                    <thead>
+                        <tr>
+                            <th>Mã NV</th>
+                            <th>Họ tên</th>
+                            <th>Vị trí</th>
+                            <th>MAC Address</th>
+                            <th>Số ĐT</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employeesTableBody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: #999;">Đang tải dữ liệu...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign MAC Modal -->
+    <div id="assignMacModal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-header">🔗 Gán MAC Address</h3>
+            <form id="assignMacForm">
+                <input type="hidden" id="assignEmployeeId">
+                <div class="form-group">
+                    <label for="assignMacAddress">MAC Address Helmet</label>
+                    <input type="text" id="assignMacAddress" required placeholder="VD: A48D004AEC24" pattern="[A-Fa-f0-9]{12}">
+                    <small style="color: #666;">12 ký tự hex (A-F, 0-9)</small>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-sm" onclick="closeAssignMacModal()">Hủy</button>
+                    <button type="submit" class="btn btn-success btn-sm">Gán MAC</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/employees';
+
+        // Load employees on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadEmployees();
+        });
+
+        // Add employee form submit
+        document.getElementById('addEmployeeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const employee = {
+                employeeId: document.getElementById('employeeId').value,
+                name: document.getElementById('employeeName').value,
+                position: document.getElementById('position').value || null,
+                department: document.getElementById('department').value || null,
+                macAddress: document.getElementById('macAddress').value || null,
+                phoneNumber: document.getElementById('phoneNumber').value || null,
+                email: document.getElementById('email').value || null,
+                status: document.getElementById('status').value
+            };
+
+            try {
+                const response = await fetch(API_BASE, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(employee)
+                });
+
+                if (response.ok) {
+                    showAlert('success', '✅ Thêm nhân viên thành công!');
+                    document.getElementById('addEmployeeForm').reset();
+                    loadEmployees();
+                } else {
+                    const error = await response.json();
+                    showAlert('error', '❌ Lỗi: ' + (error.error || 'Không thể thêm nhân viên'));
+                }
+            } catch (error) {
+                showAlert('error', '❌ Lỗi kết nối: ' + error.message);
+            }
+        });
+
+        // Load employees list
+        async function loadEmployees() {
+            try {
+                const response = await fetch(API_BASE);
+                const employees = await response.json();
+
+                const tbody = document.getElementById('employeesTableBody');
+                if (employees.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #999;">Chưa có nhân viên nào</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = employees.map(emp => `
+                    <tr>
+                        <td><strong>${emp.employeeId}</strong></td>
+                        <td>${emp.name}</td>
+                        <td>${emp.position || '-'}</td>
+                        <td>${emp.macAddress ? `<span class="mac-badge">${emp.macAddress}</span>` : `<span class="no-mac">Chưa gán</span>`}</td>
+                        <td>${emp.phoneNumber || '-'}</td>
+                        <td><span class="status-badge status-${emp.status.toLowerCase()}">${emp.status}</span></td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-warning btn-sm" onclick="openAssignMacModal('${emp.employeeId}')">
+                                    🔗 Gán MAC
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteEmployee('${emp.employeeId}')">
+                                    🗑️ Xóa
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                showAlert('error', '❌ Không thể tải danh sách nhân viên');
+            }
+        }
+
+        // Open assign MAC modal
+        function openAssignMacModal(employeeId) {
+            document.getElementById('assignEmployeeId').value = employeeId;
+            document.getElementById('assignMacAddress').value = '';
+            document.getElementById('assignMacModal').style.display = 'flex';
+        }
+
+        // Close assign MAC modal
+        function closeAssignMacModal() {
+            document.getElementById('assignMacModal').style.display = 'none';
+        }
+
+        // Assign MAC form submit
+        document.getElementById('assignMacForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const employeeId = document.getElementById('assignEmployeeId').value;
+            const macAddress = document.getElementById('assignMacAddress').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/${employeeId}/assign-mac`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ macAddress })
+                });
+
+                if (response.ok) {
+                    showAlert('success', '✅ Gán MAC address thành công!');
+                    closeAssignMacModal();
+                    loadEmployees();
+                } else {
+                    const error = await response.json();
+                    showAlert('error', '❌ Lỗi: ' + (error.error || 'Không thể gán MAC'));
+                }
+            } catch (error) {
+                showAlert('error', '❌ Lỗi kết nối: ' + error.message);
+            }
+        });
+
+        // Delete employee
+        async function deleteEmployee(employeeId) {
+            if (!confirm(`Bạn có chắc muốn xóa nhân viên ${employeeId}?`)) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/${employeeId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showAlert('success', '✅ Xóa nhân viên thành công!');
+                    loadEmployees();
+                } else {
+                    showAlert('error', '❌ Không thể xóa nhân viên');
+                }
+            } catch (error) {
+                showAlert('error', '❌ Lỗi kết nối: ' + error.message);
+            }
+        }
+
+        // Show alert message
+        function showAlert(type, message) {
+            const alertId = type === 'success' ? 'alertSuccess' : 'alertError';
+            const alertEl = document.getElementById(alertId);
+            alertEl.textContent = message;
+            alertEl.style.display = 'block';
+
+            setTimeout(() => {
+                alertEl.style.display = 'none';
+            }, 5000);
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('assignMacModal');
+            if (event.target === modal) {
+                closeAssignMacModal();
+            }
+        }
+    </script>
+</body>
+</html>
