@@ -1,15 +1,24 @@
 package com.hatrustsoft.bfe_foraiot.controller;
 
-import com.hatrustsoft.bfe_foraiot.entity.SafeZone;
-import com.hatrustsoft.bfe_foraiot.repository.SafeZoneRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.hatrustsoft.bfe_foraiot.entity.SafeZone;
+import com.hatrustsoft.bfe_foraiot.repository.SafeZoneRepository;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestController
@@ -98,6 +107,30 @@ public class SafeZoneController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("❌ Error deleting safe zone", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Lỗi: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /**
+     * Xóa TẤT CẢ khu vực an toàn (để reset)
+     */
+    @DeleteMapping("/all")
+    public ResponseEntity<Map<String, Object>> deleteAllSafeZones() {
+        try {
+            safeZoneRepository.deleteAll();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Đã xóa tất cả khu vực an toàn!");
+            
+            log.info("🗑️ Deleted all safe zones");
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("❌ Error deleting all safe zones", e);
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("message", "Lỗi: " + e.getMessage());
