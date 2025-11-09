@@ -1,5 +1,6 @@
 package com.hatrustsoft.bfe_foraiot.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,11 +25,20 @@ public class AdminController {
     private final HelmetRepository helmetRepository;
     private final AlertRepository alertRepository;
     private final HelmetDataRepository helmetDataRepository;
-    private final DataInitializer dataInitializer;
+    
+    @Autowired(required = false) // Optional: Có thể null nếu DataInitializer bị disable
+    private DataInitializer dataInitializer;
 
     @PostMapping("/reset-data")
     public ResponseEntity<String> resetData() {
         try {
+            // Kiểm tra xem DataInitializer có available không
+            if (dataInitializer == null) {
+                return ResponseEntity.badRequest()
+                    .body("Tính năng reset-data đã bị tắt trên Heroku để tiết kiệm database queries. " +
+                          "Vui lòng tạo dữ liệu thủ công qua API.");
+            }
+            
             // Delete all data
             helmetDataRepository.deleteAll();
             alertRepository.deleteAll();
