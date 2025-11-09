@@ -93,24 +93,32 @@ public class LocationController {
      * Xác định status của helmet dựa trên dữ liệu
      */
     private String determineHelmetStatus(HelmetData data) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime lastUpdate = data.getReceivedAt() != null ? data.getReceivedAt() : data.getTimestamp();
+        
         // ⏱️ Kiểm tra thời gian cập nhật - nếu quá 20 GIÂY thì coi như INACTIVE (màu xám)
-        if (data.getTimestamp() != null && 
-            data.getTimestamp().isBefore(LocalDateTime.now().minusSeconds(20))) {
+        if (lastUpdate != null && lastUpdate.isBefore(now.minusSeconds(20))) {
+            long secondsAgo = java.time.temporal.ChronoUnit.SECONDS.between(lastUpdate, now);
+            log.debug("🕐 Helmet {} offline for {} seconds (threshold: 20s) -> INACTIVE", 
+                data.getMac(), secondsAgo);
             return "INACTIVE";
         }
 
         // Kiểm tra battery
         if (data.getBattery() != null && data.getBattery() < 20.0) {
+            log.debug("🔋 Helmet {} battery low: {}% -> ALERT", data.getMac(), data.getBattery());
             return "ALERT";
         }
 
         // Kiểm tra voltage
         if (data.getVoltage() != null && data.getVoltage() < 10.0) {
+            log.debug("⚡ Helmet {} voltage low: {}V -> ALERT", data.getMac(), data.getVoltage());
             return "ALERT";
         }
 
         // Kiểm tra current
         if (data.getCurrent() != null && Math.abs(data.getCurrent()) > 50.0) {
+            log.debug("⚠️ Helmet {} current abnormal: {}A -> ALERT", data.getMac(), data.getCurrent());
             return "ALERT";
         }
 
