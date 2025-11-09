@@ -3,7 +3,8 @@ package com.hatrustsoft.bfe_foraiot.config;
 import java.time.LocalDateTime;
 
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.stereotype.Component;
+// DISABLED: Tắt DataInitializer để tránh vượt quá giới hạn queries của JawsDB
+// import org.springframework.stereotype.Component;
 
 import com.hatrustsoft.bfe_foraiot.model.Alert;
 import com.hatrustsoft.bfe_foraiot.model.AlertSeverity;
@@ -20,7 +21,7 @@ import com.hatrustsoft.bfe_foraiot.repository.WorkerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-@Component
+// @Component // DISABLED: Tắt để tránh vượt quá 3600 queries/giờ của JawsDB
 @RequiredArgsConstructor
 @Slf4j
 public class DataInitializer implements CommandLineRunner {
