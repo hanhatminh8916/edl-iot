@@ -93,9 +93,9 @@ public class LocationController {
      * Xác định status của helmet dựa trên dữ liệu
      */
     private String determineHelmetStatus(HelmetData data) {
-        // Kiểm tra thời gian cập nhật - nếu quá 5 phút thì coi như INACTIVE
+        // ⏱️ Kiểm tra thời gian cập nhật - nếu quá 20 GIÂY thì coi như INACTIVE (màu xám)
         if (data.getTimestamp() != null && 
-            data.getTimestamp().isBefore(LocalDateTime.now().minusMinutes(5))) {
+            data.getTimestamp().isBefore(LocalDateTime.now().minusSeconds(20))) {
             return "INACTIVE";
         }
 
