@@ -1,7 +1,7 @@
 ﻿console.log("location.js loaded");
 var map, markers = [], workersData = [], safeZoneCircle = null;
-// Tọa độ tâm khu vực an toàn (sau này sẽ lấy từ thiết bị beacon/anchor)
-var safeZoneCenter = [10.7626, 106.6601];
+// Tọa độ tâm khu vực an toàn - ĐÀ NẴNG (cập nhật từ dữ liệu thực tế MQTT)
+var safeZoneCenter = [15.97331, 108.25183];
 var safeZoneRadius = 200; // Bán kính 200 mét
 
 function initializeMap() {
