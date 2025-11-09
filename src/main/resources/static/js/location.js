@@ -80,7 +80,7 @@ function getMarkerColorByDistance(distance) {
 async function loadWorkers() {
     console.log("Loading...");
     try {
-        var res = await fetch("/api/dashboard/map-data");
+        var res = await fetch("/api/dashboard/map-data-realtime");
         workersData = await res.json();
         console.log("Loaded:", workersData.length);
         updateMapMarkers(workersData);

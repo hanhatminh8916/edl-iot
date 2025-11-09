@@ -35,7 +35,7 @@ public class LocationController {
      * API trả về dữ liệu bản đồ cho location.html
      * Format tương thích với code hiện tại
      */
-    @GetMapping("/map-data")
+    @GetMapping("/map-data-realtime")
     public ResponseEntity<List<WorkerMapData>> getMapData() {
         List<WorkerMapData> result = new ArrayList<>();
 
