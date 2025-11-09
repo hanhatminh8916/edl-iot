@@ -35,7 +35,7 @@ function initializeMap() {
     });
     map.addControl(drawControl);
 
-    // ✅ Khi vẽ xong polygon
+    // ✅ Khi vẽ xong polygon → LƯU VÀO DATABASE
     map.on(L.Draw.Event.CREATED, function (e) {
         drawnItems.clearLayers(); // Xóa polygon cũ
         const layer = e.layer;
@@ -44,25 +44,29 @@ function initializeMap() {
         document.getElementById("alertBox").style.display = "none";
         console.log("✅ Polygon created:", layer.getLatLngs());
         
-        // Lưu polygon vào localStorage
-        localStorage.setItem('safeZonePolygon', JSON.stringify(layer.getLatLngs()));
+        // ✅ LƯU VÀO DATABASE qua API
+        saveSafeZoneToDatabase(layer.getLatLngs());
     });
 
-    // ✅ Load polygon đã lưu từ localStorage
-    const savedPolygon = localStorage.getItem('safeZonePolygon');
-    if (savedPolygon) {
-        try {
-            const latlngs = JSON.parse(savedPolygon);
-            activePolygon = L.polygon(latlngs, {
-                color: '#10b981',
-                fillColor: '#10b981',
-                fillOpacity: 0.2
-            }).addTo(drawnItems);
-            console.log("✅ Loaded saved polygon");
-        } catch (e) {
-            console.error("Error loading polygon:", e);
-        }
-    }
+    // ✅ Khi chỉnh sửa polygon
+    map.on(L.Draw.Event.EDITED, function (e) {
+        const layers = e.layers;
+        layers.eachLayer(function (layer) {
+            activePolygon = layer;
+            console.log("✅ Polygon edited:", layer.getLatLngs());
+            saveSafeZoneToDatabase(layer.getLatLngs());
+        });
+    });
+
+    // ✅ Khi xóa polygon
+    map.on(L.Draw.Event.DELETED, function (e) {
+        activePolygon = null;
+        console.log("🗑️ Polygon deleted");
+        // TODO: Có thể gọi API xóa zone nếu cần
+    });
+
+    // ✅ LOAD POLYGON TỪ DATABASE khi khởi động
+    loadSafeZoneFromDatabase();
     
     // Thêm nhãn Hoàng Sa, Trường Sa
     var hoangSaIcon = L.divIcon({
@@ -251,6 +255,133 @@ function centerMapOnWorker(id) {
         markers.find(function(m){return m.workerId === id;}).openPopup();
     }
 }
+
+// ========================================
+// ⭐ DATABASE API - Lưu/Load Safe Zone
+// ========================================
+
+/**
+ * Lưu polygon vào database
+ */
+async function saveSafeZoneToDatabase(latlngs) {
+    try {
+        console.log("💾 Saving safe zone to database...");
+        
+        // Convert LatLng array sang JSON string
+        const coordinates = JSON.stringify(latlngs[0].map(point => [point.lat, point.lng]));
+        
+        const response = await fetch('/api/safe-zones', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                zoneName: 'Khu vực sản xuất chính',
+                polygonCoordinates: coordinates,
+                color: '#10b981',
+                createdBy: 'admin'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log("✅ Safe zone saved to database:", result.data);
+            showNotification("✅ Đã lưu khu vực an toàn!", "success");
+        } else {
+            console.error("❌ Failed to save:", result.message);
+            showNotification("❌ Lỗi lưu: " + result.message, "error");
+        }
+        
+    } catch (error) {
+        console.error("❌ Error saving safe zone:", error);
+        showNotification("❌ Lỗi kết nối server!", "error");
+    }
+}
+
+/**
+ * Load polygon từ database
+ */
+async function loadSafeZoneFromDatabase() {
+    try {
+        console.log("📥 Loading safe zone from database...");
+        
+        const response = await fetch('/api/safe-zones/active');
+        
+        if (response.status === 204) {
+            // No content - chưa có polygon nào
+            console.log("ℹ️ No active safe zone found");
+            return;
+        }
+        
+        const safeZone = await response.json();
+        
+        if (safeZone && safeZone.polygonCoordinates) {
+            console.log("✅ Loaded safe zone from database:", safeZone);
+            
+            // Parse JSON coordinates
+            const coordinates = JSON.parse(safeZone.polygonCoordinates);
+            
+            // Convert [[lat,lng],...] → [L.LatLng,...]
+            const latlngs = coordinates.map(coord => L.latLng(coord[0], coord[1]));
+            
+            // Vẽ polygon lên bản đồ
+            activePolygon = L.polygon(latlngs, {
+                color: safeZone.color || '#10b981',
+                fillColor: safeZone.color || '#10b981',
+                fillOpacity: 0.2
+            }).addTo(drawnItems);
+            
+            console.log("✅ Polygon rendered on map");
+            showNotification("✅ Đã tải khu vực an toàn từ server!", "success");
+        }
+        
+    } catch (error) {
+        console.error("❌ Error loading safe zone:", error);
+    }
+}
+
+/**
+ * Hiển thị thông báo toast
+ */
+function showNotification(message, type = "info") {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 10000;
+        font-size: 14px;
+        font-weight: 500;
+        animation: slideIn 0.3s ease-out;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// CSS animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(400px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(400px); opacity: 0; }
+    }
+`;
+document.head.appendChild(style);
 window.addEventListener("load", function() {
     console.log("Page loaded");
     if (typeof L !== "undefined") {

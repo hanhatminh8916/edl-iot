@@ -3,8 +3,6 @@ package com.hatrustsoft.bfe_foraiot.config;
 import java.time.LocalDateTime;
 
 import org.springframework.boot.CommandLineRunner;
-// DISABLED: Tắt DataInitializer để tránh vượt quá giới hạn queries của JawsDB
-// import org.springframework.stereotype.Component;
 
 import com.hatrustsoft.bfe_foraiot.model.Alert;
 import com.hatrustsoft.bfe_foraiot.model.AlertSeverity;
