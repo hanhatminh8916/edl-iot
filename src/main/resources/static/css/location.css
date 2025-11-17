@@ -445,15 +445,31 @@
     height: 100%;
 }
 
-/* Hide Leaflet Draw toolbar buttons on left side */
-.leaflet-draw-toolbar {
-    display: none !important;
+/* Custom Anchor Control Button */
+.leaflet-control-anchor {
+    background: white;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.2s;
 }
 
-.leaflet-draw-actions {
-    display: none !important;
+.leaflet-control-anchor:hover {
+    background: #f4f4f4;
 }
 
-.leaflet-draw-section {
-    display: none !important;
+.leaflet-control-anchor.active {
+    background: #2196F3;
+    color: white;
+    border-color: #2196F3;
+}
+
+.leaflet-control-anchor i {
+    pointer-events: none;
 }

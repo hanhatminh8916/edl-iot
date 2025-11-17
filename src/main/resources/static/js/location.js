@@ -78,6 +78,19 @@ function initializeMap() {
     // ✅ LOAD ANCHORS FROM DATABASE
     loadAnchorsFromDatabase();
     
+    // ✅ ADD CUSTOM ANCHOR CONTROL BUTTON
+    var anchorControl = L.control({position: 'topleft'});
+    anchorControl.onAdd = function(map) {
+        var div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+        div.innerHTML = '<a class="leaflet-control-anchor" href="#" title="Đặt Anchor" id="anchorControlBtn"><i class="fas fa-map-pin"></i></a>';
+        
+        // Prevent map click when clicking button
+        L.DomEvent.disableClickPropagation(div);
+        
+        return div;
+    };
+    anchorControl.addTo(map);
+    
     // ✅ ANCHOR PLACEMENT: Click on map to place anchor
     map.on('click', function(e) {
         if (isAnchorMode) {
@@ -725,25 +738,25 @@ window.addEventListener("load", function() {
         });
     }
     
-    // ✅ ANCHOR MODE TOGGLE BUTTON
-    const toggleAnchorBtn = document.getElementById('toggleAnchorMode');
-    if (toggleAnchorBtn) {
-        toggleAnchorBtn.addEventListener('click', function() {
-            isAnchorMode = !isAnchorMode;
-            
-            if (isAnchorMode) {
-                this.classList.remove('btn-secondary');
-                this.classList.add('btn-primary');
-                this.innerHTML = '<i class="fas fa-map-pin"></i> Đang đặt Anchor (Click vào bản đồ)';
-                map.getContainer().style.cursor = 'crosshair';
-            } else {
-                this.classList.remove('btn-primary');
-                this.classList.add('btn-secondary');
-                this.innerHTML = '<i class="fas fa-map-pin"></i> Đặt Anchor';
-                map.getContainer().style.cursor = '';
-            }
-        });
-    }
+    // ✅ ANCHOR MODE TOGGLE via Map Control Button
+    setTimeout(function() {
+        const anchorControlBtn = document.getElementById('anchorControlBtn');
+        if (anchorControlBtn) {
+            anchorControlBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                isAnchorMode = !isAnchorMode;
+                
+                if (isAnchorMode) {
+                    this.classList.add('active');
+                    map.getContainer().style.cursor = 'crosshair';
+                    showNotification('📍 Click vào bản đồ để đặt Anchor', 'info');
+                } else {
+                    this.classList.remove('active');
+                    map.getContainer().style.cursor = '';
+                }
+            });
+        }
+    }, 500);
 });
 
 // ========== ANCHOR FUNCTIONS ==========
