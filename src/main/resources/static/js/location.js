@@ -41,6 +41,9 @@ function initializeMap() {
         }
     });
     map.addControl(drawControl);
+    
+    // ✅ Add custom Anchor control to map
+    addAnchorControlToMap();
 
     // ✅ Khi vẽ xong polygon → LƯU VÀO DATABASE
     map.on(L.Draw.Event.CREATED, function (e) {
@@ -77,19 +80,6 @@ function initializeMap() {
     
     // ✅ LOAD ANCHORS FROM DATABASE
     loadAnchorsFromDatabase();
-    
-    // ✅ ADD CUSTOM ANCHOR CONTROL BUTTON
-    var anchorControl = L.control({position: 'topleft'});
-    anchorControl.onAdd = function(map) {
-        var div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-        div.innerHTML = '<a class="leaflet-control-anchor" href="#" title="Đặt Anchor" id="anchorControlBtn"><i class="fas fa-map-pin"></i></a>';
-        
-        // Prevent map click when clicking button
-        L.DomEvent.disableClickPropagation(div);
-        
-        return div;
-    };
-    anchorControl.addTo(map);
     
     // ✅ ANCHOR PLACEMENT: Click on map to place anchor
     map.on('click', function(e) {
@@ -738,26 +728,62 @@ window.addEventListener("load", function() {
         });
     }
     
-    // ✅ ANCHOR MODE TOGGLE via Map Control Button
-    setTimeout(function() {
-        const anchorControlBtn = document.getElementById('anchorControlBtn');
-        if (anchorControlBtn) {
-            anchorControlBtn.addEventListener('click', function(e) {
-                e.preventDefault();
+    // Note: Anchor mode toggle is now handled by map control (addAnchorControlToMap)
+});
+
+// ✅ Add Anchor Control to Map (custom Leaflet control)
+function addAnchorControlToMap() {
+    // Create custom control for Anchor
+    L.Control.AnchorControl = L.Control.extend({
+        options: {
+            position: 'topleft'
+        },
+        
+        onAdd: function(map) {
+            const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+            container.style.marginTop = '10px';
+            
+            const button = L.DomUtil.create('a', 'leaflet-control-anchor', container);
+            button.href = '#';
+            button.title = 'Đặt Anchor';
+            button.innerHTML = '<i class="fas fa-map-pin" style="font-size: 16px; margin-top: 2px;"></i>';
+            button.style.width = '30px';
+            button.style.height = '30px';
+            button.style.lineHeight = '30px';
+            button.style.textAlign = 'center';
+            button.style.fontSize = '16px';
+            button.style.backgroundColor = '#fff';
+            button.style.color = '#333';
+            button.style.display = 'flex';
+            button.style.alignItems = 'center';
+            button.style.justifyContent = 'center';
+            
+            L.DomEvent.on(button, 'click', function(e) {
+                L.DomEvent.stopPropagation(e);
+                L.DomEvent.preventDefault(e);
+                
                 isAnchorMode = !isAnchorMode;
                 
                 if (isAnchorMode) {
-                    this.classList.add('active');
+                    button.style.backgroundColor = '#2196F3';
+                    button.style.color = '#fff';
+                    button.title = 'Đang đặt Anchor (Click vào bản đồ)';
                     map.getContainer().style.cursor = 'crosshair';
-                    showNotification('📍 Click vào bản đồ để đặt Anchor', 'info');
                 } else {
-                    this.classList.remove('active');
+                    button.style.backgroundColor = '#fff';
+                    button.style.color = '#333';
+                    button.title = 'Đặt Anchor';
                     map.getContainer().style.cursor = '';
                 }
             });
+            
+            return container;
         }
-    }, 500);
-});
+    });
+    
+    // Add control to map
+    new L.Control.AnchorControl().addTo(map);
+}
 
 // ========== ANCHOR FUNCTIONS ==========
 
@@ -901,35 +927,31 @@ function enableAnchorDrag(anchorId) {
     
     const marker = anchorMarker.marker;
     
-    // Close popup first
-    marker.closePopup();
-    
     // Enable dragging
     marker.dragging.enable();
+    marker.closePopup();
     
     // Change cursor
     map.getContainer().style.cursor = 'move';
     
     // Show notification
-    showNotification('📌 Kéo Anchor đến vị trí mới', 'info');
+    alert('📌 Kéo thả Anchor đến vị trí mới, sau đó nhấn "Lưu vị trí"');
     
-    // Listen for dragend event to show save/cancel buttons
-    marker.once('dragend', function() {
-        marker.bindPopup(`
-            <div style="min-width: 200px; text-align: center;">
-                <h3 style="margin: 0 0 10px 0; color: #FF9800;">📌 Vị trí mới</h3>
-                <p style="margin: 10px 0; font-size: 14px; color: #666;">Lưu vị trí này?</p>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
-                    <button onclick="saveAnchorPosition(${anchorId})" style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">
-                        ✅ Lưu
-                    </button>
-                    <button onclick="cancelAnchorDrag(${anchorId})" style="background: #9E9E9E; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
-                        ❌ Hủy
-                    </button>
-                </div>
+    // Update popup to show Save button
+    marker.bindPopup(`
+        <div style="min-width: 200px; text-align: center;">
+            <h3 style="margin: 0 0 10px 0; color: #FF9800;">📌 Đang di chuyển...</h3>
+            <p style="margin: 10px 0; font-size: 14px; color: #666;">Kéo marker đến vị trí mới</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
+                <button onclick="saveAnchorPosition(${anchorId})" style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                    ✅ Lưu vị trí
+                </button>
+                <button onclick="cancelAnchorDrag(${anchorId})" style="background: #9E9E9E; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                    ❌ Hủy
+                </button>
             </div>
-        `).openPopup();
-    });
+        </div>
+    `).openPopup();
 }
 
 // Save new anchor position
