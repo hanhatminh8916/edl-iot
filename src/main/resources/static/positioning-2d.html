@@ -4,15 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sơ Đồ 2D Positioning - EDL SafeWork</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/location.css">
     <style>
+        .main-content {
+            padding: 20px;
+        }
+
         .canvas-container {
             background: white;
             border-radius: 8px;
-            padding: 15px;
+            padding: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-bottom: 20px;
-            overflow-x: auto;
         }
 
         .canvas-header {
@@ -55,15 +60,12 @@
         }
 
         #canvas2d {
-            border: 2px solid #ddd;
+            border: 2px solid #e0e0e0;
             border-radius: 4px;
-            background: #ffffff;
+            background: #f5f5f5;
             cursor: crosshair;
             display: block;
             margin: 0 auto;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            max-width: 100%;
-            height: auto;
         }
 
         .legend {
@@ -199,58 +201,68 @@
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="logo">
-            <h1>🏢 EDL SafeWork</h1>
-        </div>
-        <nav class="nav-menu">
-            <a href="index.html" class="nav-item">
-                <span class="icon">📊</span>
-                <span>Tổng quan</span>
-            </a>
-            <a href="employees.html" class="nav-item">
-                <span class="icon">👷</span>
-                <span>Quản lý công nhân</span>
-            </a>
-            <a href="location.html" class="nav-item">
-                <span class="icon">📍</span>
-                <span>Vị trí</span>
-            </a>
-            <a href="positioning-2d.html" class="nav-item active">
-                <span class="icon">📐</span>
-                <span>Sơ Đồ 2D</span>
-            </a>
-            <a href="alerts.html" class="nav-item">
-                <span class="icon">🚨</span>
-                <span>Cảnh báo</span>
-            </a>
-            <a href="reports.html" class="nav-item">
-                <span class="icon">📈</span>
-                <span>Báo cáo</span>
-            </a>
-            <a href="#" class="nav-item" onclick="logout()">
-                <span class="icon">🚪</span>
-                <span>Đăng xuất</span>
-            </a>
-        </nav>
-    </div>
-
     <!-- Header -->
-    <div class="header">
-        <div class="page-header">
-            <div>
-                <h1>📐 Sơ Đồ 2D Positioning System</h1>
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <i class="fas fa-hard-hat"></i>
+                <span>EDL SafeWork</span>
             </div>
         </div>
-        <div class="user-info">
-            <span class="username" id="usernameDisplay">vku123</span>
-            <button onclick="logout()" class="logout-btn">Đăng xuất</button>
+        <div class="header-right">
+            <div class="user-profile">
+                <i class="fas fa-user-circle"></i>
+                <span id="usernameDisplay">vku123</span>
+            </div>
         </div>
-    </div>
+    </header>
 
-    <!-- Main Content -->
-    <div class="main-content">
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <nav class="nav-menu">
+                <a href="index.html" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Tổng quan</span>
+                </a>
+                <a href="location.html" class="nav-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Giám sát vị trí</span>
+                </a>
+                <a href="positioning-2d.html" class="nav-item active">
+                    <i class="fas fa-ruler-combined"></i>
+                    <span>Sơ Đồ 2D</span>
+                </a>
+                <a href="employees.html" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>Quản lý công nhân</span>
+                </a>
+                <a href="alerts.html" class="nav-item">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Cảnh báo</span>
+                </a>
+                <a href="reports.html" class="nav-item">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Báo cáo</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Cài đặt</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <div>
+                    <h1>📐 Sơ Đồ 2D Positioning System</h1>
+                    <p>Theo dõi khoảng cách và vị trí Tag-Anchor realtime</p>
+                </div>
+            </div>
+
         <!-- Canvas Container -->
         <div class="canvas-container">
             <div class="canvas-header">
@@ -258,8 +270,8 @@
                 <div class="controls">
                     <div class="control-group">
                         <label>Tỷ lệ:</label>
-                        <input type="range" id="scaleSlider" min="15" max="45" value="22" step="1">
-                        <span id="scaleValue">22</span> px/m
+                        <input type="range" id="scaleSlider" min="10" max="40" value="20" step="1">
+                        <span id="scaleValue">20</span> px/m
                     </div>
                     <button class="btn btn-secondary" onclick="resetView()">Reset View</button>
                     <button class="btn btn-primary" onclick="toggleAnimation()">
@@ -306,6 +318,7 @@
                 </div>
             </div>
         </div>
+        </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
@@ -316,7 +329,7 @@
         const ctx = canvas.getContext('2d');
         
         // Configuration
-        let scale = 22; // pixels per meter
+        let scale = 20; // pixels per meter
         const areaSize = 20; // 20m × 20m
         let isAnimating = true;
 
@@ -360,53 +373,31 @@
 
         // Draw grid
         function drawGrid() {
-            // Major grid lines (every 5m)
-            ctx.strokeStyle = '#bbb';
-            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
 
-            for (let i = 0; i <= areaSize; i += 5) {
-                // Vertical major lines
+            // Vertical lines
+            for (let i = 0; i <= areaSize; i++) {
                 ctx.beginPath();
                 ctx.moveTo(i * scale, 0);
                 ctx.lineTo(i * scale, areaSize * scale);
                 ctx.stroke();
+            }
 
-                // Horizontal major lines
+            // Horizontal lines
+            for (let i = 0; i <= areaSize; i++) {
                 ctx.beginPath();
                 ctx.moveTo(0, i * scale);
                 ctx.lineTo(areaSize * scale, i * scale);
                 ctx.stroke();
             }
 
-            // Minor grid lines (every 1m)
-            ctx.strokeStyle = '#e8e8e8';
-            ctx.lineWidth = 0.5;
-            for (let i = 0; i <= areaSize; i++) {
-                if (i % 5 !== 0) {
-                    // Vertical minor lines
-                    ctx.beginPath();
-                    ctx.moveTo(i * scale, 0);
-                    ctx.lineTo(i * scale, areaSize * scale);
-                    ctx.stroke();
-                    
-                    // Horizontal minor lines
-                    ctx.beginPath();
-                    ctx.moveTo(0, i * scale);
-                    ctx.lineTo(areaSize * scale, i * scale);
-                    ctx.stroke();
-                }
-            }
-
             // Draw labels
-            ctx.fillStyle = '#333';
-            ctx.font = 'bold 12px Arial';
+            ctx.fillStyle = '#999';
+            ctx.font = '10px Arial';
             for (let i = 0; i <= areaSize; i += 5) {
-                // Bottom labels
-                ctx.textAlign = 'center';
-                ctx.fillText(i + 'm', i * scale, areaSize * scale + 15);
-                // Left labels
-                ctx.textAlign = 'right';
-                ctx.fillText((areaSize - i) + 'm', -8, i * scale + 5);
+                ctx.fillText(i + 'm', i * scale - 8, areaSize * scale + 15);
+                ctx.fillText(i + 'm', -20, areaSize * scale - i * scale + 5);
             }
         }
 
@@ -417,30 +408,18 @@
 
             // Draw circle
             ctx.beginPath();
-            ctx.arc(x, y, 14, 0, 2 * Math.PI);
+            ctx.arc(x, y, 8, 0, 2 * Math.PI);
             ctx.fillStyle = anchor.status === 'online' ? '#2196F3' : '#999';
             ctx.fill();
-            ctx.strokeStyle = '#0d47a1';
-            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
             ctx.stroke();
 
-            // Draw white center dot
-            ctx.beginPath();
-            ctx.arc(x, y, 4, 0, 2 * Math.PI);
-            ctx.fillStyle = '#fff';
-            ctx.fill();
-
-            // Draw label with background
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.fillRect(x - 18, y - 28, 36, 18);
-            ctx.strokeStyle = '#2196F3';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x - 18, y - 28, 36, 18);
-            
-            ctx.fillStyle = '#0d47a1';
-            ctx.font = 'bold 13px Arial';
+            // Draw label
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(anchor.id, x, y - 14);
+            ctx.fillText(anchor.id, x, y - 15);
         }
 
         // Draw tag
@@ -450,30 +429,18 @@
 
             // Draw circle
             ctx.beginPath();
-            ctx.arc(x, y, 12, 0, 2 * Math.PI);
+            ctx.arc(x, y, 10, 0, 2 * Math.PI);
             ctx.fillStyle = tag.status === 'online' ? '#f44336' : '#999';
             ctx.fill();
-            ctx.strokeStyle = '#b71c1c';
-            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
             ctx.stroke();
 
-            // Draw white center dot
-            ctx.beginPath();
-            ctx.arc(x, y, 4, 0, 2 * Math.PI);
-            ctx.fillStyle = '#fff';
-            ctx.fill();
-
-            // Draw label with background
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.fillRect(x - 18, y + 15, 36, 18);
-            ctx.strokeStyle = '#f44336';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x - 18, y + 15, 36, 18);
-            
-            ctx.fillStyle = '#b71c1c';
-            ctx.font = 'bold 13px Arial';
+            // Draw label
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(tag.id, x, y + 28);
+            ctx.fillText(tag.id, x, y + 25);
         }
 
         // Draw distance line
@@ -496,15 +463,14 @@
             // Draw distance label
             const midX = (x1 + x2) / 2;
             const midY = (y1 + y2) / 2;
-            ctx.fillStyle = 'rgba(76, 175, 80, 0.95)';
-            ctx.fillRect(midX - 30, midY - 12, 60, 24);
-            ctx.strokeStyle = '#2e7d32';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(midX - 30, midY - 12, 60, 24);
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 13px Arial';
+            ctx.fillRect(midX - 25, midY - 10, 50, 20);
+            ctx.strokeStyle = '#4CAF50';
+            ctx.strokeRect(midX - 25, midY - 10, 50, 20);
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 11px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(distance.toFixed(2) + 'm', midX, midY + 5);
+            ctx.fillText(distance.toFixed(2) + 'm', midX, midY + 4);
         }
 
         // Update tag positions (simulate movement)
@@ -539,7 +505,7 @@
             ctx.save();
             
             // Add padding
-            ctx.translate(50, 50);
+            ctx.translate(40, 40);
 
             // Draw grid
             drawGrid();
