@@ -3,7 +3,6 @@ var map, markers = [], workersData = [], drawnItems = null, activePolygon = null
 var anchorMarkers = []; // Store anchor markers
 var anchorLayer = null; // Separate layer for anchors
 var isAnchorMode = false; // Toggle anchor placement mode
-var currentDraggingAnchorId = null; // Track currently dragging anchor to avoid WebSocket conflict
 // Tọa độ tâm khu vực an toàn - ĐÀ NẴNG (cập nhật từ dữ liệu thực tế MQTT)
 var safeZoneCenter = [15.97331, 108.25183];
 var safeZoneRadius = 200; // Bán kính 200 mét (chỉ để tham khảo, giờ dùng polygon vẽ tay)
@@ -591,14 +590,14 @@ function handleAnchorUpdate(update) {
         // Cập nhật anchor
         const anchor = update.anchor;
         
-        // ✅ Skip update if this anchor is currently being dragged by this client
-        if (currentDraggingAnchorId === anchor.id) {
-            console.log('⏭️ Skip WebSocket update - anchor is being dragged locally');
-            return;
+        // Kiểm tra xem anchor có đang được drag không
+        const existingMarker = anchorMarkers.find(a => a.id === anchor.id);
+        if (existingMarker && existingMarker.isDragging) {
+            console.log('⏭️ Skip WebSocket update - anchor is being dragged');
+            return; // Skip update if anchor is being dragged
         }
         
         // Xóa marker cũ và thêm mới
-        const existingMarker = anchorMarkers.find(a => a.id === anchor.id);
         if (existingMarker) {
             anchorLayer.removeLayer(existingMarker.marker);
             anchorMarkers = anchorMarkers.filter(a => a.id !== anchor.id);
@@ -933,9 +932,13 @@ function enableAnchorDrag(anchorId) {
     if (!anchorMarker) return;
     
     const marker = anchorMarker.marker;
+    const anchor = anchorMarker.anchor;
     
-    // ✅ Set dragging flag to prevent WebSocket conflicts
-    currentDraggingAnchorId = anchorId;
+    // Mark as dragging to prevent WebSocket updates
+    anchorMarker.isDragging = true;
+    
+    // Store original position
+    const originalPosition = marker.getLatLng();
     
     // Enable dragging
     marker.dragging.enable();
@@ -944,24 +947,30 @@ function enableAnchorDrag(anchorId) {
     // Change cursor
     map.getContainer().style.cursor = 'move';
     
-    // Show notification
-    alert('📌 Kéo thả Anchor đến vị trí mới, sau đó nhấn "Lưu vị trí"');
+    // Show instruction notification
+    showNotification('📌 Kéo Anchor đến vị trí mới', 'info');
     
-    // Update popup to show Save button
-    marker.bindPopup(`
-        <div style="min-width: 200px; text-align: center;">
-            <h3 style="margin: 0 0 10px 0; color: #FF9800;">📌 Đang di chuyển...</h3>
-            <p style="margin: 10px 0; font-size: 14px; color: #666;">Kéo marker đến vị trí mới</p>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
-                <button onclick="saveAnchorPosition(${anchorId})" style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">
-                    ✅ Lưu vị trí
-                </button>
-                <button onclick="cancelAnchorDrag(${anchorId})" style="background: #9E9E9E; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
-                    ❌ Hủy
-                </button>
+    // Listen for dragend event to show save/cancel buttons
+    marker.once('dragend', function() {
+        // Show save/cancel popup after drag ends
+        marker.bindPopup(`
+            <div style="min-width: 200px; text-align: center;">
+                <h3 style="margin: 0 0 10px 0; color: #FF9800;">📌 Xác nhận vị trí mới</h3>
+                <p style="margin: 10px 0; font-size: 14px; color: #666;">
+                    Lat: ${marker.getLatLng().lat.toFixed(6)}<br>
+                    Lng: ${marker.getLatLng().lng.toFixed(6)}
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
+                    <button onclick="saveAnchorPosition(${anchorId})" style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                        ✅ Lưu vị trí
+                    </button>
+                    <button onclick="cancelAnchorDrag(${anchorId}, ${originalPosition.lat}, ${originalPosition.lng})" style="background: #9E9E9E; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                        ❌ Hủy
+                    </button>
+                </div>
             </div>
-        </div>
-    `).openPopup();
+        `).openPopup();
+    });
 }
 
 // Save new anchor position
@@ -992,12 +1001,12 @@ function saveAnchorPosition(anchorId) {
     .then(updatedAnchor => {
         console.log('✅ Anchor position updated:', updatedAnchor);
         
-        // ✅ Clear dragging flag BEFORE updating marker (to allow WebSocket update for other clients)
-        currentDraggingAnchorId = null;
-        
         // Disable dragging
         marker.dragging.disable();
         map.getContainer().style.cursor = '';
+        
+        // Clear dragging flag
+        anchorMarker.isDragging = false;
         
         // Update anchor data
         anchorMarker.anchor = updatedAnchor;
@@ -1036,8 +1045,8 @@ function saveAnchorPosition(anchorId) {
     .catch(error => {
         console.error('❌ Error updating anchor position:', error);
         
-        // ✅ Clear dragging flag on error too
-        currentDraggingAnchorId = null;
+        // Clear dragging flag on error
+        anchorMarker.isDragging = false;
         
         // Disable dragging on error
         marker.dragging.disable();
@@ -1048,18 +1057,18 @@ function saveAnchorPosition(anchorId) {
 }
 
 // Cancel anchor drag
-function cancelAnchorDrag(anchorId) {
+function cancelAnchorDrag(anchorId, originalLat, originalLng) {
     const anchorMarker = anchorMarkers.find(a => a.id === anchorId);
     if (!anchorMarker) return;
     
     const marker = anchorMarker.marker;
     const anchor = anchorMarker.anchor;
     
-    // ✅ Clear dragging flag
-    currentDraggingAnchorId = null;
-    
     // Reset to original position
-    marker.setLatLng([anchor.latitude, anchor.longitude]);
+    marker.setLatLng([originalLat, originalLng]);
+    
+    // Clear dragging flag
+    anchorMarker.isDragging = false;
     
     // Disable dragging
     marker.dragging.disable();
