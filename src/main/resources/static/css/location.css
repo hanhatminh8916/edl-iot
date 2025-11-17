@@ -444,3 +444,16 @@
 .card:fullscreen #map {
     height: 100%;
 }
+
+/* Hide Leaflet Draw toolbar buttons on left side */
+.leaflet-draw-toolbar {
+    display: none !important;
+}
+
+.leaflet-draw-actions {
+    display: none !important;
+}
+
+.leaflet-draw-section {
+    display: none !important;
+}

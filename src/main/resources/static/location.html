@@ -76,20 +76,6 @@
                     <h1>Giám sát vị trí thời gian thực</h1>
                     <p>Theo dõi vị trí và trạng thái của tất cả công nhân trên công trường</p>
                 </div>
-                <div class="header-actions">
-                    <button class="btn-secondary" id="toggleAnchorMode">
-                        <i class="fas fa-map-pin"></i>
-                        Đặt Anchor
-                    </button>
-                    <button class="btn-secondary">
-                        <i class="fas fa-print"></i>
-                        Cài đặt
-                    </button>
-                    <button class="btn-primary">
-                        <i class="fas fa-sync-alt"></i>
-                        Đồng bộ dữ liệu
-                    </button>
-                </div>
             </div>
 
             <!-- Status Cards -->
@@ -155,9 +141,15 @@
                                 <i class="fas fa-map"></i>
                                 <h3>Bản đồ công trường</h3>
                             </div>
-                            <button class="btn-expand">
-                                <i class="fas fa-expand"></i>
-                            </button>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn-secondary" id="toggleAnchorMode" style="padding: 8px 16px; font-size: 14px;">
+                                    <i class="fas fa-map-pin"></i>
+                                    Đặt Anchor
+                                </button>
+                                <button class="btn-expand">
+                                    <i class="fas fa-expand"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="card-body map-body">
                             <p class="map-subtitle">Cập nhật vị trí mới nhất: <span id="lastUpdate">--</span></p>
