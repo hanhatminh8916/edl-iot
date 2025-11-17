@@ -296,9 +296,15 @@
 
         function connectWebSocket() {
             updateStatus('Đang kết nối WebSocket...', 'connecting');
-            log('🔌 Đang kết nối tới WebSocket endpoint: /ws', 'info');
+            
+            // Lấy URL hiện tại (http/https)
+            const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}/ws`;
+            
+            log('🔌 Đang kết nối tới: ' + wsUrl, 'info');
 
-            const socket = new SockJS('/ws');
+            const socket = new SockJS(wsUrl);
             stompClient = Stomp.over(socket);
 
             stompClient.connect({}, function(frame) {
