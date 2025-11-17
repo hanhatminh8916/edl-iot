@@ -934,7 +934,12 @@ function saveAnchorPosition(anchorId) {
             longitude: newLatLng.lng
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
     .then(updatedAnchor => {
         console.log('✅ Anchor position updated:', updatedAnchor);
         
@@ -968,13 +973,22 @@ function saveAnchorPosition(anchorId) {
                     </button>
                 </div>
             </div>
-        `).openPopup();
+        `);
         
-        alert('✅ Đã lưu vị trí mới!');
+        // Close popup and show success message
+        marker.closePopup();
+        
+        // Show success notification instead of alert
+        showNotification('✅ Đã lưu vị trí Anchor mới!', 'success');
     })
     .catch(error => {
         console.error('❌ Error updating anchor position:', error);
-        alert('Lỗi khi lưu vị trí!');
+        
+        // Disable dragging on error
+        marker.dragging.disable();
+        map.getContainer().style.cursor = '';
+        
+        showNotification('❌ Lỗi khi lưu vị trí!', 'error');
     });
 }
 
