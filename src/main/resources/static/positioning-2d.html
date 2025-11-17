@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sơ Đồ 2D Positioning - EDL SafeWork</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .main-content {
+            padding: 20px;
+        }
+
+        .canvas-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .canvas-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .canvas-header h2 {
+            margin: 0;
+            color: #333;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .control-group label {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .control-group input[type="range"] {
+            width: 150px;
+        }
+
+        .control-group span {
+            min-width: 40px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        #canvas2d {
+            border: 2px solid #e0e0e0;
+            border-radius: 4px;
+            background: #f5f5f5;
+            cursor: crosshair;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .legend {
+            display: flex;
+            gap: 30px;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #333;
+        }
+
+        .legend-color.anchor {
+            background: #2196F3;
+        }
+
+        .legend-color.tag {
+            background: #f44336;
+        }
+
+        .info-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .info-section {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        .info-section h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 16px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 8px;
+        }
+
+        .device-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .device-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            background: white;
+            border-radius: 4px;
+            border-left: 3px solid #2196F3;
+            font-size: 14px;
+        }
+
+        .device-item.tag {
+            border-left-color: #f44336;
+        }
+
+        .device-item strong {
+            color: #333;
+        }
+
+        .distance-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #45a049;
+        }
+
+        .btn-secondary {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #0b7dda;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-indicator.online {
+            background: #4CAF50;
+        }
+
+        .status-indicator.offline {
+            background: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <h1>🏢 EDL SafeWork</h1>
+        </div>
+        <nav class="nav-menu">
+            <a href="index.html" class="nav-item">
+                <span class="icon">📊</span>
+                <span>Tổng quan</span>
+            </a>
+            <a href="employees.html" class="nav-item">
+                <span class="icon">👷</span>
+                <span>Quản lý công nhân</span>
+            </a>
+            <a href="location.html" class="nav-item">
+                <span class="icon">📍</span>
+                <span>Vị trí</span>
+            </a>
+            <a href="positioning-2d.html" class="nav-item active">
+                <span class="icon">📐</span>
+                <span>Sơ Đồ 2D</span>
+            </a>
+            <a href="alerts.html" class="nav-item">
+                <span class="icon">🚨</span>
+                <span>Cảnh báo</span>
+            </a>
+            <a href="reports.html" class="nav-item">
+                <span class="icon">📈</span>
+                <span>Báo cáo</span>
+            </a>
+            <a href="#" class="nav-item" onclick="logout()">
+                <span class="icon">🚪</span>
+                <span>Đăng xuất</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="header">
+            <h1>📐 Sơ Đồ 2D Positioning System</h1>
+            <div class="user-info">
+                <span class="username" id="usernameDisplay">vku123</span>
+                <button onclick="logout()" class="logout-btn">Đăng xuất</button>
+            </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="canvas-container">
+            <div class="canvas-header">
+                <h2>Khu Vực Giám Sát (20m × 20m)</h2>
+                <div class="controls">
+                    <div class="control-group">
+                        <label>Tỷ lệ:</label>
+                        <input type="range" id="scaleSlider" min="10" max="40" value="20" step="1">
+                        <span id="scaleValue">20</span> px/m
+                    </div>
+                    <button class="btn btn-secondary" onclick="resetView()">Reset View</button>
+                    <button class="btn btn-primary" onclick="toggleAnimation()">
+                        <span id="animationBtn">⏸ Dừng</span>
+                    </button>
+                </div>
+            </div>
+            <canvas id="canvas2d" width="800" height="800"></canvas>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color anchor"></div>
+                    <span><strong>Anchor</strong> - Thiết bị định vị cố định</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color tag"></div>
+                    <span><strong>Tag</strong> - Thiết bị gắn trên mũ bảo hiểm</span>
+                </div>
+                <div class="legend-item">
+                    <span>📏 Đường nối hiển thị khoảng cách (meter)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Panel -->
+        <div class="info-panel">
+            <h2>Thông Tin Chi Tiết</h2>
+            <div class="info-grid">
+                <div class="info-section">
+                    <h3>📍 Danh Sách Anchor</h3>
+                    <ul class="device-list" id="anchorList"></ul>
+                </div>
+                <div class="info-section">
+                    <h3>🏷️ Danh Sách Tag</h3>
+                    <ul class="device-list" id="tagList"></ul>
+                </div>
+                <div class="info-section">
+                    <h3>📊 Thống Kê</h3>
+                    <div style="padding: 10px;">
+                        <p><strong>Tổng Anchor:</strong> <span id="totalAnchors">0</span></p>
+                        <p><strong>Tổng Tag:</strong> <span id="totalTags">0</span></p>
+                        <p><strong>Tag Hoạt Động:</strong> <span id="activeTags">0</span></p>
+                        <p><strong>Khoảng Cách Trung Bình:</strong> <span id="avgDistance">0</span> m</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        const canvas = document.getElementById('canvas2d');
+        const ctx = canvas.getContext('2d');
+        
+        // Configuration
+        let scale = 20; // pixels per meter
+        const areaSize = 20; // 20m × 20m
+        let isAnimating = true;
+
+        // Sample data - Anchors (fixed positions)
+        const anchors = [
+            { id: 'A1', name: 'Anchor 1', x: 2, y: 2, status: 'online' },
+            { id: 'A2', name: 'Anchor 2', x: 18, y: 2, status: 'online' },
+            { id: 'A3', name: 'Anchor 3', x: 18, y: 18, status: 'online' },
+            { id: 'A4', name: 'Anchor 4', x: 2, y: 18, status: 'online' },
+            { id: 'A5', name: 'Anchor 5', x: 10, y: 10, status: 'online' }
+        ];
+
+        // Sample data - Tags (moving positions)
+        let tags = [
+            { id: 'T1', name: 'Nguyễn Văn An', x: 5, y: 5, vx: 0.02, vy: 0.015, status: 'online', helmet: 'H001' },
+            { id: 'T2', name: 'Trần Thị Bình', x: 15, y: 8, vx: -0.015, vy: 0.02, status: 'online', helmet: 'H002' },
+            { id: 'T3', name: 'Lê Văn Cường', x: 12, y: 15, vx: 0.01, vy: -0.025, status: 'online', helmet: 'H003' },
+            { id: 'T4', name: 'Phạm Thị Dung', x: 8, y: 12, vx: -0.02, vy: -0.01, status: 'online', helmet: 'H004' }
+        ];
+
+        // Calculate distance between two points
+        function calculateDistance(x1, y1, x2, y2) {
+            return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        }
+
+        // Find nearest anchor for each tag
+        function findNearestAnchor(tag) {
+            let minDistance = Infinity;
+            let nearestAnchor = null;
+
+            anchors.forEach(anchor => {
+                const dist = calculateDistance(tag.x, tag.y, anchor.x, anchor.y);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    nearestAnchor = anchor;
+                }
+            });
+
+            return { anchor: nearestAnchor, distance: minDistance };
+        }
+
+        // Draw grid
+        function drawGrid() {
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+
+            // Vertical lines
+            for (let i = 0; i <= areaSize; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * scale, 0);
+                ctx.lineTo(i * scale, areaSize * scale);
+                ctx.stroke();
+            }
+
+            // Horizontal lines
+            for (let i = 0; i <= areaSize; i++) {
+                ctx.beginPath();
+                ctx.moveTo(0, i * scale);
+                ctx.lineTo(areaSize * scale, i * scale);
+                ctx.stroke();
+            }
+
+            // Draw labels
+            ctx.fillStyle = '#999';
+            ctx.font = '10px Arial';
+            for (let i = 0; i <= areaSize; i += 5) {
+                ctx.fillText(i + 'm', i * scale - 8, areaSize * scale + 15);
+                ctx.fillText(i + 'm', -20, areaSize * scale - i * scale + 5);
+            }
+        }
+
+        // Draw anchor
+        function drawAnchor(anchor) {
+            const x = anchor.x * scale;
+            const y = (areaSize - anchor.y) * scale;
+
+            // Draw circle
+            ctx.beginPath();
+            ctx.arc(x, y, 8, 0, 2 * Math.PI);
+            ctx.fillStyle = anchor.status === 'online' ? '#2196F3' : '#999';
+            ctx.fill();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw label
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(anchor.id, x, y - 15);
+        }
+
+        // Draw tag
+        function drawTag(tag) {
+            const x = tag.x * scale;
+            const y = (areaSize - tag.y) * scale;
+
+            // Draw circle
+            ctx.beginPath();
+            ctx.arc(x, y, 10, 0, 2 * Math.PI);
+            ctx.fillStyle = tag.status === 'online' ? '#f44336' : '#999';
+            ctx.fill();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw label
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(tag.id, x, y + 25);
+        }
+
+        // Draw distance line
+        function drawDistanceLine(tag, anchor, distance) {
+            const x1 = tag.x * scale;
+            const y1 = (areaSize - tag.y) * scale;
+            const x2 = anchor.x * scale;
+            const y2 = (areaSize - anchor.y) * scale;
+
+            // Draw line
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = 'rgba(76, 175, 80, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw distance label
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(midX - 25, midY - 10, 50, 20);
+            ctx.strokeStyle = '#4CAF50';
+            ctx.strokeRect(midX - 25, midY - 10, 50, 20);
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 11px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(distance.toFixed(2) + 'm', midX, midY + 4);
+        }
+
+        // Update tag positions (simulate movement)
+        function updateTagPositions() {
+            if (!isAnimating) return;
+
+            tags.forEach(tag => {
+                // Update position
+                tag.x += tag.vx;
+                tag.y += tag.vy;
+
+                // Bounce off walls
+                if (tag.x <= 1 || tag.x >= areaSize - 1) {
+                    tag.vx *= -1;
+                }
+                if (tag.y <= 1 || tag.y >= areaSize - 1) {
+                    tag.vy *= -1;
+                }
+
+                // Keep within bounds
+                tag.x = Math.max(1, Math.min(areaSize - 1, tag.x));
+                tag.y = Math.max(1, Math.min(areaSize - 1, tag.y));
+            });
+        }
+
+        // Main draw function
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Save context
+            ctx.save();
+            
+            // Add padding
+            ctx.translate(40, 40);
+
+            // Draw grid
+            drawGrid();
+
+            // Draw distance lines first (so they appear behind)
+            tags.forEach(tag => {
+                const { anchor, distance } = findNearestAnchor(tag);
+                if (anchor) {
+                    drawDistanceLine(tag, anchor, distance);
+                }
+            });
+
+            // Draw anchors
+            anchors.forEach(anchor => drawAnchor(anchor));
+
+            // Draw tags
+            tags.forEach(tag => drawTag(tag));
+
+            // Restore context
+            ctx.restore();
+
+            // Update lists
+            updateLists();
+        }
+
+        // Update anchor and tag lists
+        function updateLists() {
+            // Update anchor list
+            const anchorList = document.getElementById('anchorList');
+            anchorList.innerHTML = anchors.map(anchor => `
+                <li class="device-item">
+                    <span class="status-indicator ${anchor.status}"></span>
+                    <strong>${anchor.id}</strong> - ${anchor.name}
+                    <div class="distance-info">Vị trí: (${anchor.x.toFixed(1)}m, ${anchor.y.toFixed(1)}m)</div>
+                </li>
+            `).join('');
+
+            // Update tag list
+            const tagList = document.getElementById('tagList');
+            tagList.innerHTML = tags.map(tag => {
+                const { anchor, distance } = findNearestAnchor(tag);
+                return `
+                    <li class="device-item tag">
+                        <span class="status-indicator ${tag.status}"></span>
+                        <strong>${tag.id}</strong> - ${tag.name}
+                        <div class="distance-info">
+                            Vị trí: (${tag.x.toFixed(1)}m, ${tag.y.toFixed(1)}m) | 
+                            Gần nhất: ${anchor ? anchor.id : 'N/A'} (${distance.toFixed(2)}m)
+                        </div>
+                    </li>
+                `;
+            }).join('');
+
+            // Update statistics
+            document.getElementById('totalAnchors').textContent = anchors.length;
+            document.getElementById('totalTags').textContent = tags.length;
+            document.getElementById('activeTags').textContent = tags.filter(t => t.status === 'online').length;
+            
+            const avgDist = tags.reduce((sum, tag) => {
+                const { distance } = findNearestAnchor(tag);
+                return sum + distance;
+            }, 0) / tags.length;
+            document.getElementById('avgDistance').textContent = avgDist.toFixed(2);
+        }
+
+        // Animation loop
+        function animate() {
+            updateTagPositions();
+            draw();
+            requestAnimationFrame(animate);
+        }
+
+        // Scale slider
+        document.getElementById('scaleSlider').addEventListener('input', (e) => {
+            scale = parseInt(e.target.value);
+            document.getElementById('scaleValue').textContent = scale;
+            draw();
+        });
+
+        // Reset view
+        function resetView() {
+            scale = 20;
+            document.getElementById('scaleSlider').value = 20;
+            document.getElementById('scaleValue').textContent = 20;
+            
+            // Reset tag positions
+            tags = [
+                { id: 'T1', name: 'Nguyễn Văn An', x: 5, y: 5, vx: 0.02, vy: 0.015, status: 'online', helmet: 'H001' },
+                { id: 'T2', name: 'Trần Thị Bình', x: 15, y: 8, vx: -0.015, vy: 0.02, status: 'online', helmet: 'H002' },
+                { id: 'T3', name: 'Lê Văn Cường', x: 12, y: 15, vx: 0.01, vy: -0.025, status: 'online', helmet: 'H003' },
+                { id: 'T4', name: 'Phạm Thị Dung', x: 8, y: 12, vx: -0.02, vy: -0.01, status: 'online', helmet: 'H004' }
+            ];
+            
+            draw();
+        }
+
+        // Toggle animation
+        function toggleAnimation() {
+            isAnimating = !isAnimating;
+            document.getElementById('animationBtn').textContent = isAnimating ? '⏸ Dừng' : '▶️ Chạy';
+        }
+
+        // Logout function
+        function logout() {
+            sessionStorage.removeItem('isLoggedIn');
+            sessionStorage.removeItem('username');
+            window.location.href = 'login.html';
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            animate();
+        });
+    </script>
+</body>
+</html>
