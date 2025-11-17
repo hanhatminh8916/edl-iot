@@ -1,6 +1,7 @@
 ﻿console.log("location.js loaded");
 var map, markers = [], workersData = [], drawnItems = null, activePolygon = null;
 var anchorMarkers = []; // Store anchor markers
+var anchorLayer = null; // Separate layer for anchors
 var isAnchorMode = false; // Toggle anchor placement mode
 // Tọa độ tâm khu vực an toàn - ĐÀ NẴNG (cập nhật từ dữ liệu thực tế MQTT)
 var safeZoneCenter = [15.97331, 108.25183];
@@ -10,6 +11,10 @@ function initializeMap() {
     console.log("Init map with Geo-Fencing");
     map = L.map("map").setView(safeZoneCenter, 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19}).addTo(map);
+    
+    // ✅ Layer riêng cho Anchors (không bị xóa khi vẽ SafeZone)
+    anchorLayer = new L.FeatureGroup();
+    map.addLayer(anchorLayer);
     
     // ✅ Khởi tạo Leaflet Draw để vẽ polygon (vùng an toàn)
     drawnItems = new L.FeatureGroup();
@@ -715,7 +720,10 @@ function addAnchorMarker(anchor) {
     const marker = L.marker([anchor.latitude, anchor.longitude], {
         icon: anchorIcon,
         draggable: false
-    }).addTo(map);
+    });
+    
+    // ✅ Add to anchorLayer instead of map directly
+    anchorLayer.addLayer(marker);
     
     // Popup with anchor info
     marker.bindPopup(`
@@ -795,10 +803,10 @@ function deleteAnchor(anchorId) {
         if (response.ok) {
             console.log('✅ Anchor deleted');
             
-            // Remove marker from map
+            // Remove marker from anchorLayer
             const anchorMarker = anchorMarkers.find(a => a.id === anchorId);
             if (anchorMarker) {
-                map.removeLayer(anchorMarker.marker);
+                anchorLayer.removeLayer(anchorMarker.marker);
                 anchorMarkers = anchorMarkers.filter(a => a.id !== anchorId);
             }
         } else {
