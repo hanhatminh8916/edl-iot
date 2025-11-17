@@ -816,36 +816,37 @@ function addAnchorMarker(anchor) {
     // ✅ Add to anchorLayer instead of map directly
     anchorLayer.addLayer(marker);
     
-    // Popup with anchor info (single click) - DELAY to prevent auto-open on creation
-    setTimeout(() => {
-        marker.bindPopup(`
-            <div style="min-width: 200px;">
-                <h3 style="margin: 0 0 10px 0; color: #2196F3;">📍 ${anchor.name}</h3>
-                <p style="margin: 5px 0;"><strong>ID:</strong> ${anchor.anchorId}</p>
-                <p style="margin: 5px 0;"><strong>Vị trí:</strong><br>
-                   Lat: ${anchor.latitude.toFixed(6)}<br>
-                   Lng: ${anchor.longitude.toFixed(6)}</p>
-                ${anchor.description ? `<p style="margin: 5px 0;"><strong>Mô tả:</strong> ${anchor.description}</p>` : ''}
-                <p style="margin: 5px 0;"><strong>Trạng thái:</strong> 
-                   <span style="color: ${anchor.status === 'online' ? '#4CAF50' : '#f44336'};">
-                       ${anchor.status === 'online' ? '🟢 Online' : '🔴 Offline'}
-                   </span>
-                </p>
-                <p style="margin: 10px 0 5px 0; font-size: 12px; color: #666; text-align: center;">
-                    <i class="fas fa-info-circle"></i> Double-click để di chuyển
-                </p>
-                <button onclick="deleteAnchor(${anchor.id})" style="background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-top: 5px; width: 100%;">
-                    🗑️ Xóa Anchor
-                </button>
-            </div>
-        `);
-    }, 100);
+    // Popup with anchor info (single click)
+    marker.bindPopup(`
+        <div style="min-width: 200px;">
+            <h3 style="margin: 0 0 10px 0; color: #2196F3;">📍 ${anchor.name}</h3>
+            <p style="margin: 5px 0;"><strong>ID:</strong> ${anchor.anchorId}</p>
+            <p style="margin: 5px 0;"><strong>Vị trí:</strong><br>
+               Lat: ${anchor.latitude.toFixed(6)}<br>
+               Lng: ${anchor.longitude.toFixed(6)}</p>
+            ${anchor.description ? `<p style="margin: 5px 0;"><strong>Mô tả:</strong> ${anchor.description}</p>` : ''}
+            <p style="margin: 5px 0;"><strong>Trạng thái:</strong> 
+               <span style="color: ${anchor.status === 'online' ? '#4CAF50' : '#f44336'};">
+                   ${anchor.status === 'online' ? '🟢 Online' : '🔴 Offline'}
+               </span>
+            </p>
+            <p style="margin: 10px 0 5px 0; font-size: 12px; color: #666; text-align: center;">
+                <i class="fas fa-info-circle"></i> Double-click để di chuyển
+            </p>
+            <button onclick="deleteAnchor(${anchor.id})" style="background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-top: 5px; width: 100%;">
+                🗑️ Xóa Anchor
+            </button>
+        </div>
+    `);
+    
+    // Store anchor data in marker for later access
+    marker.anchorData = anchor;
     
     // ✅ Double-click to enable drag mode
     marker.on('dblclick', function(e) {
         L.DomEvent.stopPropagation(e);
-        marker.closePopup(); // Close popup before drag
-        enableAnchorDrag(anchor.id);
+        console.log('🖱️ Double-click on anchor:', marker.anchorData.anchorId, 'ID:', marker.anchorData.id);
+        enableAnchorDrag(marker.anchorData.id);
     });
     
     anchorMarkers.push({ id: anchor.id, marker: marker, anchor: anchor });
@@ -905,9 +906,9 @@ function deleteAnchor(anchorId) {
     })
     .then(response => {
         if (response.ok) {
-            console.log('✅ Anchor delete request sent, waiting for WebSocket sync...');
-            // ⚠️ KHÔNG xóa local marker ở đây
-            // Để WebSocket handleAnchorUpdate xử lý để tất cả clients đồng bộ
+            console.log('✅ Anchor delete request sent, waiting for WebSocket confirmation...');
+            // ⚠️ DON'T remove marker here - let WebSocket broadcast handle it
+            // This prevents "ghost" issue where person who deleted sees it gone but others still see it
         } else {
             alert('Lỗi khi xóa Anchor!');
         }
@@ -935,7 +936,7 @@ function enableAnchorDrag(anchorId) {
     // Show notification
     alert('📌 Kéo thả Anchor đến vị trí mới, sau đó nhấn "Lưu vị trí"');
     
-    // Update popup to show Save button
+    // Update popup to show Save button (delay opening to prevent immediate popup after dblclick)
     marker.bindPopup(`
         <div style="min-width: 200px; text-align: center;">
             <h3 style="margin: 0 0 10px 0; color: #FF9800;">📌 Đang di chuyển...</h3>
@@ -949,7 +950,12 @@ function enableAnchorDrag(anchorId) {
                 </button>
             </div>
         </div>
-    `).openPopup();
+    `);
+    
+    // Open popup after small delay
+    setTimeout(() => {
+        marker.openPopup();
+    }, 100);
 }
 
 // Save new anchor position
