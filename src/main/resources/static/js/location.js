@@ -382,13 +382,111 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// ==========================================
+// WEBSOCKET REAL-TIME UPDATE
+// ==========================================
+var stompClient = null;
+
+function connectWebSocket() {
+    console.log('🔌 Connecting to WebSocket...');
+    
+    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}/ws`;
+    
+    const socket = new SockJS(wsUrl);
+    stompClient = Stomp.over(socket);
+    
+    stompClient.connect({}, function(frame) {
+        console.log('✅ WebSocket connected!');
+        
+        // Subscribe to helmet data updates
+        stompClient.subscribe('/topic/helmet/data', function(message) {
+            try {
+                const data = JSON.parse(message.body);
+                console.log('📡 Received real-time update:', data.mac);
+                
+                // Update marker on map in real-time
+                updateMarkerRealtime(data);
+                
+            } catch (e) {
+                console.error('❌ Error parsing WebSocket message:', e);
+            }
+        });
+        
+    }, function(error) {
+        console.error('❌ WebSocket connection error:', error);
+        // Retry after 5 seconds
+        setTimeout(connectWebSocket, 5000);
+    });
+}
+
+function updateMarkerRealtime(data) {
+    if (!data.latitude || !data.longitude) {
+        console.log('⚠️ No GPS data for', data.mac);
+        return;
+    }
+    
+    const lat = parseFloat(data.latitude);
+    const lon = parseFloat(data.longitude);
+    
+    // Find existing marker by MAC
+    let existingMarker = markers.find(m => m.mac === data.mac);
+    
+    if (existingMarker) {
+        // Update existing marker position
+        existingMarker.marker.setLatLng([lat, lon]);
+        
+        // Update marker icon based on mode/status
+        const isInDanger = data.mode === 'ANCHOR' || data.battery < 20;
+        const iconUrl = isInDanger ? 
+            'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png' :
+            'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png';
+        
+        existingMarker.marker.setIcon(L.icon({
+            iconUrl: iconUrl,
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        }));
+        
+        // Update popup content
+        const status = isInDanger ? '🔴 NGUY HIỂM' : '🟢 AN TOÀN';
+        const popupContent = `
+            <strong>MAC: ${data.mac}</strong><br>
+            Status: ${status}<br>
+            Battery: ${data.battery}%<br>
+            Mode: ${data.mode || 'N/A'}
+        `;
+        existingMarker.marker.setPopupContent(popupContent);
+        
+        console.log(`✅ Updated marker for ${data.mac}`);
+    } else {
+        // Create new marker if not exists
+        console.log(`➕ Creating new marker for ${data.mac}`);
+        loadWorkers(); // Reload all workers to get complete data
+    }
+}
+
+// ==========================================
+// END WEBSOCKET
+// ==========================================
+
 window.addEventListener("load", function() {
     console.log("Page loaded");
     if (typeof L !== "undefined") {
         initializeMap();
         setTimeout(loadWorkers, 500);
     }
-    setInterval(loadWorkers, 10000);
+    
+    // Connect WebSocket for real-time updates
+    connectWebSocket();
+    
+    // Keep polling as fallback (reduced frequency)
+    setInterval(loadWorkers, 30000); // Every 30s instead of 10s
     
     // Fullscreen button handler
     const btnExpand = document.querySelector('.btn-expand');
