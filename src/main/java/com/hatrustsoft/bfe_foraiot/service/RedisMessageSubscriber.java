@@ -5,6 +5,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.hatrustsoft.bfe_foraiot.entity.HelmetData;
 
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +21,12 @@ public class RedisMessageSubscriber {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+    
+    public RedisMessageSubscriber() {
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.registerModule(new JavaTimeModule());
+    }
 
     /**
      * Callback method được gọi khi nhận message từ Redis
