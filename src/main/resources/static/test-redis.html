@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis WebSocket Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .status-box {
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .status-disconnected {
+            background: #fee;
+            color: #c33;
+            border: 2px solid #c33;
+        }
+
+        .status-connecting {
+            background: #ffeaa7;
+            color: #d63031;
+            border: 2px solid #fdcb6e;
+        }
+
+        .status-connected {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #28a745;
+        }
+
+        .test-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .test-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .log-container {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-left: 3px solid #00ff00;
+            padding-left: 10px;
+        }
+
+        .log-error {
+            color: #ff6b6b;
+            border-left-color: #ff6b6b;
+        }
+
+        .log-success {
+            color: #51cf66;
+            border-left-color: #51cf66;
+        }
+
+        .log-info {
+            color: #74c0fc;
+            border-left-color: #74c0fc;
+        }
+
+        .message-box {
+            background: white;
+            border: 2px solid #667eea;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .message-item {
+            background: #f1f3f5;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .timestamp {
+            color: #868e96;
+            font-size: 12px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #868e96;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Redis + WebSocket Test</h1>
+
+        <!-- Status Box -->
+        <div id="status" class="status-box status-disconnected">
+            ❌ Chưa kết nối WebSocket
+        </div>
+
+        <!-- Test Actions -->
+        <div class="test-section">
+            <h2>🎮 Actions</h2>
+            <button onclick="connectWebSocket()">🔌 Kết nối WebSocket</button>
+            <button onclick="sendTestMessage()" id="sendBtn" disabled>📤 Gửi Test Message qua MQTT</button>
+            <button onclick="clearLogs()">🗑️ Xóa Logs</button>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="messageCount">0</div>
+                <div class="stat-label">Messages nhận</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="connectionTime">0s</div>
+                <div class="stat-label">Thời gian connect</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="lastUpdate">-</div>
+                <div class="stat-label">Update cuối</div>
+            </div>
+        </div>
+
+        <!-- Received Messages -->
+        <div class="test-section">
+            <h2>📨 Messages từ Redis (qua WebSocket)</h2>
+            <div id="messages" class="message-box">
+                <p style="color: #868e96; text-align: center;">Chưa có message nào...</p>
+            </div>
+        </div>
+
+        <!-- Console Logs -->
+        <div class="test-section">
+            <h2>📋 Console Logs</h2>
+            <div id="logs" class="log-container">
+                <div class="log-entry log-info">💡 Nhấn "Kết nối WebSocket" để bắt đầu test...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script>
+        let stompClient = null;
+        let messageCount = 0;
+        let connectTime = null;
+        let timerInterval = null;
+
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString('vi-VN');
+            const logClass = type === 'error' ? 'log-error' : (type === 'success' ? 'log-success' : 'log-info');
+            
+            logs.innerHTML += `<div class="log-entry ${logClass}">[${timestamp}] ${message}</div>`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function updateStatus(message, status) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status-box status-${status}`;
+            
+            if (status === 'connected') {
+                statusDiv.innerHTML = '✅ ' + message;
+            } else if (status === 'connecting') {
+                statusDiv.innerHTML = '⏳ ' + message;
+            } else {
+                statusDiv.innerHTML = '❌ ' + message;
+            }
+        }
+
+        function updateTimer() {
+            if (connectTime) {
+                const elapsed = Math.floor((Date.now() - connectTime) / 1000);
+                document.getElementById('connectionTime').textContent = elapsed + 's';
+            }
+        }
+
+        function connectWebSocket() {
+            updateStatus('Đang kết nối WebSocket...', 'connecting');
+            log('🔌 Đang kết nối tới WebSocket endpoint: /ws', 'info');
+
+            const socket = new SockJS('/ws');
+            stompClient = Stomp.over(socket);
+
+            stompClient.connect({}, function(frame) {
+                log('✅ WebSocket connected thành công!', 'success');
+                log('📡 Frame: ' + frame, 'info');
+                updateStatus('Đã kết nối WebSocket', 'connected');
+                
+                connectTime = Date.now();
+                timerInterval = setInterval(updateTimer, 1000);
+                
+                document.getElementById('sendBtn').disabled = false;
+
+                // Subscribe to helmet data topic
+                stompClient.subscribe('/topic/helmet/data', function(message) {
+                    log('📩 Nhận message từ Redis!', 'success');
+                    
+                    try {
+                        const data = JSON.parse(message.body);
+                        log('✅ Parse JSON thành công: ' + JSON.stringify(data), 'success');
+                        
+                        messageCount++;
+                        document.getElementById('messageCount').textContent = messageCount;
+                        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('vi-VN');
+                        
+                        displayMessage(data);
+                    } catch (e) {
+                        log('❌ Lỗi parse JSON: ' + e.message, 'error');
+                    }
+                });
+
+                log('🎧 Đã subscribe topic: /topic/helmet/data', 'success');
+                log('✅ REDIS HOẠT ĐỘNG! Đợi message từ MQTT...', 'success');
+
+            }, function(error) {
+                log('❌ Lỗi kết nối WebSocket: ' + error, 'error');
+                updateStatus('Lỗi kết nối WebSocket', 'disconnected');
+                document.getElementById('sendBtn').disabled = true;
+                
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                }
+            });
+        }
+
+        function displayMessage(data) {
+            const messagesDiv = document.getElementById('messages');
+            
+            if (messageCount === 1) {
+                messagesDiv.innerHTML = ''; // Clear placeholder
+            }
+
+            const mode = data.mode || 'UNKNOWN';
+            const badgeClass = mode === 'ANCHOR' ? 'badge-danger' : 'badge-success';
+            
+            const messageHtml = `
+                <div class="message-item">
+                    <strong>🪖 MAC: ${data.mac}</strong>
+                    <span class="badge ${badgeClass}">${mode}</span>
+                    <div class="timestamp">${new Date().toLocaleString('vi-VN')}</div>
+                    <div style="margin-top: 10px; font-size: 14px;">
+                        🔋 Battery: ${data.battery}% | 
+                        ⚡ Voltage: ${data.voltage}V | 
+                        🌡️ Temp: ${data.temperature}°C | 
+                        💧 Humidity: ${data.humidity}%
+                    </div>
+                    ${data.latitude && data.longitude ? 
+                        `<div style="margin-top: 5px; font-size: 12px; color: #495057;">
+                            📍 GPS: ${data.latitude}, ${data.longitude}
+                        </div>` : ''}
+                </div>
+            `;
+            
+            messagesDiv.innerHTML = messageHtml + messagesDiv.innerHTML;
+        }
+
+        function sendTestMessage() {
+            log('📤 Gửi hướng dẫn test MQTT...', 'info');
+            alert(
+                '📡 Để test Redis, gửi message MQTT:\n\n' +
+                'Topic: helmet/TEST\n\n' +
+                'Payload (JSON):\n' +
+                '{\n' +
+                '  "mac": "TEST001",\n' +
+                '  "mode": "ANCHOR",\n' +
+                '  "battery": 85,\n' +
+                '  "voltage": 3.7,\n' +
+                '  "temperature": 28.5,\n' +
+                '  "humidity": 65.0\n' +
+                '}\n\n' +
+                '✅ Nếu nhận được message → Redis hoạt động!'
+            );
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            log('🗑️ Logs đã được xóa', 'info');
+        }
+
+        // Auto connect on page load
+        window.onload = function() {
+            log('🌐 Trang test Redis đã load xong', 'info');
+            log('💡 Click "Kết nối WebSocket" để bắt đầu!', 'info');
+        };
+    </script>
+</body>
+</html>
