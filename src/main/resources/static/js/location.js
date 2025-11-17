@@ -3,6 +3,7 @@ var map, markers = [], workersData = [], drawnItems = null, activePolygon = null
 var anchorMarkers = []; // Store anchor markers
 var anchorLayer = null; // Separate layer for anchors
 var isAnchorMode = false; // Toggle anchor placement mode
+var currentDraggingAnchorId = null; // Track currently dragging anchor to avoid WebSocket conflict
 // Tọa độ tâm khu vực an toàn - ĐÀ NẴNG (cập nhật từ dữ liệu thực tế MQTT)
 var safeZoneCenter = [15.97331, 108.25183];
 var safeZoneRadius = 200; // Bán kính 200 mét (chỉ để tham khảo, giờ dùng polygon vẽ tay)
@@ -590,6 +591,12 @@ function handleAnchorUpdate(update) {
         // Cập nhật anchor
         const anchor = update.anchor;
         
+        // ✅ Skip update if this anchor is currently being dragged by this client
+        if (currentDraggingAnchorId === anchor.id) {
+            console.log('⏭️ Skip WebSocket update - anchor is being dragged locally');
+            return;
+        }
+        
         // Xóa marker cũ và thêm mới
         const existingMarker = anchorMarkers.find(a => a.id === anchor.id);
         if (existingMarker) {
@@ -927,6 +934,9 @@ function enableAnchorDrag(anchorId) {
     
     const marker = anchorMarker.marker;
     
+    // ✅ Set dragging flag to prevent WebSocket conflicts
+    currentDraggingAnchorId = anchorId;
+    
     // Enable dragging
     marker.dragging.enable();
     marker.closePopup();
@@ -982,6 +992,9 @@ function saveAnchorPosition(anchorId) {
     .then(updatedAnchor => {
         console.log('✅ Anchor position updated:', updatedAnchor);
         
+        // ✅ Clear dragging flag BEFORE updating marker (to allow WebSocket update for other clients)
+        currentDraggingAnchorId = null;
+        
         // Disable dragging
         marker.dragging.disable();
         map.getContainer().style.cursor = '';
@@ -1023,6 +1036,9 @@ function saveAnchorPosition(anchorId) {
     .catch(error => {
         console.error('❌ Error updating anchor position:', error);
         
+        // ✅ Clear dragging flag on error too
+        currentDraggingAnchorId = null;
+        
         // Disable dragging on error
         marker.dragging.disable();
         map.getContainer().style.cursor = '';
@@ -1038,6 +1054,9 @@ function cancelAnchorDrag(anchorId) {
     
     const marker = anchorMarker.marker;
     const anchor = anchorMarker.anchor;
+    
+    // ✅ Clear dragging flag
+    currentDraggingAnchorId = null;
     
     // Reset to original position
     marker.setLatLng([anchor.latitude, anchor.longitude]);
