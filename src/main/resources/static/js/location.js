@@ -796,13 +796,18 @@ function addAnchorMarker(anchor) {
                    ${anchor.status === 'online' ? '🟢 Online' : '🔴 Offline'}
                </span>
             </p>
-            <button onclick="deleteAnchor(${anchor.id})" style="background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-top: 10px; width: 100%;">
-                🗑️ Xóa Anchor
-            </button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
+                <button onclick="enableAnchorDrag(${anchor.id})" style="background: #2196F3; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                    📌 Di chuyển
+                </button>
+                <button onclick="deleteAnchor(${anchor.id})" style="background: #f44336; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                    🗑️ Xóa
+                </button>
+            </div>
         </div>
     `);
     
-    anchorMarkers.push({ id: anchor.id, marker: marker });
+    anchorMarkers.push({ id: anchor.id, marker: marker, anchor: anchor });
 }
 
 // Place new anchor on map click
@@ -874,4 +879,142 @@ function deleteAnchor(anchorId) {
         console.error('❌ Error deleting anchor:', error);
         alert('Lỗi khi xóa Anchor!');
     });
+}
+
+// Enable drag mode for anchor
+function enableAnchorDrag(anchorId) {
+    const anchorMarker = anchorMarkers.find(a => a.id === anchorId);
+    if (!anchorMarker) return;
+    
+    const marker = anchorMarker.marker;
+    
+    // Enable dragging
+    marker.dragging.enable();
+    marker.closePopup();
+    
+    // Change cursor
+    map.getContainer().style.cursor = 'move';
+    
+    // Show notification
+    alert('📌 Kéo thả Anchor đến vị trí mới, sau đó nhấn "Lưu vị trí"');
+    
+    // Update popup to show Save button
+    marker.bindPopup(`
+        <div style="min-width: 200px; text-align: center;">
+            <h3 style="margin: 0 0 10px 0; color: #FF9800;">📌 Đang di chuyển...</h3>
+            <p style="margin: 10px 0; font-size: 14px; color: #666;">Kéo marker đến vị trí mới</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
+                <button onclick="saveAnchorPosition(${anchorId})" style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                    ✅ Lưu vị trí
+                </button>
+                <button onclick="cancelAnchorDrag(${anchorId})" style="background: #9E9E9E; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                    ❌ Hủy
+                </button>
+            </div>
+        </div>
+    `).openPopup();
+}
+
+// Save new anchor position
+function saveAnchorPosition(anchorId) {
+    const anchorMarker = anchorMarkers.find(a => a.id === anchorId);
+    if (!anchorMarker) return;
+    
+    const marker = anchorMarker.marker;
+    const newLatLng = marker.getLatLng();
+    
+    // Update anchor position via API
+    fetch('/api/anchors/' + anchorId, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            latitude: newLatLng.lat,
+            longitude: newLatLng.lng
+        })
+    })
+    .then(response => response.json())
+    .then(updatedAnchor => {
+        console.log('✅ Anchor position updated:', updatedAnchor);
+        
+        // Disable dragging
+        marker.dragging.disable();
+        map.getContainer().style.cursor = '';
+        
+        // Update anchor data
+        anchorMarker.anchor = updatedAnchor;
+        
+        // Restore original popup
+        marker.bindPopup(`
+            <div style="min-width: 200px;">
+                <h3 style="margin: 0 0 10px 0; color: #2196F3;">📍 ${updatedAnchor.name}</h3>
+                <p style="margin: 5px 0;"><strong>ID:</strong> ${updatedAnchor.anchorId}</p>
+                <p style="margin: 5px 0;"><strong>Vị trí:</strong><br>
+                   Lat: ${updatedAnchor.latitude.toFixed(6)}<br>
+                   Lng: ${updatedAnchor.longitude.toFixed(6)}</p>
+                ${updatedAnchor.description ? `<p style="margin: 5px 0;"><strong>Mô tả:</strong> ${updatedAnchor.description}</p>` : ''}
+                <p style="margin: 5px 0;"><strong>Trạng thái:</strong> 
+                   <span style="color: ${updatedAnchor.status === 'online' ? '#4CAF50' : '#f44336'};">
+                       ${updatedAnchor.status === 'online' ? '🟢 Online' : '🔴 Offline'}
+                   </span>
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
+                    <button onclick="enableAnchorDrag(${updatedAnchor.id})" style="background: #2196F3; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                        📌 Di chuyển
+                    </button>
+                    <button onclick="deleteAnchor(${updatedAnchor.id})" style="background: #f44336; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                        🗑️ Xóa
+                    </button>
+                </div>
+            </div>
+        `).openPopup();
+        
+        alert('✅ Đã lưu vị trí mới!');
+    })
+    .catch(error => {
+        console.error('❌ Error updating anchor position:', error);
+        alert('Lỗi khi lưu vị trí!');
+    });
+}
+
+// Cancel anchor drag
+function cancelAnchorDrag(anchorId) {
+    const anchorMarker = anchorMarkers.find(a => a.id === anchorId);
+    if (!anchorMarker) return;
+    
+    const marker = anchorMarker.marker;
+    const anchor = anchorMarker.anchor;
+    
+    // Reset to original position
+    marker.setLatLng([anchor.latitude, anchor.longitude]);
+    
+    // Disable dragging
+    marker.dragging.disable();
+    map.getContainer().style.cursor = '';
+    
+    // Restore original popup
+    marker.bindPopup(`
+        <div style="min-width: 200px;">
+            <h3 style="margin: 0 0 10px 0; color: #2196F3;">📍 ${anchor.name}</h3>
+            <p style="margin: 5px 0;"><strong>ID:</strong> ${anchor.anchorId}</p>
+            <p style="margin: 5px 0;"><strong>Vị trí:</strong><br>
+               Lat: ${anchor.latitude.toFixed(6)}<br>
+               Lng: ${anchor.longitude.toFixed(6)}</p>
+            ${anchor.description ? `<p style="margin: 5px 0;"><strong>Mô tả:</strong> ${anchor.description}</p>` : ''}
+            <p style="margin: 5px 0;"><strong>Trạng thái:</strong> 
+               <span style="color: ${anchor.status === 'online' ? '#4CAF50' : '#f44336'};">
+                   ${anchor.status === 'online' ? '🟢 Online' : '🔴 Offline'}
+               </span>
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
+                <button onclick="enableAnchorDrag(${anchor.id})" style="background: #2196F3; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                    📌 Di chuyển
+                </button>
+                <button onclick="deleteAnchor(${anchor.id})" style="background: #f44336; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                    🗑️ Xóa
+                </button>
+            </div>
+        </div>
+    `).openPopup();
 }

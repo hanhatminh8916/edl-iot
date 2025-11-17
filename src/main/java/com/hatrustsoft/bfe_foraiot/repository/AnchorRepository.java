@@ -1,11 +1,12 @@
 package com.hatrustsoft.bfe_foraiot.repository;
 
-import com.hatrustsoft.bfe_foraiot.entity.Anchor;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Optional;
+import com.hatrustsoft.bfe_foraiot.entity.Anchor;
 
 @Repository
 public interface AnchorRepository extends JpaRepository<Anchor, Long> {
