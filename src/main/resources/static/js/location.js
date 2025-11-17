@@ -793,6 +793,53 @@ function addAnchorControlToMap() {
 
 // ========== ANCHOR FUNCTIONS ==========
 
+// Helper function to create anchor popup with event listeners
+function createAnchorPopup(anchor, marker) {
+    const popupContent = document.createElement('div');
+    popupContent.style.minWidth = '200px';
+    popupContent.innerHTML = `
+        <h3 style="margin: 0 0 10px 0; color: #2196F3;">📍 ${anchor.name}</h3>
+        <p style="margin: 5px 0;"><strong>ID:</strong> ${anchor.anchorId}</p>
+        <p style="margin: 5px 0;"><strong>Vị trí:</strong><br>
+           Lat: ${anchor.latitude.toFixed(6)}<br>
+           Lng: ${anchor.longitude.toFixed(6)}</p>
+        ${anchor.description ? `<p style="margin: 5px 0;"><strong>Mô tả:</strong> ${anchor.description}</p>` : ''}
+        <p style="margin: 5px 0;"><strong>Trạng thái:</strong> 
+           <span style="color: ${anchor.status === 'online' ? '#4CAF50' : '#f44336'};">
+               ${anchor.status === 'online' ? '🟢 Online' : '🔴 Offline'}
+           </span>
+        </p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
+            <button class="anchor-move-btn" data-anchor-id="${anchor.id}" style="background: #2196F3; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                📌 Di chuyển
+            </button>
+            <button class="anchor-delete-btn" data-anchor-id="${anchor.id}" style="background: #f44336; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                🗑️ Xóa
+            </button>
+        </div>
+    `;
+    
+    // Add event listeners
+    const moveBtn = popupContent.querySelector('.anchor-move-btn');
+    const deleteBtn = popupContent.querySelector('.anchor-delete-btn');
+    
+    if (moveBtn) {
+        moveBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            enableAnchorDrag(anchor.id);
+        });
+    }
+    
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            deleteAnchor(anchor.id);
+        });
+    }
+    
+    return popupContent;
+}
+
 // Load all anchors from database
 function loadAnchorsFromDatabase() {
     fetch('/api/anchors')
@@ -827,30 +874,9 @@ function addAnchorMarker(anchor) {
     // ✅ Add to anchorLayer instead of map directly
     anchorLayer.addLayer(marker);
     
-    // Popup with anchor info
-    marker.bindPopup(`
-        <div style="min-width: 200px;">
-            <h3 style="margin: 0 0 10px 0; color: #2196F3;">📍 ${anchor.name}</h3>
-            <p style="margin: 5px 0;"><strong>ID:</strong> ${anchor.anchorId}</p>
-            <p style="margin: 5px 0;"><strong>Vị trí:</strong><br>
-               Lat: ${anchor.latitude.toFixed(6)}<br>
-               Lng: ${anchor.longitude.toFixed(6)}</p>
-            ${anchor.description ? `<p style="margin: 5px 0;"><strong>Mô tả:</strong> ${anchor.description}</p>` : ''}
-            <p style="margin: 5px 0;"><strong>Trạng thái:</strong> 
-               <span style="color: ${anchor.status === 'online' ? '#4CAF50' : '#f44336'};">
-                   ${anchor.status === 'online' ? '🟢 Online' : '🔴 Offline'}
-               </span>
-            </p>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
-                <button onclick="enableAnchorDrag(${anchor.id})" style="background: #2196F3; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
-                    📌 Di chuyển
-                </button>
-                <button onclick="deleteAnchor(${anchor.id})" style="background: #f44336; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
-                    🗑️ Xóa
-                </button>
-            </div>
-        </div>
-    `);
+    // Bind popup with event listeners
+    const popupContent = createAnchorPopup(anchor, marker);
+    marker.bindPopup(popupContent);
     
     anchorMarkers.push({ id: anchor.id, marker: marker, anchor: anchor });
 }
@@ -1011,35 +1037,14 @@ function saveAnchorPosition(anchorId) {
         // Update anchor data
         anchorMarker.anchor = updatedAnchor;
         
-        // Restore original popup
-        marker.bindPopup(`
-            <div style="min-width: 200px;">
-                <h3 style="margin: 0 0 10px 0; color: #2196F3;">📍 ${updatedAnchor.name}</h3>
-                <p style="margin: 5px 0;"><strong>ID:</strong> ${updatedAnchor.anchorId}</p>
-                <p style="margin: 5px 0;"><strong>Vị trí:</strong><br>
-                   Lat: ${updatedAnchor.latitude.toFixed(6)}<br>
-                   Lng: ${updatedAnchor.longitude.toFixed(6)}</p>
-                ${updatedAnchor.description ? `<p style="margin: 5px 0;"><strong>Mô tả:</strong> ${updatedAnchor.description}</p>` : ''}
-                <p style="margin: 5px 0;"><strong>Trạng thái:</strong> 
-                   <span style="color: ${updatedAnchor.status === 'online' ? '#4CAF50' : '#f44336'};">
-                       ${updatedAnchor.status === 'online' ? '🟢 Online' : '🔴 Offline'}
-                   </span>
-                </p>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
-                    <button onclick="enableAnchorDrag(${updatedAnchor.id})" style="background: #2196F3; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
-                        📌 Di chuyển
-                    </button>
-                    <button onclick="deleteAnchor(${updatedAnchor.id})" style="background: #f44336; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
-                        🗑️ Xóa
-                    </button>
-                </div>
-            </div>
-        `);
+        // Restore original popup using helper function
+        const popupContent = createAnchorPopup(updatedAnchor, marker);
+        marker.bindPopup(popupContent);
         
         // Close popup and show success message
         marker.closePopup();
         
-        // Show success notification instead of alert
+        // Show success notification
         showNotification('✅ Đã lưu vị trí Anchor mới!', 'success');
     })
     .catch(error => {
@@ -1074,28 +1079,7 @@ function cancelAnchorDrag(anchorId, originalLat, originalLng) {
     marker.dragging.disable();
     map.getContainer().style.cursor = '';
     
-    // Restore original popup
-    marker.bindPopup(`
-        <div style="min-width: 200px;">
-            <h3 style="margin: 0 0 10px 0; color: #2196F3;">📍 ${anchor.name}</h3>
-            <p style="margin: 5px 0;"><strong>ID:</strong> ${anchor.anchorId}</p>
-            <p style="margin: 5px 0;"><strong>Vị trí:</strong><br>
-               Lat: ${anchor.latitude.toFixed(6)}<br>
-               Lng: ${anchor.longitude.toFixed(6)}</p>
-            ${anchor.description ? `<p style="margin: 5px 0;"><strong>Mô tả:</strong> ${anchor.description}</p>` : ''}
-            <p style="margin: 5px 0;"><strong>Trạng thái:</strong> 
-               <span style="color: ${anchor.status === 'online' ? '#4CAF50' : '#f44336'};">
-                   ${anchor.status === 'online' ? '🟢 Online' : '🔴 Offline'}
-               </span>
-            </p>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
-                <button onclick="enableAnchorDrag(${anchor.id})" style="background: #2196F3; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
-                    📌 Di chuyển
-                </button>
-                <button onclick="deleteAnchor(${anchor.id})" style="background: #f44336; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
-                    🗑️ Xóa
-                </button>
-            </div>
-        </div>
-    `).openPopup();
+    // Restore original popup using helper function
+    const popupContent = createAnchorPopup(anchor, marker);
+    marker.bindPopup(popupContent).openPopup();
 }
