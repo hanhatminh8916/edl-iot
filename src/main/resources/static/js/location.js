@@ -901,31 +901,35 @@ function enableAnchorDrag(anchorId) {
     
     const marker = anchorMarker.marker;
     
+    // Close popup first
+    marker.closePopup();
+    
     // Enable dragging
     marker.dragging.enable();
-    marker.closePopup();
     
     // Change cursor
     map.getContainer().style.cursor = 'move';
     
     // Show notification
-    alert('📌 Kéo thả Anchor đến vị trí mới, sau đó nhấn "Lưu vị trí"');
+    showNotification('📌 Kéo Anchor đến vị trí mới', 'info');
     
-    // Update popup to show Save button
-    marker.bindPopup(`
-        <div style="min-width: 200px; text-align: center;">
-            <h3 style="margin: 0 0 10px 0; color: #FF9800;">📌 Đang di chuyển...</h3>
-            <p style="margin: 10px 0; font-size: 14px; color: #666;">Kéo marker đến vị trí mới</p>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
-                <button onclick="saveAnchorPosition(${anchorId})" style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">
-                    ✅ Lưu vị trí
-                </button>
-                <button onclick="cancelAnchorDrag(${anchorId})" style="background: #9E9E9E; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
-                    ❌ Hủy
-                </button>
+    // Listen for dragend event to show save/cancel buttons
+    marker.once('dragend', function() {
+        marker.bindPopup(`
+            <div style="min-width: 200px; text-align: center;">
+                <h3 style="margin: 0 0 10px 0; color: #FF9800;">📌 Vị trí mới</h3>
+                <p style="margin: 10px 0; font-size: 14px; color: #666;">Lưu vị trí này?</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
+                    <button onclick="saveAnchorPosition(${anchorId})" style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                        ✅ Lưu
+                    </button>
+                    <button onclick="cancelAnchorDrag(${anchorId})" style="background: #9E9E9E; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                        ❌ Hủy
+                    </button>
+                </div>
             </div>
-        </div>
-    `).openPopup();
+        `).openPopup();
+    });
 }
 
 // Save new anchor position
