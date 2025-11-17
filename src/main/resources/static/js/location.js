@@ -606,11 +606,13 @@ function handleAnchorUpdate(update) {
         // Thêm anchor mới
         const anchor = update.anchor;
         
-        // Kiểm tra xem anchor đã tồn tại chưa
+        // Kiểm tra xem anchor đã tồn tại chưa (tránh duplicate khi tự mình tạo)
         const exists = anchorMarkers.find(a => a.id === anchor.id);
         if (!exists) {
             addAnchorMarker(anchor);
-            console.log('✅ Anchor created:', anchor.anchorId);
+            console.log('✅ Anchor created from WebSocket:', anchor.anchorId);
+        } else {
+            console.log('⚠️ Anchor already exists, skipping:', anchor.anchorId);
         }
         
     } else if (action === 'UPDATE') {
@@ -624,7 +626,7 @@ function handleAnchorUpdate(update) {
             anchorMarkers = anchorMarkers.filter(a => a.id !== anchor.id);
         }
         addAnchorMarker(anchor);
-        console.log('✅ Anchor updated:', anchor.anchorId);
+        console.log('✅ Anchor updated from WebSocket:', anchor.anchorId);
         
     } else if (action === 'DELETE') {
         // Xóa anchor
@@ -634,7 +636,7 @@ function handleAnchorUpdate(update) {
         if (anchorMarker) {
             anchorLayer.removeLayer(anchorMarker.marker);
             anchorMarkers = anchorMarkers.filter(a => a.id !== anchorId);
-            console.log('✅ Anchor deleted:', anchorId);
+            console.log('✅ Anchor deleted from WebSocket:', anchorId);
         }
     }
 }
@@ -876,13 +878,14 @@ function placeAnchor(latlng) {
         
         // Turn off anchor mode
         isAnchorMode = false;
-        const toggleBtn = document.getElementById('toggleAnchorMode');
-        if (toggleBtn) {
-            toggleBtn.classList.remove('btn-primary');
-            toggleBtn.classList.add('btn-secondary');
-            toggleBtn.innerHTML = '<i class="fas fa-map-pin"></i> Đặt Anchor';
-            map.getContainer().style.cursor = '';
+        
+        // Update button UI
+        const anchorButton = document.querySelector('.leaflet-control-anchor');
+        if (anchorButton) {
+            anchorButton.style.background = 'white';
+            anchorButton.style.color = '#2196F3';
         }
+        map.getContainer().style.cursor = '';
     })
     .catch(error => {
         console.error('❌ Error saving anchor:', error);
