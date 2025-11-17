@@ -1,5 +1,7 @@
 ﻿console.log("location.js loaded");
 var map, markers = [], workersData = [], drawnItems = null, activePolygon = null;
+var anchorMarkers = []; // Store anchor markers
+var isAnchorMode = false; // Toggle anchor placement mode
 // Tọa độ tâm khu vực an toàn - ĐÀ NẴNG (cập nhật từ dữ liệu thực tế MQTT)
 var safeZoneCenter = [15.97331, 108.25183];
 var safeZoneRadius = 200; // Bán kính 200 mét (chỉ để tham khảo, giờ dùng polygon vẽ tay)
@@ -67,6 +69,16 @@ function initializeMap() {
 
     // ✅ LOAD POLYGON TỪ DATABASE khi khởi động
     loadSafeZoneFromDatabase();
+    
+    // ✅ LOAD ANCHORS FROM DATABASE
+    loadAnchorsFromDatabase();
+    
+    // ✅ ANCHOR PLACEMENT: Click on map to place anchor
+    map.on('click', function(e) {
+        if (isAnchorMode) {
+            placeAnchor(e.latlng);
+        }
+    });
     
     // Thêm nhãn Hoàng Sa, Trường Sa
     var hoangSaIcon = L.divIcon({
@@ -650,4 +662,151 @@ window.addEventListener("load", function() {
             }
         });
     }
+    
+    // ✅ ANCHOR MODE TOGGLE BUTTON
+    const toggleAnchorBtn = document.getElementById('toggleAnchorMode');
+    if (toggleAnchorBtn) {
+        toggleAnchorBtn.addEventListener('click', function() {
+            isAnchorMode = !isAnchorMode;
+            
+            if (isAnchorMode) {
+                this.classList.remove('btn-secondary');
+                this.classList.add('btn-primary');
+                this.innerHTML = '<i class="fas fa-map-pin"></i> Đang đặt Anchor (Click vào bản đồ)';
+                map.getContainer().style.cursor = 'crosshair';
+            } else {
+                this.classList.remove('btn-primary');
+                this.classList.add('btn-secondary');
+                this.innerHTML = '<i class="fas fa-map-pin"></i> Đặt Anchor';
+                map.getContainer().style.cursor = '';
+            }
+        });
+    }
 });
+
+// ========== ANCHOR FUNCTIONS ==========
+
+// Load all anchors from database
+function loadAnchorsFromDatabase() {
+    fetch('/api/anchors')
+        .then(response => response.json())
+        .then(anchors => {
+            console.log('✅ Loaded anchors from DB:', anchors);
+            anchors.forEach(anchor => {
+                addAnchorMarker(anchor);
+            });
+        })
+        .catch(error => {
+            console.error('❌ Error loading anchors:', error);
+        });
+}
+
+// Add anchor marker to map
+function addAnchorMarker(anchor) {
+    const anchorIcon = L.divIcon({
+        className: 'anchor-marker',
+        html: `<div style="background: #2196F3; color: white; padding: 8px 12px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); font-weight: bold; font-size: 12px; text-align: center; min-width: 40px;">
+                    ${anchor.anchorId}
+               </div>`,
+        iconSize: [50, 50],
+        iconAnchor: [25, 25]
+    });
+    
+    const marker = L.marker([anchor.latitude, anchor.longitude], {
+        icon: anchorIcon,
+        draggable: false
+    }).addTo(map);
+    
+    // Popup with anchor info
+    marker.bindPopup(`
+        <div style="min-width: 200px;">
+            <h3 style="margin: 0 0 10px 0; color: #2196F3;">📍 ${anchor.name}</h3>
+            <p style="margin: 5px 0;"><strong>ID:</strong> ${anchor.anchorId}</p>
+            <p style="margin: 5px 0;"><strong>Vị trí:</strong><br>
+               Lat: ${anchor.latitude.toFixed(6)}<br>
+               Lng: ${anchor.longitude.toFixed(6)}</p>
+            ${anchor.description ? `<p style="margin: 5px 0;"><strong>Mô tả:</strong> ${anchor.description}</p>` : ''}
+            <p style="margin: 5px 0;"><strong>Trạng thái:</strong> 
+               <span style="color: ${anchor.status === 'online' ? '#4CAF50' : '#f44336'};">
+                   ${anchor.status === 'online' ? '🟢 Online' : '🔴 Offline'}
+               </span>
+            </p>
+            <button onclick="deleteAnchor(${anchor.id})" style="background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-top: 10px; width: 100%;">
+                🗑️ Xóa Anchor
+            </button>
+        </div>
+    `);
+    
+    anchorMarkers.push({ id: anchor.id, marker: marker });
+}
+
+// Place new anchor on map click
+function placeAnchor(latlng) {
+    const name = prompt('Nhập tên Anchor:', 'Anchor ' + (anchorMarkers.length + 1));
+    if (!name) return;
+    
+    const description = prompt('Nhập mô tả (tùy chọn):', '');
+    
+    const anchorData = {
+        name: name,
+        latitude: latlng.lat,
+        longitude: latlng.lng,
+        description: description || '',
+        status: 'online'
+    };
+    
+    // Save to database
+    fetch('/api/anchors', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(anchorData)
+    })
+    .then(response => response.json())
+    .then(anchor => {
+        console.log('✅ Anchor saved:', anchor);
+        addAnchorMarker(anchor);
+        
+        // Turn off anchor mode
+        isAnchorMode = false;
+        const toggleBtn = document.getElementById('toggleAnchorMode');
+        if (toggleBtn) {
+            toggleBtn.classList.remove('btn-primary');
+            toggleBtn.classList.add('btn-secondary');
+            toggleBtn.innerHTML = '<i class="fas fa-map-pin"></i> Đặt Anchor';
+            map.getContainer().style.cursor = '';
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error saving anchor:', error);
+        alert('Lỗi khi lưu Anchor!');
+    });
+}
+
+// Delete anchor
+function deleteAnchor(anchorId) {
+    if (!confirm('Bạn có chắc muốn xóa Anchor này?')) return;
+    
+    fetch('/api/anchors/' + anchorId, {
+        method: 'DELETE'
+    })
+    .then(response => {
+        if (response.ok) {
+            console.log('✅ Anchor deleted');
+            
+            // Remove marker from map
+            const anchorMarker = anchorMarkers.find(a => a.id === anchorId);
+            if (anchorMarker) {
+                map.removeLayer(anchorMarker.marker);
+                anchorMarkers = anchorMarkers.filter(a => a.id !== anchorId);
+            }
+        } else {
+            alert('Lỗi khi xóa Anchor!');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error deleting anchor:', error);
+        alert('Lỗi khi xóa Anchor!');
+    });
+}
