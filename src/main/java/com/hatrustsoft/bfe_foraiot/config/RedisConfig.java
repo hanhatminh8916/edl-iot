@@ -1,8 +1,12 @@
 package com.hatrustsoft.bfe_foraiot.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
@@ -19,11 +23,49 @@ import com.hatrustsoft.bfe_foraiot.service.RedisMessageSubscriber;
  * Redis Configuration
  * - Pub/Sub cho real-time communication
  * - Cache cho helmet data
+ * - Hỗ trợ SSL cho Heroku Redis
  */
 @Configuration
 public class RedisConfig {
 
+    @Value("${spring.data.redis.host:localhost}")
+    private String redisHost;
+
+    @Value("${spring.data.redis.port:6379}")
+    private int redisPort;
+
+    @Value("${spring.data.redis.password:}")
+    private String redisPassword;
+
+    @Value("${spring.data.redis.ssl.enabled:false}")
+    private boolean redisSslEnabled;
+
     public static final String HELMET_DATA_CHANNEL = "helmet:data";
+
+    /**
+     * Redis Connection Factory với SSL support cho Heroku
+     */
+    @Bean
+    public RedisConnectionFactory redisConnectionFactory() {
+        RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
+        redisConfig.setHostName(redisHost);
+        redisConfig.setPort(redisPort);
+        
+        if (!redisPassword.isEmpty()) {
+            redisConfig.setPassword(redisPassword);
+        }
+
+        LettuceClientConfiguration.LettuceClientConfigurationBuilder clientConfig = 
+            LettuceClientConfiguration.builder();
+
+        if (redisSslEnabled) {
+            // Disable SSL certificate validation cho Heroku Redis self-signed cert
+            clientConfig.useSsl()
+                .disablePeerVerification(); // Bỏ qua certificate validation
+        }
+
+        return new LettuceConnectionFactory(redisConfig, clientConfig.build());
+    }
 
     /**
      * Redis Template cho publish/subscribe messages
