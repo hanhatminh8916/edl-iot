@@ -419,6 +419,16 @@ function connectWebSocket() {
         stompClient.subscribe('/topic/safezone/update', function(message) {
             try {
                 const update = JSON.parse(message.body);
+                console.log('🟢 Received SafeZone update:', update.action);
+                
+                // Xử lý SafeZone realtime
+                handleSafeZoneUpdate(update);
+                
+            } catch (e) {
+                console.error('❌ Error parsing SafeZone message:', e);
+            }
+        });
+                const update = JSON.parse(message.body);
                 console.log('🟢 SafeZone update received:', update.action);
                 
                 // Vẽ lại polygon realtime khi có thay đổi
