@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helmet Monitoring - Real-time Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .status {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.connected {
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.disconnected {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .helmet-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .helmet-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .helmet-card.danger {
+            border-left: 5px solid #ef4444;
+            background: #fef2f2;
+        }
+
+        .helmet-card.warning {
+            border-left: 5px solid #f59e0b;
+            background: #fffbeb;
+        }
+
+        .helmet-card.safe {
+            border-left: 5px solid #10b981;
+        }
+
+        .helmet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .helmet-mac {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #1f2937;
+        }
+
+        .helmet-mode {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .mode-direct {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .mode-anchor {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .helmet-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .info-item {
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .info-label {
+            font-size: 0.75em;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-value {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #111827;
+            margin-top: 5px;
+        }
+
+        .danger-zone {
+            margin-top: 15px;
+            padding: 12px;
+            background: #fee2e2;
+            border-radius: 8px;
+            border-left: 4px solid #ef4444;
+        }
+
+        .danger-zone-title {
+            font-weight: 600;
+            color: #991b1b;
+            margin-bottom: 5px;
+        }
+
+        .timestamp {
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.85em;
+            margin-top: 10px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🪖 Helmet Monitoring Dashboard</h1>
+        
+        <div class="status">
+            <span class="status-indicator disconnected" id="wsStatus"></span>
+            <strong id="wsStatusText">Connecting to WebSocket...</strong>
+            <span id="messageCount" style="float: right; color: #6b7280;">Messages: 0</span>
+        </div>
+
+        <div class="grid" id="helmetGrid">
+            <div class="no-data">
+                Waiting for helmet data...
+            </div>
+        </div>
+    </div>
+
+    <!-- SockJS + STOMP -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+    <script>
+        let stompClient = null;
+        let messageCount = 0;
+        let helmetsData = new Map();
+
+        // Connect to WebSocket
+        function connect() {
+            const socket = new SockJS('http://localhost:8080/ws');
+            stompClient = Stomp.over(socket);
+
+            stompClient.connect({}, function(frame) {
+                console.log('✅ Connected to WebSocket:', frame);
+                
+                document.getElementById('wsStatus').classList.add('connected');
+                document.getElementById('wsStatus').classList.remove('disconnected');
+                document.getElementById('wsStatusText').textContent = '✅ Connected to WebSocket';
+
+                // Subscribe to helmet data topic
+                stompClient.subscribe('/topic/helmet/data', function(message) {
+                    const helmetData = JSON.parse(message.body);
+                    console.log('📥 Received:', helmetData);
+                    
+                    messageCount++;
+                    document.getElementById('messageCount').textContent = `Messages: ${messageCount}`;
+                    
+                    updateHelmetCard(helmetData);
+                });
+            }, function(error) {
+                console.error('❌ WebSocket error:', error);
+                document.getElementById('wsStatusText').textContent = '❌ Connection Error - Retrying...';
+                
+                // Retry after 5 seconds
+                setTimeout(connect, 5000);
+            });
+        }
+
+        function updateHelmetCard(data) {
+            helmetsData.set(data.mac, data);
+            renderHelmets();
+        }
+
+        function renderHelmets() {
+            const grid = document.getElementById('helmetGrid');
+            
+            if (helmetsData.size === 0) {
+                grid.innerHTML = '<div class="no-data">Waiting for helmet data...</div>';
+                return;
+            }
+
+            let html = '';
+            
+            helmetsData.forEach((data, mac) => {
+                const mode = data.mode || 'direct';
+                const inDangerZone = data.inDangerZone || false;
+                const battery = data.battery || 0;
+                const voltage = data.voltage || 0;
+                
+                let cardClass = 'safe';
+                if (inDangerZone) cardClass = 'danger';
+                else if (battery < 20 || voltage < 10) cardClass = 'warning';
+
+                html += `
+                    <div class="helmet-card ${cardClass}">
+                        <div class="helmet-header">
+                            <div class="helmet-mac">${data.employeeName || mac}</div>
+                            <span class="helmet-mode mode-${mode}">${mode.toUpperCase()}</span>
+                        </div>
+
+                        <div class="helmet-info">
+                            <div class="info-item">
+                                <div class="info-label">Battery</div>
+                                <div class="info-value">${battery.toFixed(1)}%</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Voltage</div>
+                                <div class="info-value">${voltage.toFixed(2)}V</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Current</div>
+                                <div class="info-value">${(data.current || 0).toFixed(2)}A</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Power</div>
+                                <div class="info-value">${(data.power || 0).toFixed(2)}W</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Location</div>
+                                <div class="info-value" style="font-size: 0.9em;">${(data.lat || 0).toFixed(4)}, ${(data.lon || 0).toFixed(4)}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Employee ID</div>
+                                <div class="info-value" style="font-size: 0.9em;">${data.employeeId || 'N/A'}</div>
+                            </div>
+                        </div>
+
+                        ${inDangerZone ? `
+                            <div class="danger-zone">
+                                <div class="danger-zone-title">🚨 IN DANGER ZONE</div>
+                                <div style="font-size: 0.9em;">Zone: ${data.dangerZone || 'UNKNOWN'}</div>
+                                <div style="font-size: 0.9em;">Distance: ${(data.distance || 0).toFixed(2)}m</div>
+                            </div>
+                        ` : ''}
+
+                        <div class="timestamp">${data.timestamp || new Date().toLocaleString()}</div>
+                    </div>
+                `;
+            });
+
+            grid.innerHTML = html;
+        }
+
+        // Auto-connect on page load
+        connect();
+    </script>
+</body>
+</html>

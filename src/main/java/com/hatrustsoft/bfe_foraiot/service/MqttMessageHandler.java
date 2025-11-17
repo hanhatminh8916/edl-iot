@@ -34,12 +34,16 @@ public class MqttMessageHandler implements MessageHandler {
     @Autowired
     private MessengerService messengerService;
 
+    @Autowired
+    private RedisPublisherService redisPublisher; // ⭐ Thêm Redis Publisher
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // Ngưỡng cảnh báo nguy hiểm
     private static final double BATTERY_LOW_THRESHOLD = 20.0; // Pin < 20%
     private static final double VOLTAGE_LOW_THRESHOLD = 10.0; // Điện áp < 10V
     private static final double CURRENT_HIGH_THRESHOLD = 50.0; // Dòng điện > 50A
+    // ⭐ BỎ DANGER_ZONE_DISTANCE - Anchor = nguy hiểm rồi, không cần check distance
 
     // ===== SMART FILTERING CONFIG =====
     private static final long MIN_TIME_BETWEEN_SAVES_SECONDS = 10; // Tối thiểu 10 giây giữa các lần lưu
@@ -50,6 +54,7 @@ public class MqttMessageHandler implements MessageHandler {
     // Cache để lưu dữ liệu cuối cùng của mỗi MAC
     private final Map<String, HelmetData> lastSavedData = new HashMap<>();
     private final Map<String, LocalDateTime> lastSavedTime = new HashMap<>();
+    private final Map<String, LocalDateTime> lastDangerZoneAlert = new HashMap<>(); // ⭐ Cache cảnh báo anchor
 
     @Override
     public void handleMessage(Message<?> message) throws MessagingException {
@@ -57,13 +62,13 @@ public class MqttMessageHandler implements MessageHandler {
             String payload = message.getPayload().toString();
             String topic = (String) message.getHeaders().get("mqtt_receivedTopic");
             
-            log.info("📩 Received MQTT message from topic: {}", topic);
-            log.info("📦 Payload: {}", payload);
+            log.info("📩 Received MQTT from topic: {}", topic);
+            log.debug("📦 Payload: {}", payload);
 
             // Parse JSON
             JsonNode jsonNode = objectMapper.readTree(payload);
 
-            // Tạo entity HelmetData
+            // ===== Parse basic helmet data =====
             HelmetData data = new HelmetData();
             data.setMac(jsonNode.get("mac").asText());
             data.setVoltage(jsonNode.has("voltage") ? jsonNode.get("voltage").asDouble() : null);
@@ -74,7 +79,30 @@ public class MqttMessageHandler implements MessageHandler {
             data.setLon(jsonNode.has("lon") ? jsonNode.get("lon").asDouble() : null);
             data.setCounter(jsonNode.has("counter") ? jsonNode.get("counter").asInt() : null);
 
-            // Parse timestamp từ ESP32
+            // ⭐ Parse metadata từ Gateway Python
+            String mode = jsonNode.has("mode") ? jsonNode.get("mode").asText() : "direct";
+            Boolean inDangerZone = jsonNode.has("inDangerZone") ? jsonNode.get("inDangerZone").asBoolean() : false;
+            String dangerZoneId = jsonNode.has("dangerZone") ? jsonNode.get("dangerZone").asText() : null;
+            Double distanceToAnchor = jsonNode.has("distance") ? jsonNode.get("distance").asDouble() : null;
+            Double anchorLat = jsonNode.has("anchorLat") ? jsonNode.get("anchorLat").asDouble() : null;
+            Double anchorLon = jsonNode.has("anchorLon") ? jsonNode.get("anchorLon").asDouble() : null;
+            
+            // ⭐ LoRa signal quality
+            String gatewayMac = jsonNode.has("gateway") ? jsonNode.get("gateway").asText() : null;
+            Integer rssi = jsonNode.has("rssi") ? jsonNode.get("rssi").asInt() : null;
+            Double snr = jsonNode.has("snr") ? jsonNode.get("snr").asDouble() : null;
+
+            // Log LoRa signal quality
+            if (rssi != null && snr != null) {
+                log.info("📶 LoRa Signal: RSSI={}dBm, SNR={}dB, Gateway={}", rssi, snr, gatewayMac);
+                
+                // Cảnh báo tín hiệu yếu
+                if (rssi < -120) {
+                    log.warn("⚠️ Weak LoRa signal: RSSI={}dBm (very weak)", rssi);
+                }
+            }
+
+            // Parse timestamp từ ESP32/Gateway
             if (jsonNode.has("timestamp")) {
                 String timestampStr = jsonNode.get("timestamp").asText();
                 LocalDateTime timestamp = LocalDateTime.parse(timestampStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
@@ -89,32 +117,50 @@ public class MqttMessageHandler implements MessageHandler {
                 employee -> {
                     data.setEmployeeId(employee.getEmployeeId());
                     data.setEmployeeName(employee.getName());
-                    log.info("👤 Mapped MAC {} to Employee: {} ({})", 
-                             macAddress, employee.getName(), employee.getEmployeeId());
+                    log.info("👤 MAC {} → Employee: {} ({})", macAddress, employee.getName(), employee.getEmployeeId());
                 },
                 () -> {
                     data.setEmployeeId(null);
                     data.setEmployeeName(null);
-                    log.warn("⚠️ No employee found for MAC: {}", macAddress);
+                    log.warn("⚠️ No employee for MAC: {}", macAddress);
                 }
             );
 
-            // ===== SMART FILTERING: Chỉ lưu khi cần thiết =====
-            if (shouldSaveToDatabase(data)) {
+            // ⭐ LOGIC LƯU DỮ LIỆU dựa trên MODE
+            boolean shouldSave;
+            String saveReason;
+
+            if (inDangerZone) {
+                // 🚨 MODE ANCHOR: Lưu hết, không filter
+                shouldSave = true;
+                saveReason = "🚨 DANGER ZONE";
+                log.warn("🚨 {} in danger zone: {}, distance: {}m", macAddress, dangerZoneId, distanceToAnchor);
+            } else {
+                // ✅ MODE DIRECT: Smart filtering
+                shouldSave = shouldSaveToDatabase(data);
+                saveReason = shouldSave ? "✅ SAVE" : "⏭️ SKIP";
+            }
+
+            if (shouldSave) {
                 helmetDataRepository.save(data);
-                
-                // Cập nhật cache
                 lastSavedData.put(macAddress, data);
                 lastSavedTime.put(macAddress, LocalDateTime.now());
                 
-                log.info("✅ SAVED to DB: MAC={}, Battery={}%, Location=({}, {})", 
-                         data.getMac(), data.getBattery(), data.getLat(), data.getLon());
+                // ⭐ PUBLISH TO REDIS (sẽ tự động forward qua WebSocket)
+                redisPublisher.publishHelmetData(data);
+                
+                log.info("{}: MAC={}, Mode={}, Battery={}%, Loc=({},{})", 
+                         saveReason, macAddress, mode, data.getBattery(), data.getLat(), data.getLon());
             } else {
-                log.debug("⏭️ SKIPPED save (no significant change): MAC={}, Battery={}%", 
-                         data.getMac(), data.getBattery());
+                log.debug("{}: MAC={}, Mode={}", saveReason, macAddress, mode);
             }
 
-            // Kiểm tra nguy hiểm và gửi cảnh báo (luôn kiểm tra, bất kể có lưu hay không)
+            // ⭐ Kiểm tra cảnh báo khu vực nguy hiểm (từ Anchor qua Gateway)
+            if (inDangerZone && dangerZoneId != null && distanceToAnchor != null) {
+                checkDangerZoneAlert(data, dangerZoneId, distanceToAnchor, anchorLat, anchorLon);
+            }
+
+            // Kiểm tra nguy hiểm thiết bị (pin, voltage, current)
             checkDangerAndAlert(data);
 
         } catch (Exception e) {
@@ -205,6 +251,60 @@ public class MqttMessageHandler implements MessageHandler {
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
         return EARTH_RADIUS * c; // Khoảng cách tính bằng mét
+    }
+
+    /**
+     * ⭐ Cảnh báo khi vào khu vực nguy hiểm (từ Anchor qua Gateway)
+     */
+    private void checkDangerZoneAlert(HelmetData data, String dangerZoneId, 
+                                      double distance, Double anchorLat, Double anchorLon) {
+        String mac = data.getMac();
+        LocalDateTime now = LocalDateTime.now();
+        
+        // Debounce: Chỉ cảnh báo mỗi 30s để tránh spam
+        LocalDateTime lastAlert = lastDangerZoneAlert.get(mac);
+        if (lastAlert != null && Duration.between(lastAlert, now).getSeconds() < 30) {
+            log.debug("⏭️ Skip danger zone alert (debounce): MAC={}", mac);
+            return;
+        }
+
+        // ⭐ BỎ CHECK DISTANCE - Phát hiện Anchor = đã nguy hiểm rồi!
+        // Anchor chỉ đặt ở khu nguy hiểm, nên không cần check distance
+        // distance chỉ để tham khảo mức độ nguy hiểm
+
+        // Tạo message cảnh báo
+        String employeeInfo = data.getEmployeeName() != null 
+            ? data.getEmployeeName() + " (" + data.getEmployeeId() + ")"
+            : "MAC: " + mac;
+
+        StringBuilder alertMsg = new StringBuilder();
+        alertMsg.append("🚨 CẢNH BÁO KHU VỰC NGUY HIỂM!\n");
+        alertMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━\n");
+        alertMsg.append(String.format("👤 Nhân viên: %s\n", employeeInfo));
+        alertMsg.append(String.format("⚓ Khu vực: %s\n", dangerZoneId));
+        alertMsg.append(String.format("📏 Khoảng cách đến anchor: %.2fm\n", distance)); // ⭐ Chỉ hiển thị khoảng cách
+        
+        double battery = Objects.requireNonNullElse(data.getBattery(), 0.0);
+        double voltage = Objects.requireNonNullElse(data.getVoltage(), 0.0);
+        alertMsg.append(String.format("🔋 Pin: %.1f%%\n", battery));
+        alertMsg.append(String.format("⚡ Điện áp: %.2fV\n", voltage));
+        
+        // Vị trí mũ
+        double helmetLat = Objects.requireNonNullElse(data.getLat(), 0.0);
+        double helmetLon = Objects.requireNonNullElse(data.getLon(), 0.0);
+        alertMsg.append(String.format("📍 Vị trí mũ: %.6f, %.6f\n", helmetLat, helmetLon));
+        
+        // Vị trí anchor (nếu có)
+        if (anchorLat != null && anchorLon != null) {
+            alertMsg.append(String.format("⚓ Vị trí anchor: %.6f, %.6f\n", anchorLat, anchorLon));
+        }
+
+        String location = String.format("%.6f, %.6f", helmetLat, helmetLon);
+
+        messengerService.broadcastDangerAlert(employeeInfo, alertMsg.toString(), location);
+        lastDangerZoneAlert.put(mac, now);
+        
+        log.warn("🚨 DANGER ZONE ALERT: {} in {} at {}m", employeeInfo, dangerZoneId, distance);
     }
 
     private void checkDangerAndAlert(HelmetData data) {
