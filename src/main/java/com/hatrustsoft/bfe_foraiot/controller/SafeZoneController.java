@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.hatrustsoft.bfe_foraiot.entity.SafeZone;
 import com.hatrustsoft.bfe_foraiot.repository.SafeZoneRepository;
+import com.hatrustsoft.bfe_foraiot.service.SafeZonePublisher;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 public class SafeZoneController {
 
     private final SafeZoneRepository safeZoneRepository;
+    private final SafeZonePublisher safeZonePublisher;
 
     /**
      * Lấy khu vực an toàn active mới nhất
@@ -73,6 +75,9 @@ public class SafeZoneController {
             safeZone.setCreatedBy(request.getCreatedBy() != null ? request.getCreatedBy() : "admin");
 
             SafeZone saved = safeZoneRepository.save(safeZone);
+            
+            // 📡 Push WebSocket để các clients khác vẽ realtime
+            safeZonePublisher.publishSafeZoneUpdate(saved, "CREATE");
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -98,7 +103,15 @@ public class SafeZoneController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deleteSafeZone(@PathVariable Long id) {
         try {
+            // Tìm zone trước khi xóa để publish
+            SafeZone zoneToDelete = safeZoneRepository.findById(id).orElse(null);
+            
             safeZoneRepository.deleteById(id);
+            
+            // 📡 Push WebSocket DELETE event
+            if (zoneToDelete != null) {
+                safeZonePublisher.publishSafeZoneUpdate(zoneToDelete, "DELETE");
+            }
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -121,6 +134,9 @@ public class SafeZoneController {
     public ResponseEntity<Map<String, Object>> deleteAllSafeZones() {
         try {
             safeZoneRepository.deleteAll();
+            
+            // 📡 Push WebSocket DELETE_ALL event
+            safeZonePublisher.publishSafeZoneUpdate(null, "DELETE_ALL");
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);

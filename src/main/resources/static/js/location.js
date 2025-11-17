@@ -415,6 +415,20 @@ function connectWebSocket() {
             }
         });
         
+        // 🆕 Subscribe to SafeZone updates (vẽ polygon realtime)
+        stompClient.subscribe('/topic/safezone/update', function(message) {
+            try {
+                const update = JSON.parse(message.body);
+                console.log('🟢 SafeZone update received:', update.action);
+                
+                // Vẽ lại polygon realtime khi có thay đổi
+                handleSafeZoneUpdate(update);
+                
+            } catch (e) {
+                console.error('❌ Error parsing SafeZone message:', e);
+            }
+        });
+        
     }, function(error) {
         console.error('❌ WebSocket connection error:', error);
         // Retry after 5 seconds
@@ -473,6 +487,114 @@ function updateMarkerRealtime(data) {
 
 // ==========================================
 // END WEBSOCKET
+// ==========================================
+
+// ==========================================
+// SAFEZONE REALTIME UPDATES
+// ==========================================
+
+/**
+ * Xử lý SafeZone updates từ WebSocket
+ */
+function handleSafeZoneUpdate(update) {
+    console.log('🟢 Processing SafeZone update:', update.action);
+    
+    const action = update.action;
+    const safeZone = update.safeZone;
+    
+    if (action === 'CREATE' || action === 'UPDATE') {
+        // Vẽ lại polygon mới
+        drawPolygonFromData(safeZone);
+        
+        showNotification(`Khu vực an toàn "${safeZone.zoneName}" đã được cập nhật!`, 'success');
+        
+    } else if (action === 'DELETE') {
+        // Xóa polygon
+        if (drawnItems) {
+            drawnItems.clearLayers();
+            activePolygon = null;
+        }
+        
+        showNotification(`Khu vực an toàn "${safeZone.zoneName}" đã bị xóa!`, 'warning');
+        
+    } else if (action === 'DELETE_ALL') {
+        // Xóa tất cả polygon
+        if (drawnItems) {
+            drawnItems.clearLayers();
+            activePolygon = null;
+        }
+        
+        showNotification('Đã xóa tất cả khu vực an toàn!', 'info');
+    }
+    
+    // Kiểm tra lại tất cả workers sau khi polygon thay đổi
+    setTimeout(() => {
+        markers.forEach(m => {
+            checkAndUpdateWorkerStatus(m);
+        });
+    }, 500);
+}
+
+/**
+ * Vẽ polygon từ SafeZone data
+ */
+function drawPolygonFromData(safeZone) {
+    if (!safeZone || !safeZone.polygonCoordinates) {
+        console.error('❌ Invalid SafeZone data');
+        return;
+    }
+    
+    try {
+        // Parse coordinates từ JSON string
+        const coords = JSON.parse(safeZone.polygonCoordinates);
+        
+        // Clear old polygon
+        if (drawnItems) {
+            drawnItems.clearLayers();
+        }
+        
+        // Vẽ polygon mới
+        const polygon = L.polygon(coords, {
+            color: safeZone.color || '#10b981',
+            fillColor: safeZone.color || '#10b981',
+            fillOpacity: 0.2,
+            weight: 2
+        });
+        
+        drawnItems.addLayer(polygon);
+        activePolygon = polygon;
+        
+        console.log('✅ Polygon drawn:', safeZone.zoneName);
+        
+        // Fit map to polygon bounds
+        if (coords && coords.length > 0) {
+            map.fitBounds(polygon.getBounds());
+        }
+        
+    } catch (e) {
+        console.error('❌ Error drawing polygon:', e);
+    }
+}
+
+/**
+ * Show notification toast
+ */
+function showNotification(message, type = 'info') {
+    // Simple alert for now (có thể thay bằng toast library)
+    console.log(`📢 ${type.toUpperCase()}: ${message}`);
+    
+    // Optional: Sử dụng browser notification nếu có permission
+    if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('SafeWork IoT', {
+            body: message,
+            icon: '/images/helmet-icon.png',
+            badge: '/images/badge-icon.png'
+        });
+    }
+}
+
+// ==========================================
+// END SAFEZONE REALTIME
 // ==========================================
 
 window.addEventListener("load", function() {
