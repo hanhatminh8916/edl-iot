@@ -788,6 +788,14 @@ function loadAnchorsFromDatabase() {
         .then(response => response.json())
         .then(anchors => {
             console.log('✅ Loaded anchors from DB:', anchors);
+            
+            // ✅ Clear existing markers first
+            anchorMarkers.forEach(am => {
+                anchorLayer.removeLayer(am.marker);
+            });
+            anchorMarkers = [];
+            
+            // Add all anchors from DB
             anchors.forEach(anchor => {
                 addAnchorMarker(anchor);
             });
@@ -839,14 +847,10 @@ function addAnchorMarker(anchor) {
         </div>
     `);
     
-    // Store anchor data in marker for later access
-    marker.anchorData = anchor;
-    
     // ✅ Double-click to enable drag mode
     marker.on('dblclick', function(e) {
         L.DomEvent.stopPropagation(e);
-        console.log('🖱️ Double-click on anchor:', marker.anchorData.anchorId, 'ID:', marker.anchorData.id);
-        enableAnchorDrag(marker.anchorData.id);
+        enableAnchorDrag(anchor.id);
     });
     
     anchorMarkers.push({ id: anchor.id, marker: marker, anchor: anchor });
@@ -878,7 +882,12 @@ function placeAnchor(latlng) {
     .then(response => response.json())
     .then(anchor => {
         console.log('✅ Anchor saved:', anchor);
-        addAnchorMarker(anchor);
+        
+        // ❌ KHÔNG add marker ngay - để WebSocket broadcast handle
+        // Refresh lại danh sách anchor để đồng bộ
+        setTimeout(() => {
+            loadAnchorsFromDatabase();
+        }, 500);
         
         // Turn off anchor mode
         isAnchorMode = false;
@@ -906,9 +915,10 @@ function deleteAnchor(anchorId) {
     })
     .then(response => {
         if (response.ok) {
-            console.log('✅ Anchor delete request sent, waiting for WebSocket confirmation...');
-            // ⚠️ DON'T remove marker here - let WebSocket broadcast handle it
-            // This prevents "ghost" issue where person who deleted sees it gone but others still see it
+            console.log('✅ Anchor deleted - waiting for WebSocket sync');
+            
+            // ❌ KHÔNG xóa marker ngay - để WebSocket broadcast handle
+            // WebSocket sẽ broadcast DELETE event và xóa ở tất cả clients
         } else {
             alert('Lỗi khi xóa Anchor!');
         }
@@ -936,7 +946,7 @@ function enableAnchorDrag(anchorId) {
     // Show notification
     alert('📌 Kéo thả Anchor đến vị trí mới, sau đó nhấn "Lưu vị trí"');
     
-    // Update popup to show Save button (delay opening to prevent immediate popup after dblclick)
+    // Update popup to show Save button
     marker.bindPopup(`
         <div style="min-width: 200px; text-align: center;">
             <h3 style="margin: 0 0 10px 0; color: #FF9800;">📌 Đang di chuyển...</h3>
@@ -950,12 +960,7 @@ function enableAnchorDrag(anchorId) {
                 </button>
             </div>
         </div>
-    `);
-    
-    // Open popup after small delay
-    setTimeout(() => {
-        marker.openPopup();
-    }, 100);
+    `).openPopup();
 }
 
 // Save new anchor position
