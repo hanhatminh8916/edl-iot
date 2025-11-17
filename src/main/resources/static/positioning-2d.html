@@ -58,12 +58,13 @@
         }
 
         #canvas2d {
-            border: 2px solid #e0e0e0;
+            border: 2px solid #ddd;
             border-radius: 4px;
-            background: #f5f5f5;
+            background: #ffffff;
             cursor: crosshair;
             display: block;
             margin: 0 auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
         .legend {
@@ -253,8 +254,8 @@
                 <div class="controls">
                     <div class="control-group">
                         <label>Tỷ lệ:</label>
-                        <input type="range" id="scaleSlider" min="10" max="40" value="20" step="1">
-                        <span id="scaleValue">20</span> px/m
+                        <input type="range" id="scaleSlider" min="15" max="50" value="30" step="1">
+                        <span id="scaleValue">30</span> px/m
                     </div>
                     <button class="btn btn-secondary" onclick="resetView()">Reset View</button>
                     <button class="btn btn-primary" onclick="toggleAnimation()">
@@ -262,7 +263,7 @@
                     </button>
                 </div>
             </div>
-            <canvas id="canvas2d" width="800" height="800"></canvas>
+            <canvas id="canvas2d" width="1000" height="1000"></canvas>
             <div class="legend">
                 <div class="legend-item">
                     <div class="legend-color anchor"></div>
@@ -311,7 +312,7 @@
         const ctx = canvas.getContext('2d');
         
         // Configuration
-        let scale = 20; // pixels per meter
+        let scale = 30; // pixels per meter
         const areaSize = 20; // 20m × 20m
         let isAnimating = true;
 
@@ -355,31 +356,53 @@
 
         // Draw grid
         function drawGrid() {
-            ctx.strokeStyle = '#e0e0e0';
-            ctx.lineWidth = 1;
+            // Major grid lines (every 5m)
+            ctx.strokeStyle = '#bbb';
+            ctx.lineWidth = 1.5;
 
-            // Vertical lines
-            for (let i = 0; i <= areaSize; i++) {
+            for (let i = 0; i <= areaSize; i += 5) {
+                // Vertical major lines
                 ctx.beginPath();
                 ctx.moveTo(i * scale, 0);
                 ctx.lineTo(i * scale, areaSize * scale);
                 ctx.stroke();
-            }
 
-            // Horizontal lines
-            for (let i = 0; i <= areaSize; i++) {
+                // Horizontal major lines
                 ctx.beginPath();
                 ctx.moveTo(0, i * scale);
                 ctx.lineTo(areaSize * scale, i * scale);
                 ctx.stroke();
             }
 
+            // Minor grid lines (every 1m)
+            ctx.strokeStyle = '#e8e8e8';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= areaSize; i++) {
+                if (i % 5 !== 0) {
+                    // Vertical minor lines
+                    ctx.beginPath();
+                    ctx.moveTo(i * scale, 0);
+                    ctx.lineTo(i * scale, areaSize * scale);
+                    ctx.stroke();
+                    
+                    // Horizontal minor lines
+                    ctx.beginPath();
+                    ctx.moveTo(0, i * scale);
+                    ctx.lineTo(areaSize * scale, i * scale);
+                    ctx.stroke();
+                }
+            }
+
             // Draw labels
-            ctx.fillStyle = '#999';
-            ctx.font = '10px Arial';
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px Arial';
             for (let i = 0; i <= areaSize; i += 5) {
-                ctx.fillText(i + 'm', i * scale - 8, areaSize * scale + 15);
-                ctx.fillText(i + 'm', -20, areaSize * scale - i * scale + 5);
+                // Bottom labels
+                ctx.textAlign = 'center';
+                ctx.fillText(i + 'm', i * scale, areaSize * scale + 15);
+                // Left labels
+                ctx.textAlign = 'right';
+                ctx.fillText((areaSize - i) + 'm', -8, i * scale + 5);
             }
         }
 
@@ -390,18 +413,30 @@
 
             // Draw circle
             ctx.beginPath();
-            ctx.arc(x, y, 8, 0, 2 * Math.PI);
+            ctx.arc(x, y, 14, 0, 2 * Math.PI);
             ctx.fillStyle = anchor.status === 'online' ? '#2196F3' : '#999';
             ctx.fill();
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#0d47a1';
+            ctx.lineWidth = 3;
             ctx.stroke();
 
-            // Draw label
-            ctx.fillStyle = '#333';
-            ctx.font = 'bold 12px Arial';
+            // Draw white center dot
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, 2 * Math.PI);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+
+            // Draw label with background
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillRect(x - 18, y - 28, 36, 18);
+            ctx.strokeStyle = '#2196F3';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x - 18, y - 28, 36, 18);
+            
+            ctx.fillStyle = '#0d47a1';
+            ctx.font = 'bold 13px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(anchor.id, x, y - 15);
+            ctx.fillText(anchor.id, x, y - 14);
         }
 
         // Draw tag
@@ -411,18 +446,30 @@
 
             // Draw circle
             ctx.beginPath();
-            ctx.arc(x, y, 10, 0, 2 * Math.PI);
+            ctx.arc(x, y, 12, 0, 2 * Math.PI);
             ctx.fillStyle = tag.status === 'online' ? '#f44336' : '#999';
             ctx.fill();
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#b71c1c';
+            ctx.lineWidth = 3;
             ctx.stroke();
 
-            // Draw label
-            ctx.fillStyle = '#333';
-            ctx.font = 'bold 12px Arial';
+            // Draw white center dot
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, 2 * Math.PI);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+
+            // Draw label with background
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillRect(x - 18, y + 15, 36, 18);
+            ctx.strokeStyle = '#f44336';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x - 18, y + 15, 36, 18);
+            
+            ctx.fillStyle = '#b71c1c';
+            ctx.font = 'bold 13px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(tag.id, x, y + 25);
+            ctx.fillText(tag.id, x, y + 28);
         }
 
         // Draw distance line
@@ -445,14 +492,15 @@
             // Draw distance label
             const midX = (x1 + x2) / 2;
             const midY = (y1 + y2) / 2;
+            ctx.fillStyle = 'rgba(76, 175, 80, 0.95)';
+            ctx.fillRect(midX - 30, midY - 12, 60, 24);
+            ctx.strokeStyle = '#2e7d32';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(midX - 30, midY - 12, 60, 24);
             ctx.fillStyle = '#fff';
-            ctx.fillRect(midX - 25, midY - 10, 50, 20);
-            ctx.strokeStyle = '#4CAF50';
-            ctx.strokeRect(midX - 25, midY - 10, 50, 20);
-            ctx.fillStyle = '#333';
-            ctx.font = 'bold 11px Arial';
+            ctx.font = 'bold 13px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(distance.toFixed(2) + 'm', midX, midY + 4);
+            ctx.fillText(distance.toFixed(2) + 'm', midX, midY + 5);
         }
 
         // Update tag positions (simulate movement)
@@ -487,7 +535,7 @@
             ctx.save();
             
             // Add padding
-            ctx.translate(40, 40);
+            ctx.translate(50, 50);
 
             // Draw grid
             drawGrid();
