@@ -1,22 +1,25 @@
 package com.hatrustsoft.bfe_foraiot.service;
 
-import com.hatrustsoft.bfe_foraiot.model.Alert;
-import com.hatrustsoft.bfe_foraiot.model.AlertStatus;
-import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.hatrustsoft.bfe_foraiot.model.Alert;
+import com.hatrustsoft.bfe_foraiot.model.AlertStatus;
+import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class AlertService {
 
     private final AlertRepository alertRepository;
+    private final AlertPublisher alertPublisher;
 
     public List<Alert> getPendingAlerts() {
         return alertRepository.findByStatus(AlertStatus.PENDING);
@@ -33,7 +36,10 @@ public class AlertService {
             alert.setStatus(AlertStatus.ACKNOWLEDGED);
             alert.setAcknowledgedAt(LocalDateTime.now());
             alert.setAcknowledgedBy(username);
-            alertRepository.save(alert);
+            Alert saved = alertRepository.save(alert);
+            
+            // 📡 Push WebSocket update
+            alertPublisher.publishAlertUpdate(saved);
         });
     }
 
@@ -41,7 +47,10 @@ public class AlertService {
     public void resolveAlert(Long id) {
         alertRepository.findById(id).ifPresent(alert -> {
             alert.setStatus(AlertStatus.RESOLVED);
-            alertRepository.save(alert);
+            Alert saved = alertRepository.save(alert);
+            
+            // 📡 Push WebSocket update
+            alertPublisher.publishAlertUpdate(saved);
         });
     }
 

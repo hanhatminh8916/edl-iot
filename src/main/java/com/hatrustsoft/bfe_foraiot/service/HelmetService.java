@@ -31,6 +31,7 @@ public class HelmetService {
     private final HelmetDataRepository helmetDataRepository;
     private final AlertRepository alertRepository;
     private final WebSocketService webSocketService;
+    private final AlertPublisher alertPublisher;
 
     @Transactional
     public void saveHelmetData(HelmetDataDTO dto) {
@@ -54,10 +55,13 @@ public class HelmetService {
         alert.setTriggeredAt(LocalDateTime.now());
         alert.setStatus(AlertStatus.PENDING);
 
-        alertRepository.save(alert);
+        Alert saved = alertRepository.save(alert);
 
-        // Gửi alert realtime
-        webSocketService.sendToAll("/topic/alerts", alert);
+        // 📡 Push WebSocket alert mới
+        alertPublisher.publishNewAlert(saved);
+        
+        // Gửi alert realtime (legacy WebSocket)
+        webSocketService.sendToAll("/topic/alerts", saved);
     }
 
     public List<Helmet> getAllActiveHelmets() {

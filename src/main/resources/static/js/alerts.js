@@ -6,6 +6,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize alerts - load from API
     loadAlerts();
     
+    // Connect WebSocket for realtime alerts
+    connectWebSocket();
+    
     // Handle search
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
@@ -321,6 +324,75 @@ function showNotification(message, type = 'info') {
             }
         }, 300);
     }, 3000);
+}
+
+// ==========================================
+// WEBSOCKET REAL-TIME ALERTS UPDATES
+// ==========================================
+var stompClient = null;
+
+function connectWebSocket() {
+    console.log('🔌 Connecting Alerts WebSocket...');
+    
+    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}/ws`;
+    
+    const socket = new SockJS(wsUrl);
+    stompClient = Stomp.over(socket);
+    
+    stompClient.connect({}, function(frame) {
+        console.log('✅ Alerts WebSocket connected!');
+        
+        // Subscribe to new alerts
+        stompClient.subscribe('/topic/alerts/new', function(message) {
+            try {
+                const alert = JSON.parse(message.body);
+                console.log('🚨 New alert received realtime:', alert);
+                
+                // Reload alerts table
+                loadAlerts();
+                
+                // Show notification
+                showNotification(`Cảnh báo mới: ${alert.message || 'Phát hiện sự cố'}`, 'error');
+                
+                // Play sound notification (optional)
+                playAlertSound();
+                
+            } catch (e) {
+                console.error('❌ Error parsing alert message:', e);
+            }
+        });
+        
+        // Subscribe to alert status updates
+        stompClient.subscribe('/topic/alerts/update', function(message) {
+            try {
+                const alert = JSON.parse(message.body);
+                console.log('📝 Alert status updated:', alert.id);
+                
+                // Reload alerts to show updated status
+                loadAlerts();
+                
+            } catch (e) {
+                console.error('❌ Error parsing alert update:', e);
+            }
+        });
+        
+    }, function(error) {
+        console.error('❌ Alerts WebSocket error:', error);
+        // Retry connection after 5 seconds
+        setTimeout(connectWebSocket, 5000);
+    });
+}
+
+function playAlertSound() {
+    // Optional: Play alert sound
+    try {
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjKJ0fPTgjMGHm7A7+OZRQ0PVqzn76NTDApDmuDyv2seBS+Py/PViTMGGmm+8OabRQ0PVqzo76NTDAtDmd/yv2seBS6Ny/PViTMGHW6/8OabRQ0OVqzo76NTDApDmd/yv2seBS+Ny/PWiTMGHW6/8OabRQ0OVqvn76NTDApDmd/yv2sfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDApDmd/yv2sfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDApDmd/yv2wfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDApDmd/yv2wfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDApDmd/yv2wfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDApDmd/yv2wfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDApDmd/yv2wfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDApDmd/yv2wfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDApDmd/yv2wfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDApDmd/yv2wfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDApDmd/yv2wfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDApDmd/yv2wfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDApDmd/yv2wfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDApDmd/yv2wfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDApDmd/yv2wfBS+Ny/PWiTMGHW6/8OebRQ0OVqvn76NTDAo=');
+        audio.play().catch(e => console.log('Audio play prevented:', e));
+    } catch (e) {
+        console.log('Could not play alert sound:', e);
+    }
 }
 
 // Make functions globally accessible for onclick handlers

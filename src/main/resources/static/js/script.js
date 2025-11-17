@@ -6,6 +6,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load dashboard data on page load
     loadDashboardData();
     
+    // Connect WebSocket for realtime updates
+    connectWebSocket();
+    
     // Handle navigation items - remove preventDefault to allow links to work
     const navItems = document.querySelectorAll('.nav-item');
     navItems.forEach(item => {
@@ -271,6 +274,62 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// ==========================================
+// WEBSOCKET REAL-TIME DASHBOARD UPDATES
+// ==========================================
+var stompClient = null;
+
+function connectWebSocket() {
+    console.log('🔌 Connecting Dashboard WebSocket...');
+    
+    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}/ws`;
+    
+    const socket = new SockJS(wsUrl);
+    stompClient = Stomp.over(socket);
+    
+    stompClient.connect({}, function(frame) {
+        console.log('✅ Dashboard WebSocket connected!');
+        
+        // Subscribe to helmet data updates
+        stompClient.subscribe('/topic/helmet/data', function(message) {
+            try {
+                const data = JSON.parse(message.body);
+                console.log('📡 Dashboard received update:', data.mac);
+                
+                // Reload dashboard stats
+                loadDashboardData();
+                
+            } catch (e) {
+                console.error('❌ Error parsing WebSocket message:', e);
+            }
+        });
+        
+        // Subscribe to alert updates
+        stompClient.subscribe('/topic/alerts/new', function(message) {
+            try {
+                const alert = JSON.parse(message.body);
+                console.log('🚨 New alert received:', alert);
+                
+                // Reload alerts section
+                loadDashboardData();
+                
+                // Show notification
+                showNotification(`Cảnh báo mới: ${alert.message || 'Phát hiện sự cố'}`, 'error');
+                
+            } catch (e) {
+                console.error('❌ Error parsing alert message:', e);
+            }
+        });
+        
+    }, function(error) {
+        console.error('❌ Dashboard WebSocket error:', error);
+        // Retry connection after 5 seconds
+        setTimeout(connectWebSocket, 5000);
+    });
+}
 
 // Export functions for external use
 window.dashboardFunctions = {
