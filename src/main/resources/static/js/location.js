@@ -446,6 +446,20 @@ function connectWebSocket() {
             }
         });
         
+        // 🆕 Subscribe to Anchor updates (đặt/xóa anchor realtime)
+        stompClient.subscribe('/topic/anchor/update', function(message) {
+            try {
+                const update = JSON.parse(message.body);
+                console.log('📍 Received Anchor update:', update.action);
+                
+                // Xử lý Anchor realtime
+                handleAnchorUpdate(update);
+                
+            } catch (e) {
+                console.error('❌ Error parsing Anchor message:', e);
+            }
+        });
+        
     }, function(error) {
         console.error('❌ WebSocket connection error:', error);
         // Retry after 5 seconds
@@ -550,6 +564,49 @@ function handleSafeZoneUpdate(update) {
             checkAndUpdateWorkerStatus(m);
         });
     }, 500);
+}
+
+/**
+ * ✅ Xử lý Anchor updates từ WebSocket (realtime)
+ */
+function handleAnchorUpdate(update) {
+    const action = update.action;
+    
+    if (action === 'CREATE') {
+        // Thêm anchor mới
+        const anchor = update.anchor;
+        
+        // Kiểm tra xem anchor đã tồn tại chưa
+        const exists = anchorMarkers.find(a => a.id === anchor.id);
+        if (!exists) {
+            addAnchorMarker(anchor);
+            console.log('✅ Anchor created:', anchor.anchorId);
+        }
+        
+    } else if (action === 'UPDATE') {
+        // Cập nhật anchor
+        const anchor = update.anchor;
+        
+        // Xóa marker cũ và thêm mới
+        const existingMarker = anchorMarkers.find(a => a.id === anchor.id);
+        if (existingMarker) {
+            anchorLayer.removeLayer(existingMarker.marker);
+            anchorMarkers = anchorMarkers.filter(a => a.id !== anchor.id);
+        }
+        addAnchorMarker(anchor);
+        console.log('✅ Anchor updated:', anchor.anchorId);
+        
+    } else if (action === 'DELETE') {
+        // Xóa anchor
+        const anchorId = update.anchorId;
+        
+        const anchorMarker = anchorMarkers.find(a => a.id === anchorId);
+        if (anchorMarker) {
+            anchorLayer.removeLayer(anchorMarker.marker);
+            anchorMarkers = anchorMarkers.filter(a => a.id !== anchorId);
+            console.log('✅ Anchor deleted:', anchorId);
+        }
+    }
 }
 
 /**

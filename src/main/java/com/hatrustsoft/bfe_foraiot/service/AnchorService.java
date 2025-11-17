@@ -1,6 +1,7 @@
 package com.hatrustsoft.bfe_foraiot.service;
 
 import com.hatrustsoft.bfe_foraiot.entity.Anchor;
+import com.hatrustsoft.bfe_foraiot.publisher.AnchorPublisher;
 import com.hatrustsoft.bfe_foraiot.repository.AnchorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,9 @@ public class AnchorService {
     
     @Autowired
     private AnchorRepository anchorRepository;
+    
+    @Autowired
+    private AnchorPublisher anchorPublisher;
     
     public List<Anchor> getAllAnchors() {
         return anchorRepository.findAll();
@@ -33,7 +37,12 @@ public class AnchorService {
         if (anchor.getAnchorId() == null || anchor.getAnchorId().isEmpty()) {
             anchor.setAnchorId(generateNextAnchorId());
         }
-        return anchorRepository.save(anchor);
+        Anchor savedAnchor = anchorRepository.save(anchor);
+        
+        // ✅ Publish to WebSocket for real-time sync
+        anchorPublisher.publishAnchorCreate(savedAnchor);
+        
+        return savedAnchor;
     }
     
     @Transactional
@@ -57,12 +66,20 @@ public class AnchorService {
             anchor.setStatus(anchorDetails.getStatus());
         }
         
-        return anchorRepository.save(anchor);
+        Anchor updatedAnchor = anchorRepository.save(anchor);
+        
+        // ✅ Publish to WebSocket for real-time sync
+        anchorPublisher.publishAnchorUpdate(updatedAnchor);
+        
+        return updatedAnchor;
     }
     
     @Transactional
     public void deleteAnchor(Long id) {
         anchorRepository.deleteById(id);
+        
+        // ✅ Publish to WebSocket for real-time sync
+        anchorPublisher.publishAnchorDelete(id);
     }
     
     public List<Anchor> getAnchorsByStatus(String status) {
