@@ -13,9 +13,10 @@
         .canvas-container {
             background: white;
             border-radius: 8px;
-            padding: 20px;
+            padding: 15px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-bottom: 20px;
+            overflow-x: auto;
         }
 
         .canvas-header {
@@ -256,8 +257,8 @@
                 <div class="controls">
                     <div class="control-group">
                         <label>Tỷ lệ:</label>
-                        <input type="range" id="scaleSlider" min="15" max="50" value="25" step="1">
-                        <span id="scaleValue">25</span> px/m
+                        <input type="range" id="scaleSlider" min="15" max="45" value="22" step="1">
+                        <span id="scaleValue">22</span> px/m
                     </div>
                     <button class="btn btn-secondary" onclick="resetView()">Reset View</button>
                     <button class="btn btn-primary" onclick="toggleAnimation()">
@@ -265,7 +266,7 @@
                     </button>
                 </div>
             </div>
-            <canvas id="canvas2d" width="900" height="900"></canvas>
+            <canvas id="canvas2d" width="800" height="800"></canvas>
             <div class="legend">
                 <div class="legend-item">
                     <div class="legend-color anchor"></div>
@@ -314,7 +315,7 @@
         const ctx = canvas.getContext('2d');
         
         // Configuration
-        let scale = 25; // pixels per meter
+        let scale = 22; // pixels per meter
         const areaSize = 20; // 20m × 20m
         let isAnimating = true;
 
