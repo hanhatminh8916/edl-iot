@@ -902,14 +902,9 @@ function deleteAnchor(anchorId) {
     })
     .then(response => {
         if (response.ok) {
-            console.log('✅ Anchor deleted');
-            
-            // Remove marker from anchorLayer
-            const anchorMarker = anchorMarkers.find(a => a.id === anchorId);
-            if (anchorMarker) {
-                anchorLayer.removeLayer(anchorMarker.marker);
-                anchorMarkers = anchorMarkers.filter(a => a.id !== anchorId);
-            }
+            console.log('✅ Anchor delete request sent');
+            // ✅ Don't remove marker here - let WebSocket handle it for consistency
+            // This prevents ghost marker issue
         } else {
             alert('Lỗi khi xóa Anchor!');
         }
@@ -923,19 +918,24 @@ function deleteAnchor(anchorId) {
 // Enable drag mode for anchor
 function enableAnchorDrag(anchorId) {
     const anchorMarker = anchorMarkers.find(a => a.id === anchorId);
-    if (!anchorMarker) return;
+    if (!anchorMarker) {
+        console.error('❌ Anchor marker not found:', anchorId);
+        return;
+    }
     
     const marker = anchorMarker.marker;
     
+    // Close popup first to prevent interference
+    marker.closePopup();
+    
     // Enable dragging
     marker.dragging.enable();
-    marker.closePopup();
     
     // Change cursor
     map.getContainer().style.cursor = 'move';
     
     // Show notification
-    alert('📌 Kéo thả Anchor đến vị trí mới, sau đó nhấn "Lưu vị trí"');
+    showNotification('📌 Kéo thả Anchor đến vị trí mới', 'info');
     
     // Update popup to show Save button
     marker.bindPopup(`
@@ -951,7 +951,12 @@ function enableAnchorDrag(anchorId) {
                 </button>
             </div>
         </div>
-    `).openPopup();
+    `);
+    
+    // Open popup after a small delay to ensure dragging is enabled
+    setTimeout(() => {
+        marker.openPopup();
+    }, 100);
 }
 
 // Save new anchor position
