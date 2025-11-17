@@ -428,16 +428,6 @@ function connectWebSocket() {
                 console.error('❌ Error parsing SafeZone message:', e);
             }
         });
-                const update = JSON.parse(message.body);
-                console.log('🟢 SafeZone update received:', update.action);
-                
-                // Vẽ lại polygon realtime khi có thay đổi
-                handleSafeZoneUpdate(update);
-                
-            } catch (e) {
-                console.error('❌ Error parsing SafeZone message:', e);
-            }
-        });
         
     }, function(error) {
         console.error('❌ WebSocket connection error:', error);
