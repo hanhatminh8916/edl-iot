@@ -53,7 +53,7 @@ public class DataInitializer implements CommandLineRunner {
         workerRepository.save(worker5);
 
         // Create Helmets with strategic positions
-        // Tâm vòng tròn: 10.7626, 106.6601
+        // Tâm vòng tròn: 10.7626, 106.6601   okee
         // Bán kính: 200m
         
         // Helmet 1: Trong vòng an toàn (50m từ tâm) - Màu xanh
