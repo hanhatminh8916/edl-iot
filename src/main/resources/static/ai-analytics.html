@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Analytics - Safety Monitoring</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .analytics-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .query-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .query-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        #queryInput {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        #queryInput:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .btn-ask {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .btn-ask:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-ask:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .suggested-questions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn-suggestion {
+            padding: 8px 16px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-suggestion:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .llm-response {
+            background: #f8f9fa;
+            padding: 15px;
+            border-left: 4px solid #4CAF50;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .llm-insights {
+            background: #fff3cd;
+            padding: 15px;
+            border-left: 4px solid #ffc107;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .llm-insights ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .llm-recommendations {
+            background: #d1ecf1;
+            padding: 15px;
+            border-left: 4px solid #17a2b8;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .recommendation {
+            background: white;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #6c757d;
+        }
+
+        .recommendation.high {
+            border-left-color: #dc3545;
+        }
+
+        .recommendation.medium {
+            border-left-color: #ffc107;
+        }
+
+        .recommendation.low {
+            border-left-color: #28a745;
+        }
+
+        .recommendation .priority {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .recommendation.high .priority {
+            background: #dc3545;
+            color: white;
+        }
+
+        .recommendation.medium .priority {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .recommendation.low .priority {
+            background: #28a745;
+            color: white;
+        }
+
+        .llm-follow-up {
+            background: #e7f3ff;
+            padding: 15px;
+            border-left: 4px solid #007bff;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .follow-up-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn-follow-up {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #007bff;
+            color: #007bff;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-follow-up:hover {
+            background: #007bff;
+            color: white;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .quick-action-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .quick-action-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .quick-action-card h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .quick-action-card p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="analytics-container">
+        <h1>🤖 AI Analytics - Safety Monitoring</h1>
+        
+        <!-- Query Section -->
+        <div class="query-section">
+            <h2>💬 Hỏi bất cứ điều gì về dữ liệu an toàn</h2>
+            <div class="query-input-group">
+                <input 
+                    type="text" 
+                    id="queryInput" 
+                    placeholder="VD: Có bao nhiêu cảnh báo hôm nay?"
+                    onkeypress="if(event.key === 'Enter') submitQuery()"
+                >
+                <button class="btn-ask" onclick="submitQuery()">Hỏi AI</button>
+            </div>
+
+            <div class="suggested-questions">
+                <strong>Gợi ý câu hỏi:</strong>
+                <button class="btn-suggestion" onclick="setQuery('Có bao nhiêu cảnh báo hôm nay?')">
+                    Có bao nhiêu cảnh báo hôm nay?
+                </button>
+                <button class="btn-suggestion" onclick="setQuery('Công nhân nào có nguy cơ cao nhất?')">
+                    Công nhân nào có nguy cơ cao nhất?
+                </button>
+                <button class="btn-suggestion" onclick="setQuery('Phòng ban nào có nhiều sự cố nhất?')">
+                    Phòng ban nào có nhiều sự cố nhất?
+                </button>
+                <button class="btn-suggestion" onclick="setQuery('Tổng quan tuần này thế nào?')">
+                    Tổng quan tuần này thế nào?
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div class="loading" id="loadingIndicator">
+            <div class="spinner"></div>
+            <p>🤖 AI đang phân tích...</p>
+        </div>
+
+        <!-- Response Container -->
+        <div id="llmResponseContainer"></div>
+
+        <!-- Quick Actions -->
+        <div class="query-section">
+            <h2>⚡ Quick Actions</h2>
+            <div class="quick-actions">
+                <div class="quick-action-card" onclick="generateInsightsUI()">
+                    <h3>📊 Generate Insights</h3>
+                    <p>Tự động tạo insights từ dữ liệu 30 ngày</p>
+                </div>
+                <div class="quick-action-card" onclick="generateReportUI()">
+                    <h3>📄 Weekly Report</h3>
+                    <p>Tạo báo cáo tuần tự động</p>
+                </div>
+                <div class="quick-action-card" onclick="predictHighRiskWorkers()">
+                    <h3>⚠️ High Risk Workers</h3>
+                    <p>Dự đoán công nhân có rủi ro cao</p>
+                </div>
+                <div class="quick-action-card" onclick="analyzeTrends()">
+                    <h3>📈 Trend Analysis</h3>
+                    <p>Phân tích xu hướng 90 ngày</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/llm-analytics.js"></script>
+    <script>
+        function setQuery(query) {
+            document.getElementById('queryInput').value = query;
+        }
+
+        async function submitQuery() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) return;
+
+            const loading = document.getElementById('loadingIndicator');
+            const container = document.getElementById('llmResponseContainer');
+
+            loading.classList.add('active');
+            container.innerHTML = '';
+
+            try {
+                const response = await askQuestion(query);
+                displayLlmResponse(response, 'llmResponseContainer');
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="llm-response" style="border-left-color: #dc3545;">
+                        <h4>❌ Lỗi:</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        async function generateInsightsUI() {
+            const loading = document.getElementById('loadingIndicator');
+            const container = document.getElementById('llmResponseContainer');
+
+            loading.classList.add('active');
+            container.innerHTML = '';
+
+            try {
+                const response = await generateInsights('30d', null);
+                displayLlmResponse(response, 'llmResponseContainer');
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="llm-response" style="border-left-color: #dc3545;">
+                        <h4>❌ Lỗi:</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        async function generateReportUI() {
+            const loading = document.getElementById('loadingIndicator');
+            const container = document.getElementById('llmResponseContainer');
+
+            loading.classList.add('active');
+            container.innerHTML = '';
+
+            try {
+                const response = await generateReport('weekly', '7d', 'management');
+                
+                // Display report markdown
+                container.innerHTML = `
+                    <div class="query-section">
+                        <h3>📄 Weekly Safety Report</h3>
+                        <div style="background: white; padding: 20px; border-radius: 8px;">
+                            <pre style="white-space: pre-wrap;">${response.report_markdown}</pre>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="llm-response" style="border-left-color: #dc3545;">
+                        <h4>❌ Lỗi:</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        async function predictHighRiskWorkers() {
+            setQuery('Công nhân nào có nguy cơ tai nạn cao nhất trong tuần tới?');
+            submitQuery();
+        }
+
+        async function analyzeTrends() {
+            setQuery('Phân tích xu hướng sự cố trong 90 ngày qua');
+            submitQuery();
+        }
+    </script>
+</body>
+</html>
