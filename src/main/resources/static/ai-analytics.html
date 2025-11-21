@@ -266,16 +266,74 @@
     </header>
 
     <!-- Main Container -->
-    <div class="container">
-        <!-- AI Dashboard Row: AI Insights -->
-        <div class="dashboard-row" id="ai-insights-row" style="display: flex; gap: 24px; margin-bottom: 32px;">
-            <div class="dashboard-card ai-insights-card" style="flex: 2; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(102,126,234,0.08); padding: 24px 32px; min-height: 220px; display: flex; flex-direction: column;">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                    <span style="font-size: 2rem; color: #764ba2;"><i class="fas fa-brain"></i></span>
-                    <h2 style="margin: 0; font-size: 1.4rem; color: #333;">AI Insights <span style="font-size:1rem; color:#888;">- Phân tích nguy cơ</span></h2>
-                    <span id="ai-insights-loading" style="margin-left: 16px; display: none;"><i class="fas fa-spinner fa-spin"></i> Đang lấy dữ liệu...</span>
+    <div class="container" style="max-width: 1400px; margin: 0 auto; padding: 32px 0; display: flex; flex-direction: column; gap: 0;">
+        <!-- Header -->
+        <div style="display: flex; align-items: center; gap: 18px; margin-bottom: 18px;">
+            <span style="font-size: 2.2rem; color: #764ba2;"><i class="fas fa-brain"></i></span>
+            <div>
+                <h1 style="margin: 0; font-size: 2rem; color: #222; font-weight: 700; letter-spacing: -1px;">AI Analytics</h1>
+                <div style="color: #666; font-size: 1.1rem;">Phân tích dữ liệu an toàn bằng trí tuệ nhân tạo</div>
+            </div>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div style="display: flex; gap: 32px; align-items: flex-start;">
+            <!-- Left Column: AI Insights and future widgets -->
+            <div style="flex: 2; display: flex; flex-direction: column; gap: 32px;">
+                <!-- AI Insights Card -->
+                <div class="dashboard-card ai-insights-card" style="background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(102,126,234,0.10); padding: 28px 36px; min-height: 220px; display: flex; flex-direction: column;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <span style="font-size: 1.7rem; color: #764ba2;"><i class="fas fa-lightbulb"></i></span>
+                        <h2 style="margin: 0; font-size: 1.25rem; color: #333; font-weight: 600;">AI Insights <span style="font-size:1rem; color:#888; font-weight:400;">- Phân tích nguy cơ</span></h2>
+                        <span id="ai-insights-loading" style="margin-left: 16px; display: none;"><i class="fas fa-spinner fa-spin"></i> Đang lấy dữ liệu...</span>
+                    </div>
+                    <div id="ai-insights-content" style="flex:1; min-height: 80px;"></div>
                 </div>
-                <div id="ai-insights-content" style="flex:1; min-height: 80px;"></div>
+            </div>
+
+            <!-- Right Column: Ask AI and Quick Actions -->
+            <div style="flex: 1.2; display: flex; flex-direction: column; gap: 32px;">
+                <!-- Ask AI Card -->
+                <div style="background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(102,126,234,0.10); padding: 24px 28px; margin-bottom: 0;">
+                    <h3 style="margin: 0 0 12px 0; font-size: 1.1rem; color: #764ba2; font-weight: 600;"><i class="fas fa-comment-dots"></i> Hỏi bất cứ điều gì về dữ liệu an toàn</h3>
+                    <div class="query-input-group" style="display: flex; gap: 10px; margin-bottom: 12px;">
+                        <input type="text" id="queryInput" placeholder="VD: Có bao nhiêu cảnh báo hôm nay?" onkeypress="if(event.key === 'Enter') submitQuery()" style="flex:1; padding: 12px; border: 2px solid #ddd; border-radius: 4px; font-size: 16px;">
+                        <button class="btn-ask" onclick="submitQuery()" style="padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Hỏi AI</button>
+                    </div>
+                    <div class="suggested-questions" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+                        <strong style="font-weight: 500; color: #444;">Gợi ý câu hỏi:</strong>
+                        <button class="btn-suggestion" onclick="setQuery('Có bao nhiêu cảnh báo hôm nay?')">Có bao nhiêu cảnh báo hôm nay?</button>
+                        <button class="btn-suggestion" onclick="setQuery('Công nhân nào có nguy cơ cao nhất?')">Công nhân nào có nguy cơ cao nhất?</button>
+                        <button class="btn-suggestion" onclick="setQuery('Phòng ban nào có nhiều sự cố nhất?')">Phòng ban nào có nhiều sự cố nhất?</button>
+                        <button class="btn-suggestion" onclick="setQuery('Tổng quan tuần này thế nào?')">Tổng quan tuần này thế nào?</button>
+                    </div>
+                </div>
+                <!-- Quick Actions Card -->
+                <div style="background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(102,126,234,0.10); padding: 24px 28px;">
+                    <h3 style="margin: 0 0 18px 0; font-size: 1.1rem; color: #ff9800; font-weight: 600;"><i class="fas fa-bolt"></i> Quick Actions</h3>
+                    <div class="quick-actions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="quick-action-card" onclick="generateInsightsUI()" style="background: #f8f9fa; border-radius: 8px; padding: 16px 12px; cursor: pointer; border: 1px solid #eee;">
+                            <span style="font-size:1.2rem; color:#764ba2;"><i class="fas fa-chart-line"></i></span>
+                            <span style="font-weight:600; color:#333; margin-left:8px;">Generate Insights</span>
+                            <div style="font-size:0.95rem; color:#666;">Tự động tạo insights từ dữ liệu 30 ngày</div>
+                        </div>
+                        <div class="quick-action-card" onclick="generateReportUI()" style="background: #f8f9fa; border-radius: 8px; padding: 16px 12px; cursor: pointer; border: 1px solid #eee;">
+                            <span style="font-size:1.2rem; color:#764ba2;"><i class="fas fa-file-alt"></i></span>
+                            <span style="font-weight:600; color:#333; margin-left:8px;">Weekly Report</span>
+                            <div style="font-size:0.95rem; color:#666;">Tạo báo cáo tuần tự động</div>
+                        </div>
+                        <div class="quick-action-card" onclick="predictHighRiskWorkers()" style="background: #f8f9fa; border-radius: 8px; padding: 16px 12px; cursor: pointer; border: 1px solid #eee;">
+                            <span style="font-size:1.2rem; color:#ff9800;"><i class="fas fa-exclamation-triangle"></i></span>
+                            <span style="font-weight:600; color:#333; margin-left:8px;">High Risk Workers</span>
+                            <div style="font-size:0.95rem; color:#666;">Dự đoán công nhân có rủi ro cao</div>
+                        </div>
+                        <div class="quick-action-card" onclick="analyzeTrends()" style="background: #f8f9fa; border-radius: 8px; padding: 16px 12px; cursor: pointer; border: 1px solid #eee;">
+                            <span style="font-size:1.2rem; color:#764ba2;"><i class="fas fa-chart-bar"></i></span>
+                            <span style="font-weight:600; color:#333; margin-left:8px;">Trend Analysis</span>
+                            <div style="font-size:0.95rem; color:#666;">Phân tích xu hướng 90 ngày</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         <!-- Sidebar -->
@@ -355,38 +413,12 @@
             </div>
         </div>
 
-        <!-- Loading Indicator -->
-        <div class="loading" id="loadingIndicator">
+        <!-- Loading Indicator and Response Container (overlay, for Ask AI only) -->
+        <div class="loading" id="loadingIndicator" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,0.6); z-index:1000; align-items:center; justify-content:center;">
             <div class="spinner"></div>
             <p>🤖 AI đang phân tích...</p>
         </div>
-
-        <!-- Response Container -->
-        <div id="llmResponseContainer"></div>
-
-        <!-- Quick Actions -->
-        <div class="query-section">
-            <h2>⚡ Quick Actions</h2>
-            <div class="quick-actions">
-                <div class="quick-action-card" onclick="generateInsightsUI()">
-                    <h3>📊 Generate Insights</h3>
-                    <p>Tự động tạo insights từ dữ liệu 30 ngày</p>
-                </div>
-                <div class="quick-action-card" onclick="generateReportUI()">
-                    <h3>📄 Weekly Report</h3>
-                    <p>Tạo báo cáo tuần tự động</p>
-                </div>
-                <div class="quick-action-card" onclick="predictHighRiskWorkers()">
-                    <h3>⚠️ High Risk Workers</h3>
-                    <p>Dự đoán công nhân có rủi ro cao</p>
-                </div>
-                <div class="quick-action-card" onclick="analyzeTrends()">
-                    <h3>📈 Trend Analysis</h3>
-                    <p>Phân tích xu hướng 90 ngày</p>
-                </div>
-            </div>
-        </div>
-    </div>
+        <div id="llmResponseContainer" style="max-width:600px; margin:32px auto 0 auto;"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="js/llm-analytics.js"></script>
