@@ -337,32 +337,123 @@ function displayLlmResponse(response, containerId) {
 }
 
 /**
- * Example Usage
+ * AI Dashboard Session Management
+ * Uses sessionStorage to persist dashboard data for the session.
  */
-async function exampleUsage() {
-    // 1. Hỏi câu hỏi đơn giản
-    const answer1 = await askQuestion("Có bao nhiêu cảnh báo hôm nay?");
-    displayLlmResponse(answer1, 'llm-output-1');
+const DASHBOARD_SESSION_KEY = 'ai_dashboard_data_v1';
 
-    // 2. Hỏi câu hỏi phức tạp
-    const answer2 = await askQuestion("Công nhân nào có nguy cơ tai nạn cao nhất?");
-    displayLlmResponse(answer2, 'llm-output-2');
+async function fetchAIDashboardData() {
+    // Use batch-query to get all needed data for dashboard widgets
+    const queries = [
+        'Tổng số cảnh báo hôm nay',
+        'Top 5 công nhân high-risk',
+        'Phân bố theo loại cảnh báo',
+        'Xu hướng 7 ngày qua',
+        'Phòng ban có nhiều sự cố nhất',
+        'Tạo báo cáo tuần AI',
+        'Tạo AI insights tuần',
+    ];
+    const response = await fetch('/api/analytics/batch-query', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            queries: queries,
+            execute_queries: true,
+            combine_results: false
+        })
+    });
+    if (!response.ok) throw new Error('Không thể lấy dữ liệu AI dashboard');
+    const data = await response.json();
+    return data;
+}
 
-    // 3. Generate insights
-    const insights = await generateInsights('30d', 'Xây dựng');
-    displayLlmResponse(insights, 'insights-output');
+function saveAIDashboardSession(data) {
+    sessionStorage.setItem(DASHBOARD_SESSION_KEY, JSON.stringify(data));
+}
 
-    // 4. Root cause analysis
-    const rootCause = await analyzeRootCause(123);
-    console.log('Root cause:', rootCause);
+function loadAIDashboardSession() {
+    const raw = sessionStorage.getItem(DASHBOARD_SESSION_KEY);
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+}
 
-    // 5. Risk prediction
-    const risk = await predictWorkerRisk(45, 7);
-    console.log('Risk prediction:', risk);
+function clearAIDashboardSession() {
+    sessionStorage.removeItem(DASHBOARD_SESSION_KEY);
+}
 
-    // 6. Generate report
-    const report = await generateReport('weekly', '7d', 'management');
-    console.log('Report:', report.report_markdown);
+async function refreshAIDashboardSession() {
+    clearAIDashboardSession();
+    await initAIDashboard();
+}
+
+async function initAIDashboard() {
+    const loading = document.getElementById('loadingIndicator');
+    if (loading) loading.classList.add('active');
+    let data = loadAIDashboardSession();
+    if (!data) {
+        try {
+            data = await fetchAIDashboardData();
+            saveAIDashboardSession(data);
+        } catch (e) {
+            if (loading) loading.classList.remove('active');
+            alert('Không thể tải dữ liệu AI dashboard: ' + e.message);
+            return;
+        }
+    }
+    renderAIDashboard(data);
+    if (loading) loading.classList.remove('active');
+}
+
+function renderAIDashboard(data) {
+    // Map batch-query results to widgets
+    // This is a placeholder; you should map data.results[i] to each block
+    // Example: data.results[0] = alert count, data.results[1] = high-risk workers, etc.
+    // You may need to adjust based on your backend batch-query implementation
+    if (!data || !data.results) return;
+    // AI Insights
+    const aiInsightsBlock = document.getElementById('aiInsightsBlock');
+    if (aiInsightsBlock && data.results[6] && data.results[6].response) {
+        // Use insights from batch-query
+        const insights = data.results[6].response.insights || [];
+        aiInsightsBlock.innerHTML = insights.map(ins => `<div style="margin-bottom:8px;">${ins}</div>`).join('');
+    }
+    // Q&A suggested questions
+    const suggested = [
+        'Có bao nhiêu cảnh báo hôm nay?',
+        'Top 5 công nhân high-risk',
+        'Xu hướng cảnh báo 7 ngày qua',
+        'Phân bố theo loại cảnh báo',
+    ];
+    const suggestedBlock = document.getElementById('suggestedQuestionsBlock');
+    if (suggestedBlock) {
+        suggestedBlock.innerHTML = suggested.map(q => `<button class="btn-suggestion" onclick="setQuery('${q}');submitQuery();">${q}</button>`).join('');
+    }
+    // Alert Trend Chart (use Chart.js)
+    if (window.Chart && data.results[3] && data.results[3].response && data.results[3].response.chart_config) {
+        const ctx = document.getElementById('alertTrendChart').getContext('2d');
+        new window.Chart(ctx, data.results[3].response.chart_config);
+    }
+    // Risk Map (placeholder)
+    const riskMapBlock = document.getElementById('riskMapBlock');
+    if (riskMapBlock) {
+        riskMapBlock.innerHTML = '<div style="color:#aaa;">(Bản đồ nguy hiểm sẽ hiển thị ở đây)</div>';
+    }
+    // Alert Type Breakdown
+    const alertTypeBlock = document.getElementById('alertTypeBreakdownBlock');
+    if (alertTypeBlock && data.results[2] && data.results[2].response) {
+        // Example: show alert type counts
+        alertTypeBlock.innerHTML = '<div style="color:#aaa;">(Phân loại cảnh báo sẽ hiển thị ở đây)</div>';
+    }
+    // AI Report
+    const aiReportBlock = document.getElementById('aiReportBlock');
+    if (aiReportBlock && data.results[5] && data.results[5].response) {
+        displayLlmResponse(data.results[5].response, 'aiReportBlock');
+    }
+}
+
+// On page load, initialize dashboard if on AI dashboard page
+if (window.location.pathname.endsWith('ai-analytics.html')) {
+    window.addEventListener('DOMContentLoaded', initAIDashboard);
 }
 
 // Export functions
