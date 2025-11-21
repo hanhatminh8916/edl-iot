@@ -336,23 +336,20 @@
         // Anchors - will be loaded from database
         let anchors = [];
         
-        // Reference point for coordinate conversion (center of 2D map)
-        const referencePoint = {
-            lat: 15.97331,  // Center latitude
-            lng: 108.25183  // Center longitude
-        };
+        // Reference point for coordinate conversion (use first anchor as reference or fixed point)
+        let referencePoint = null;
         
         // Convert lat/lng to local x/y coordinates (meters)
-        function latLngToXY(lat, lng) {
-            // Simple conversion: 1 degree ≈ 111,000 meters
-            const latDiff = (lat - referencePoint.lat) * 111000;
-            const lngDiff = (lng - referencePoint.lng) * 111000 * Math.cos(referencePoint.lat * Math.PI / 180);
+        function latLngToXY(lat, lng, refLat, refLng) {
+            // 1 degree latitude ≈ 111,000 meters
+            // 1 degree longitude ≈ 111,000 * cos(latitude) meters
+            const latDiff = (lat - refLat) * 111000;
+            const lngDiff = (lng - refLng) * 111000 * Math.cos(refLat * Math.PI / 180);
             
-            // Convert to 20m x 20m grid (offset to center)
-            const x = 10 + lngDiff / 10;  // Center at 10m
-            const y = 10 - latDiff / 10;  // Center at 10m (flip y)
-            
-            return { x, y };
+            // Map to grid: bottom-left anchor as origin (0,0), scale to fit 20m area
+            // x: longitude difference (east-west)
+            // y: latitude difference (north-south)
+            return { x: lngDiff, y: latDiff };
         }
         
         // Load anchors from database
@@ -362,30 +359,63 @@
                 .then(data => {
                     console.log('✅ Loaded anchors from DB:', data);
                     
-                    // Convert anchors to 2D coordinates
-                    anchors = data.map(anchor => {
-                        const pos = latLngToXY(anchor.latitude, anchor.longitude);
+                    if (data.length === 0) {
+                        console.warn('⚠️ No anchors in database');
+                        anchors = [];
+                        draw();
+                        return;
+                    }
+                    
+                    // Use first anchor as reference point (origin)
+                    referencePoint = {
+                        lat: data[0].latitude,
+                        lng: data[0].longitude
+                    };
+                    
+                    // Convert all anchors to relative coordinates
+                    const converted = data.map(anchor => {
+                        const pos = latLngToXY(anchor.latitude, anchor.longitude, referencePoint.lat, referencePoint.lng);
                         return {
                             id: anchor.anchorId,
                             name: anchor.name,
-                            x: pos.x,
-                            y: pos.y,
+                            rawX: pos.x,
+                            rawY: pos.y,
+                            lat: anchor.latitude,
+                            lng: anchor.longitude,
                             status: 'online'
                         };
                     });
                     
+                    // Find bounds
+                    const xCoords = converted.map(a => a.rawX);
+                    const yCoords = converted.map(a => a.rawY);
+                    const minX = Math.min(...xCoords);
+                    const maxX = Math.max(...xCoords);
+                    const minY = Math.min(...yCoords);
+                    const maxY = Math.max(...yCoords);
+                    
+                    const rangeX = maxX - minX || 1;
+                    const rangeY = maxY - minY || 1;
+                    const maxRange = Math.max(rangeX, rangeY);
+                    
+                    // Scale to fit in 18m x 18m (leave 1m margin on each side)
+                    const scaleFactor = maxRange > 0 ? 18 / maxRange : 1;
+                    
+                    anchors = converted.map(anchor => ({
+                        id: anchor.id,
+                        name: anchor.name,
+                        x: 1 + (anchor.rawX - minX) * scaleFactor,  // 1m margin
+                        y: 1 + (anchor.rawY - minY) * scaleFactor,  // 1m margin
+                        status: anchor.status
+                    }));
+                    
                     console.log('✅ Converted anchors to 2D:', anchors);
+                    console.log('📊 Bounds:', { minX, maxX, minY, maxY, scaleFactor });
                     draw(); // Redraw canvas with new anchors
                 })
                 .catch(error => {
                     console.error('❌ Error loading anchors:', error);
-                    // Fallback to sample data if API fails
-                    anchors = [
-                        { id: 'A1', name: 'Anchor 1', x: 2, y: 2, status: 'online' },
-                        { id: 'A2', name: 'Anchor 2', x: 18, y: 2, status: 'online' },
-                        { id: 'A3', name: 'Anchor 3', x: 18, y: 18, status: 'online' },
-                        { id: 'A4', name: 'Anchor 4', x: 2, y: 18, status: 'online' }
-                    ];
+                    anchors = [];
                     draw();
                 });
         }
@@ -566,7 +596,10 @@
                 }
             });
 
-            // Draw anchors
+            // Draw anchors - DEBUG LOG
+            if (anchors.length > 0) {
+                console.log('🎨 Drawing', anchors.length, 'anchors:', anchors);
+            }
             anchors.forEach(anchor => drawAnchor(anchor));
 
             // Draw tags
@@ -665,13 +698,23 @@
 
         // Auto-refresh anchors every 10 seconds
         function startAnchorSync() {
+            console.log('🔄 Starting anchor sync...');
             loadAnchorsFromDatabase(); // Initial load
-            setInterval(loadAnchorsFromDatabase, 10000); // Refresh every 10s
+            setInterval(() => {
+                console.log('🔄 Refreshing anchors...');
+                loadAnchorsFromDatabase();
+            }, 10000); // Refresh every 10s
         }
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('📍 Page loaded, initializing...');
             checkAuth();
+            
+            // Set canvas size
+            canvas.width = areaSize * scale + 80;
+            canvas.height = areaSize * scale + 80;
+            
             startAnchorSync(); // Load anchors from DB
             animate();
         });
