@@ -4,7 +4,7 @@
  * Sử dụng API analytics để thêm khả năng AI vào dashboard
  */
 
-const LLM_API_BASE = '/api/analytics';
+const LLM_API_BASE = 'https://sd7zcbc8-8000.asse.devtunnels.ms/api/llm';
 
 /**
  * Natural Language Query
