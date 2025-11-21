@@ -333,14 +333,62 @@
         const areaSize = 20; // 20m × 20m
         let isAnimating = true;
 
-        // Sample data - Anchors (fixed positions)
-        const anchors = [
-            { id: 'A1', name: 'Anchor 1', x: 2, y: 2, status: 'online' },
-            { id: 'A2', name: 'Anchor 2', x: 18, y: 2, status: 'online' },
-            { id: 'A3', name: 'Anchor 3', x: 18, y: 18, status: 'online' },
-            { id: 'A4', name: 'Anchor 4', x: 2, y: 18, status: 'online' },
-            { id: 'A5', name: 'Anchor 5', x: 10, y: 10, status: 'online' }
-        ];
+        // Anchors - will be loaded from database
+        let anchors = [];
+        
+        // Reference point for coordinate conversion (center of 2D map)
+        const referencePoint = {
+            lat: 15.97331,  // Center latitude
+            lng: 108.25183  // Center longitude
+        };
+        
+        // Convert lat/lng to local x/y coordinates (meters)
+        function latLngToXY(lat, lng) {
+            // Simple conversion: 1 degree ≈ 111,000 meters
+            const latDiff = (lat - referencePoint.lat) * 111000;
+            const lngDiff = (lng - referencePoint.lng) * 111000 * Math.cos(referencePoint.lat * Math.PI / 180);
+            
+            // Convert to 20m x 20m grid (offset to center)
+            const x = 10 + lngDiff / 10;  // Center at 10m
+            const y = 10 - latDiff / 10;  // Center at 10m (flip y)
+            
+            return { x, y };
+        }
+        
+        // Load anchors from database
+        function loadAnchorsFromDatabase() {
+            fetch('/api/anchors')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('✅ Loaded anchors from DB:', data);
+                    
+                    // Convert anchors to 2D coordinates
+                    anchors = data.map(anchor => {
+                        const pos = latLngToXY(anchor.latitude, anchor.longitude);
+                        return {
+                            id: anchor.anchorId,
+                            name: anchor.name,
+                            x: pos.x,
+                            y: pos.y,
+                            status: 'online'
+                        };
+                    });
+                    
+                    console.log('✅ Converted anchors to 2D:', anchors);
+                    draw(); // Redraw canvas with new anchors
+                })
+                .catch(error => {
+                    console.error('❌ Error loading anchors:', error);
+                    // Fallback to sample data if API fails
+                    anchors = [
+                        { id: 'A1', name: 'Anchor 1', x: 2, y: 2, status: 'online' },
+                        { id: 'A2', name: 'Anchor 2', x: 18, y: 2, status: 'online' },
+                        { id: 'A3', name: 'Anchor 3', x: 18, y: 18, status: 'online' },
+                        { id: 'A4', name: 'Anchor 4', x: 2, y: 18, status: 'online' }
+                    ];
+                    draw();
+                });
+        }
 
         // Sample data - Tags (moving positions)
         let tags = [
@@ -615,9 +663,16 @@
             window.location.href = 'login.html';
         }
 
+        // Auto-refresh anchors every 10 seconds
+        function startAnchorSync() {
+            loadAnchorsFromDatabase(); // Initial load
+            setInterval(loadAnchorsFromDatabase, 10000); // Refresh every 10s
+        }
+        
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             checkAuth();
+            startAnchorSync(); // Load anchors from DB
             animate();
         });
     </script>
