@@ -709,7 +709,11 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             console.log('📍 Page loaded, initializing...');
-            checkAuth();
+            
+            // Check auth if function exists
+            if (typeof checkAuth === 'function') {
+                checkAuth();
+            }
             
             // Set canvas size
             canvas.width = areaSize * scale + 80;
