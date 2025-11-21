@@ -308,7 +308,120 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script src="js/llm-analytics.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/alerts.js"></script>
+    
+    <!-- AI Analytics Integration -->
+    <script>
+        // Add "Analyze Root Cause" button for each alert
+        document.addEventListener('DOMContentLoaded', function() {
+            // Wait for alerts to load
+            setTimeout(addAIButtons, 2000);
+        });
+
+        function addAIButtons() {
+            const alertItems = document.querySelectorAll('.alert-item-card, .alerts-list-item');
+            alertItems.forEach((item, index) => {
+                if (!item.querySelector('.btn-ai-analyze')) {
+                    const alertId = item.dataset.alertId || (index + 1);
+                    const aiButton = document.createElement('button');
+                    aiButton.className = 'btn-ai-analyze';
+                    aiButton.innerHTML = '<i class="fas fa-robot"></i> Phân tích AI';
+                    aiButton.style.cssText = 'margin-left: 10px; padding: 6px 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;';
+                    aiButton.onclick = () => analyzeAlertWithAI(alertId);
+                    
+                    const actionButtons = item.querySelector('.alert-item-actions, .alert-actions');
+                    if (actionButtons) {
+                        actionButtons.appendChild(aiButton);
+                    }
+                }
+            });
+        }
+
+        async function analyzeAlertWithAI(alertId) {
+            try {
+                // Show loading
+                showNotification('🤖 AI đang phân tích...', 'info');
+                
+                // Call AI API
+                const response = await fetch(`/api/analytics/root-cause/${alertId}?includeContext=true`);
+                const analysis = await response.json();
+                
+                // Display in modal
+                showAIAnalysisModal(alertId, analysis);
+            } catch (error) {
+                console.error('AI Analysis error:', error);
+                showNotification('Không thể phân tích: ' + error.message, 'error');
+            }
+        }
+
+        function showAIAnalysisModal(alertId, analysis) {
+            const modal = document.createElement('div');
+            modal.className = 'ai-modal';
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999;';
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 12px; max-width: 800px; max-height: 90vh; overflow-y: auto; width: 90%;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin: 0;">🔍 Phân tích AI - Alert #${alertId}</h2>
+                        <button onclick="this.closest('.ai-modal').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+                    </div>
+                    
+                    ${analysis.alert_details ? `
+                        <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                            <h3 style="margin: 0 0 10px 0;">📋 Chi tiết cảnh báo</h3>
+                            <p><strong>Loại:</strong> ${analysis.alert_details.alert_type}</p>
+                            <p><strong>Mức độ:</strong> <span style="color: #ef4444;">${analysis.alert_details.severity}</span></p>
+                            <p><strong>Công nhân:</strong> ${analysis.alert_details.worker_name}</p>
+                            <p><strong>Phòng ban:</strong> ${analysis.alert_details.department}</p>
+                            <p><strong>Thời gian:</strong> ${new Date(analysis.alert_details.triggered_at).toLocaleString('vi-VN')}</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${analysis.analysis ? `
+                        <div style="margin-bottom: 20px;">
+                            <h3>💡 Phân tích</h3>
+                            <p style="background: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; border-radius: 4px;">
+                                ${analysis.analysis.summary || 'Đang phân tích...'}
+                            </p>
+                        </div>
+                        
+                        ${analysis.analysis.insights && analysis.analysis.insights.length > 0 ? `
+                            <div style="margin-bottom: 20px;">
+                                <h3>🔎 Insights</h3>
+                                <ul style="background: #dbeafe; padding: 20px; border-left: 4px solid #3b82f6; border-radius: 4px;">
+                                    ${analysis.analysis.insights.map(i => `<li style="margin-bottom: 8px;">${i}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        
+                        ${analysis.analysis.recommendations && analysis.analysis.recommendations.length > 0 ? `
+                            <div style="margin-bottom: 20px;">
+                                <h3>🎯 Đề xuất hành động</h3>
+                                ${analysis.analysis.recommendations.map(r => `
+                                    <div style="background: ${r.priority === 'HIGH' ? '#fee2e2' : r.priority === 'MEDIUM' ? '#fef3c7' : '#dcfce7'}; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid ${r.priority === 'HIGH' ? '#ef4444' : r.priority === 'MEDIUM' ? '#f59e0b' : '#22c55e'};">
+                                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                                            <div style="flex: 1;">
+                                                <strong>${r.action}</strong>
+                                                <p style="margin: 5px 0 0 0; font-size: 14px;">${r.impact}</p>
+                                            </div>
+                                            <span style="padding: 4px 12px; background: white; border-radius: 12px; font-size: 12px; font-weight: bold;">${r.priority}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    ` : ''}
+                    
+                    <div style="text-align: right; margin-top: 20px;">
+                        <button onclick="this.closest('.ai-modal').remove()" style="padding: 10px 24px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">Đóng</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+    </script>
 </body>
 </html>

@@ -44,20 +44,23 @@ public class LlmAnalyticsController {
     @PostMapping("/query")
     public Mono<ResponseEntity<Map<String, Object>>> queryNaturalLanguage(
             @RequestBody Map<String, Object> request) {
-        
-        String query = (String) request.get("query");
-        boolean executeQueries = (boolean) request.getOrDefault("executeQueries", true);
-        boolean includeData = (boolean) request.getOrDefault("includeData", true);
+                String query = (String) request.get("query");
+                // Accept both camelCase and snake_case
+                Object exec1 = request.getOrDefault("executeQueries", request.get("execute_queries"));
+                Object inc1 = request.getOrDefault("includeData", request.get("include_data"));
+
+        boolean executeQueries = parseBoolean(exec1, true);
+        boolean includeData = parseBoolean(inc1, true);
 
         log.info("🔍 NL Query received: {}", query);
 
         return llmAnalyticsService.queryNaturalLanguage(query, executeQueries, includeData)
                 .map(ResponseEntity::ok)
-                .onErrorResume(error -> {
-                    log.error("❌ Query failed", error);
-                    return Mono.just(ResponseEntity.internalServerError()
-                            .body(Map.of("error", error.getMessage())));
-                });
+                                .onErrorResume(error -> {
+                                        log.error("❌ Query failed", error);
+                                        return Mono.just(ResponseEntity.internalServerError()
+                                                        .body(Map.of("detail", error.getMessage())));
+                                });
     }
 
     /**
@@ -72,19 +75,21 @@ public class LlmAnalyticsController {
     @PostMapping("/insights")
     public Mono<ResponseEntity<Map<String, Object>>> generateInsights(
             @RequestBody Map<String, Object> request) {
-        
-        String timeRange = (String) request.getOrDefault("timeRange", "30d");
-        String department = (String) request.get("department");
+                // Accept both snake_case and camelCase keys
+                Object tr = request.getOrDefault("timeRange", request.getOrDefault("time_range", "30d"));
+                String timeRange = tr != null ? tr.toString() : "30d";
+                String department = (String) (request.containsKey("department") ? request.get("department") : request.get("department"));
+                // insight types (optional) - controller currently ignores them and passes defaults to service
 
         log.info("📊 Generating insights: timeRange={}, department={}", timeRange, department);
 
         return llmAnalyticsService.generateInsights(timeRange, department)
                 .map(ResponseEntity::ok)
-                .onErrorResume(error -> {
-                    log.error("❌ Insights generation failed", error);
-                    return Mono.just(ResponseEntity.internalServerError()
-                            .body(Map.of("error", error.getMessage())));
-                });
+                                .onErrorResume(error -> {
+                                        log.error("❌ Insights generation failed", error);
+                                        return Mono.just(ResponseEntity.internalServerError()
+                                                        .body(Map.of("detail", error.getMessage())));
+                                });
     }
 
     /**
@@ -100,11 +105,11 @@ public class LlmAnalyticsController {
 
         return llmAnalyticsService.analyzeRootCause(alertId, includeContext)
                 .map(ResponseEntity::ok)
-                .onErrorResume(error -> {
-                    log.error("❌ Root cause analysis failed", error);
-                    return Mono.just(ResponseEntity.internalServerError()
-                            .body(Map.of("error", error.getMessage())));
-                });
+                                .onErrorResume(error -> {
+                                        log.error("❌ Root cause analysis failed", error);
+                                        return Mono.just(ResponseEntity.internalServerError()
+                                                        .body(Map.of("detail", error.getMessage())));
+                                });
     }
 
     /**
@@ -120,11 +125,11 @@ public class LlmAnalyticsController {
 
         return llmAnalyticsService.predictRisk(workerId, horizonDays)
                 .map(ResponseEntity::ok)
-                .onErrorResume(error -> {
-                    log.error("❌ Risk prediction failed", error);
-                    return Mono.just(ResponseEntity.internalServerError()
-                            .body(Map.of("error", error.getMessage())));
-                });
+                                .onErrorResume(error -> {
+                                        log.error("❌ Risk prediction failed", error);
+                                        return Mono.just(ResponseEntity.internalServerError()
+                                                        .body(Map.of("detail", error.getMessage())));
+                                });
     }
 
     /**
@@ -140,21 +145,25 @@ public class LlmAnalyticsController {
     @PostMapping("/report")
     public Mono<ResponseEntity<Map<String, Object>>> generateReport(
             @RequestBody Map<String, Object> request) {
-        
-        String reportType = (String) request.getOrDefault("reportType", "weekly");
-        String timeRange = (String) request.getOrDefault("timeRange", "7d");
-        String audience = (String) request.getOrDefault("audience", "management");
+                // Accept both snake_case and camelCase
+                Object rpt = request.getOrDefault("reportType", request.get("report_type"));
+                Object tr = request.getOrDefault("timeRange", request.get("time_range"));
+                Object aud = request.getOrDefault("audience", request.get("audience"));
+
+                String reportType = rpt != null ? rpt.toString() : "weekly";
+                String timeRange = tr != null ? tr.toString() : "7d";
+                String audience = aud != null ? aud.toString() : "management";
 
         log.info("📄 Generating report: type={}, timeRange={}, audience={}", 
                 reportType, timeRange, audience);
 
         return llmAnalyticsService.generateReport(reportType, timeRange, audience)
                 .map(ResponseEntity::ok)
-                .onErrorResume(error -> {
-                    log.error("❌ Report generation failed", error);
-                    return Mono.just(ResponseEntity.internalServerError()
-                            .body(Map.of("error", error.getMessage())));
-                });
+                                .onErrorResume(error -> {
+                                        log.error("❌ Report generation failed", error);
+                                        return Mono.just(ResponseEntity.internalServerError()
+                                                        .body(Map.of("detail", error.getMessage())));
+                                });
     }
 
     /**
@@ -170,4 +179,14 @@ public class LlmAnalyticsController {
                 "timestamp", java.time.Instant.now().toString()
         ));
     }
+
+        private boolean parseBoolean(Object o, boolean def) {
+                if (o == null) return def;
+                if (o instanceof Boolean) return (Boolean) o;
+                try {
+                        return Boolean.parseBoolean(o.toString());
+                } catch (Exception e) {
+                        return def;
+                }
+        }
 }

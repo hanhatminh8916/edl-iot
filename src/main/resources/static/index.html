@@ -396,12 +396,137 @@
                     </div>
                 </div>
             </div>
+
+            <!-- AI Daily Insights Section -->
+            <div class="card" style="margin-top: 20px;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-robot" style="color: #667eea;"></i>
+                        <h3>🤖 AI Insights - Hôm nay</h3>
+                    </div>
+                    <button class="btn-link" onclick="refreshAIInsights()">
+                        <i class="fas fa-sync-alt"></i> Làm mới
+                    </button>
+                </div>
+                <div class="card-body">
+                    <p class="card-subtitle">Phân tích tự động từ AI về tình hình an toàn</p>
+                    <div id="ai-insights-container" style="min-height: 100px;">
+                        <div style="text-align: center; padding: 30px; color: #6b7280;">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                            <p style="margin-top: 10px;">Đang tải insights...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script src="js/llm-analytics.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/script.js"></script>
+    
+    <!-- AI Insights Integration -->
+    <script>
+        // Auto-load AI insights on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(loadDailyAIInsights, 1000);
+        });
+
+        async function loadDailyAIInsights() {
+            const container = document.getElementById('ai-insights-container');
+            
+            try {
+                const response = await fetch('/api/analytics/insights', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        timeRange: '1d',
+                        insightTypes: ['trends', 'anomalies']
+                    })
+                });
+
+                if (!response.ok) throw new Error('API error');
+                
+                const data = await response.json();
+                displayDailyInsights(data);
+            } catch (error) {
+                console.error('Failed to load AI insights:', error);
+                container.innerHTML = `
+                    <div style="background: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                        <p style="margin: 0;">⚠️ Không thể tải AI insights. <a href="ai-analytics.html" style="color: #667eea;">Xem chi tiết tại đây</a></p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayDailyInsights(data) {
+            const container = document.getElementById('ai-insights-container');
+            
+            let html = '';
+            
+            // Summary
+            if (data.summary) {
+                html += `
+                    <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #22c55e;">
+                        <strong>📊 Tổng quan:</strong>
+                        <p style="margin: 5px 0 0 0;">${data.summary}</p>
+                    </div>
+                `;
+            }
+            
+            // Insights
+            if (data.insights && data.insights.length > 0) {
+                html += '<div style="background: #eff6ff; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #3b82f6;">';
+                html += '<strong style="color: #1e40af;">💡 Key Insights:</strong>';
+                html += '<ul style="margin: 10px 0 0 20px; padding: 0;">';
+                data.insights.slice(0, 3).forEach(insight => {
+                    html += `<li style="margin-bottom: 8px;">${insight}</li>`;
+                });
+                html += '</ul></div>';
+            }
+            
+            // Recommendations
+            if (data.recommendations && data.recommendations.length > 0) {
+                const highPriority = data.recommendations.filter(r => r.priority === 'HIGH').slice(0, 2);
+                if (highPriority.length > 0) {
+                    html += '<div style="background: #fee2e2; padding: 15px; border-radius: 8px; border-left: 4px solid #ef4444;">';
+                    html += '<strong style="color: #991b1b;">🎯 Hành động ưu tiên:</strong>';
+                    highPriority.forEach(rec => {
+                        html += `
+                            <div style="margin-top: 10px; padding: 10px; background: white; border-radius: 6px;">
+                                <strong>${rec.action}</strong>
+                                <p style="margin: 5px 0 0 0; font-size: 14px; color: #6b7280;">${rec.impact}</p>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
+            }
+            
+            // Link to full AI Analytics
+            html += `
+                <div style="text-align: center; margin-top: 15px;">
+                    <a href="ai-analytics.html" style="color: #667eea; text-decoration: none; font-weight: 600;">
+                        <i class="fas fa-arrow-right"></i> Xem thêm phân tích AI
+                    </a>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+
+        function refreshAIInsights() {
+            const container = document.getElementById('ai-insights-container');
+            container.innerHTML = `
+                <div style="text-align: center; padding: 30px; color: #6b7280;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                    <p style="margin-top: 10px;">Đang làm mới...</p>
+                </div>
+            `;
+            loadDailyAIInsights();
+        }
+    </script>
 </body>
 </html>

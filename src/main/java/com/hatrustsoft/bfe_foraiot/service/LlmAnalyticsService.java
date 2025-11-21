@@ -25,7 +25,7 @@ public class LlmAnalyticsService {
     @Value("${llm.api.base-url:https://api.safety-analytics.com}")
     private String baseUrl;
 
-    @Value("${llm.api.key}")
+    @Value("${llm.api.key:}")
     private String apiKey;
 
     @Value("${llm.api.timeout:30}")
