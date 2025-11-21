@@ -210,20 +210,76 @@ function displayLlmResponse(response, containerId) {
         // and sanitize via simple approach.
         const md = response.report_markdown;
         try {
+            let html = null;
+
             if (typeof window.marked === 'function') {
-                // Convert markdown to HTML
-                const rawHtml = window.marked.parse(md);
-                // Basic sanitization: remove <script> tags and on* attributes
-                const sanitized = rawHtml.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
-                    .replace(/on[a-zA-Z]+\s*=\s*\"[^"]*\"/g, '')
-                    .replace(/on[a-zA-Z]+\s*=\s*'[^']*'/g, '');
-                document.getElementById('llm-report-rendered').innerHTML = sanitized;
+                html = window.marked.parse(md);
             } else {
-                // Fallback: show markdown in a pre block (escaped)
-                const pre = document.createElement('pre');
-                pre.textContent = md;
-                document.getElementById('llm-report-rendered').appendChild(pre);
+                // Lightweight markdown -> HTML converter for basic formatting
+                function escapeHtml(s) {
+                    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                }
+
+                function simpleMarkdownToHtml(markdown) {
+                    const lines = markdown.split(/\r?\n/);
+                    let out = '';
+                    let inList = false;
+                    let inCode = false;
+                    let codeBuffer = [];
+
+                    for (let i = 0; i < lines.length; i++) {
+                        let line = lines[i];
+                        if (line.startsWith('```')) {
+                            if (!inCode) { inCode = true; codeBuffer = []; continue; }
+                            // close code
+                            inCode = false;
+                            out += '<pre><code>' + escapeHtml(codeBuffer.join('\n')) + '</code></pre>';
+                            continue;
+                        }
+                        if (inCode) { codeBuffer.push(line); continue; }
+
+                        if (/^\s*-\s+/.test(line)) {
+                            if (!inList) { inList = true; out += '<ul>'; }
+                            const item = line.replace(/^\s*-\s+/, '');
+                            out += '<li>' + item.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>') + '</li>';
+                            // if next line not a list, close
+                            const next = lines[i+1] || '';
+                            if (!/^\s*-\s+/.test(next)) { out += '</ul>'; inList = false; }
+                            continue;
+                        }
+
+                        // headings
+                        if (/^#\s+/.test(line)) { out += '<h1>' + line.replace(/^#\s+/, '') + '</h1>'; continue; }
+                        if (/^##\s+/.test(line)) { out += '<h2>' + line.replace(/^##\s+/, '') + '</h2>'; continue; }
+                        if (/^###\s+/.test(line)) { out += '<h3>' + line.replace(/^###\s+/, '') + '</h3>'; continue; }
+
+                        if (/^---+$/.test(line.trim())) { out += '<hr/>'; continue; }
+
+                        if (line.trim() === '') { out += '<p></p>'; continue; }
+
+                        // inline bold/italic
+                        let converted = escapeHtml(line)
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+                        out += '<p>' + converted + '</p>';
+                    }
+                    return out;
+                }
+
+                html = simpleMarkdownToHtml(md);
             }
+
+            // Sanitize: prefer DOMPurify if available
+            let safeHtml = html;
+            if (typeof window.DOMPurify !== 'undefined' && typeof window.DOMPurify.sanitize === 'function') {
+                safeHtml = window.DOMPurify.sanitize(html);
+            } else {
+                // basic sanitization: strip <script> tags
+                safeHtml = html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '');
+            }
+
+            document.getElementById('llm-report-rendered').innerHTML = safeHtml;
         } catch (e) {
             console.error('Failed to render report markdown', e);
             const pre = document.createElement('pre');
