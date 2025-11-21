@@ -377,6 +377,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="js/llm-analytics.js"></script>
     <script>
         function setQuery(query) {
@@ -439,16 +440,8 @@
 
             try {
                 const response = await generateReport('weekly', '7d', 'management');
-                
-                // Display report markdown
-                container.innerHTML = `
-                    <div class="query-section">
-                        <h3>📄 Weekly Safety Report</h3>
-                        <div style="background: white; padding: 20px; border-radius: 8px;">
-                            <pre style="white-space: pre-wrap;">${response.report_markdown}</pre>
-                        </div>
-                    </div>
-                `;
+                // Use displayLlmResponse which will render markdown if available
+                displayLlmResponse(response, 'llmResponseContainer');
             } catch (error) {
                 container.innerHTML = `
                     <div class="llm-response" style="border-left-color: #dc3545;">

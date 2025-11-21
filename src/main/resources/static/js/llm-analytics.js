@@ -196,6 +196,42 @@ function displayLlmResponse(response, containerId) {
         container.appendChild(responseDiv);
     }
 
+    // Generated Report (markdown)
+    if (response.report_markdown) {
+        const reportDiv = document.createElement('div');
+        reportDiv.className = 'llm-report';
+        reportDiv.innerHTML = `
+            <h4>📄 Báo cáo:</h4>
+            <div id="llm-report-rendered"></div>
+        `;
+        container.appendChild(reportDiv);
+
+        // If 'marked' is available (recommended), use it to convert markdown to HTML
+        // and sanitize via simple approach.
+        const md = response.report_markdown;
+        try {
+            if (typeof window.marked === 'function') {
+                // Convert markdown to HTML
+                const rawHtml = window.marked.parse(md);
+                // Basic sanitization: remove <script> tags and on* attributes
+                const sanitized = rawHtml.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+                    .replace(/on[a-zA-Z]+\s*=\s*\"[^"]*\"/g, '')
+                    .replace(/on[a-zA-Z]+\s*=\s*'[^']*'/g, '');
+                document.getElementById('llm-report-rendered').innerHTML = sanitized;
+            } else {
+                // Fallback: show markdown in a pre block (escaped)
+                const pre = document.createElement('pre');
+                pre.textContent = md;
+                document.getElementById('llm-report-rendered').appendChild(pre);
+            }
+        } catch (e) {
+            console.error('Failed to render report markdown', e);
+            const pre = document.createElement('pre');
+            pre.textContent = md;
+            document.getElementById('llm-report-rendered').appendChild(pre);
+        }
+    }
+
     // Insights
     if (response.insights && response.insights.length > 0) {
         const insightsDiv = document.createElement('div');
