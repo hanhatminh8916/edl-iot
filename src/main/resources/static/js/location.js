@@ -43,8 +43,15 @@ function initializeMap() {
             layer.setStyle({
                 color: '#FFA500',
                 fillColor: '#FFA500',
-                fillOpacity: 0.3
+                fillOpacity: 0.3,
+                interactive: true
             });
+            
+            // Ensure work zone is on top
+            if (layer.bringToFront) {
+                layer.bringToFront();
+            }
+            
             workZonesLayer.addLayer(layer);
             
             // ✅ TỰ ĐỘNG TẠO ANCHORS TỪ CÁC ĐIỂM POLYGON
@@ -68,7 +75,14 @@ function initializeMap() {
                     // ✅ Double-click vào zone để xem sơ đồ 2D (đặt sau khi có zoneId)
                     layer.on('dblclick', function(e) {
                         L.DomEvent.stopPropagation(e);
+                        L.DomEvent.preventDefault(e);
                         console.log('🖱️ Double-click on zone:', layer.zoneName, 'ID:', layer.zoneId);
+                        
+                        // Bring to front to ensure visibility
+                        if (layer.bringToFront) {
+                            layer.bringToFront();
+                        }
+                        
                         window.location.href = `positioning-2d.html?zone=${layer.zoneId}`;
                     });
                     
@@ -794,7 +808,8 @@ function handleWorkZoneUpdate(update) {
             const polygon = L.polygon(coords, {
                 color: zone.color || '#FFA500',
                 fillColor: zone.color || '#FFA500',
-                fillOpacity: 0.3
+                fillOpacity: 0.3,
+                interactive: true
             });
             
             polygon.zoneId = zone.id;
@@ -803,10 +818,22 @@ function handleWorkZoneUpdate(update) {
             
             polygon.on('dblclick', function(e) {
                 L.DomEvent.stopPropagation(e);
+                L.DomEvent.preventDefault(e);
+                console.log('🖱️ Double-click on WebSocket zone:', zone.name, 'ID:', zone.id);
+                
+                if (polygon.bringToFront) {
+                    polygon.bringToFront();
+                }
+                
                 window.location.href = `positioning-2d.html?zone=${zone.id}`;
             });
             
             workZonesLayer.addLayer(polygon);
+            
+            if (polygon.bringToFront) {
+                polygon.bringToFront();
+            }
+            
             console.log('✅ Work zone created from WebSocket:', zone.name);
         }
         
@@ -1055,7 +1082,8 @@ async function loadWorkZonesFromDatabase() {
             const polygon = L.polygon(coords, {
                 color: zone.color || '#FFA500',
                 fillColor: zone.color || '#FFA500',
-                fillOpacity: 0.3
+                fillOpacity: 0.3,
+                interactive: true
             });
             
             polygon.zoneId = zone.id;
@@ -1065,10 +1093,24 @@ async function loadWorkZonesFromDatabase() {
             // Double-click to view 2D diagram
             polygon.on('dblclick', function(e) {
                 L.DomEvent.stopPropagation(e);
+                L.DomEvent.preventDefault(e);
+                console.log('🖱️ Double-click on loaded zone:', zone.name, 'ID:', zone.id);
+                
+                // Bring to front to ensure visibility
+                if (polygon.bringToFront) {
+                    polygon.bringToFront();
+                }
+                
                 window.location.href = `positioning-2d.html?zone=${zone.id}`;
             });
             
             workZonesLayer.addLayer(polygon);
+            
+            // Ensure work zone is on top of safe zone
+            if (polygon.bringToFront) {
+                polygon.bringToFront();
+            }
+            
             console.log(`✅ Loaded work zone: ${zone.name}`);
         });
     } catch (error) {
