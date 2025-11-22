@@ -255,6 +255,12 @@
     color: #991b1b;
 }
 
+.severity-badge.help-request {
+    background-color: #ffedd5;
+    color: #c2410c;
+    font-weight: 600;
+}
+
 .severity-badge.warning {
     background-color: #fef3c7;
     color: #92400e;

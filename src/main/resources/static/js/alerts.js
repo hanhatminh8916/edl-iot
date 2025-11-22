@@ -86,6 +86,9 @@ function displayAlerts(alerts) {
             }
         }
         
+        // Đặc biệt: HELP_REQUEST luôn dùng màu cam, không phụ thuộc vào severity
+        const badgeClass = alert.alertType === 'HELP_REQUEST' ? 'help-request' : severityClass;
+        
         return `
             <tr data-alert-id="${alert.id}">
                 <td style="text-align: center; font-weight: 600;">#${index + 1}</td>
@@ -104,8 +107,8 @@ function displayAlerts(alerts) {
                     <div style="font-weight: 500;">${formatDateTime(alert.triggeredAt)}</div>
                 </td>
                 <td>
-                    <span class="badge badge-${severityClass}" style="font-size: 0.9em; padding: 6px 12px;">
-                        ${getSeverityText(alert.severity)}
+                    <span class="badge badge-${badgeClass}" style="font-size: 0.9em; padding: 6px 12px;">
+                        ${alert.alertType === 'HELP_REQUEST' ? '🆘 SOS' : getSeverityText(alert.severity)}
                     </span>
                 </td>
                 <td>
