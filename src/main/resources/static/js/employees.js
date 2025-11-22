@@ -61,6 +61,41 @@ async function loadWorkers() {
     }
 }
 
+// Load available helmets for dropdown
+async function loadAvailableHelmets() {
+    try {
+        const response = await fetch('/api/helmet/all');
+        const helmets = await response.json();
+        
+        const helmetSelect = document.getElementById('employeeHelmet');
+        if (!helmetSelect) return;
+        
+        // Clear existing options except the first (placeholder)
+        helmetSelect.innerHTML = '<option value="">Chọn mũ bảo hiểm (tùy chọn)</option>';
+        
+        // Add only unassigned helmets or show all based on mode
+        helmets.forEach(helmet => {
+            const isAssigned = helmet.worker != null;
+            const statusText = helmet.status || 'INACTIVE';
+            const batteryText = helmet.batteryLevel ? `${helmet.batteryLevel}%` : 'N/A';
+            const label = `#${helmet.helmetId} - ${helmet.macAddress} (${statusText}, Pin: ${batteryText})`;
+            
+            // Show unassigned helmets or all if editing
+            if (!isAssigned || helmetSelect.dataset.editMode) {
+                const option = document.createElement('option');
+                option.value = helmet.id;
+                option.textContent = label;
+                if (isAssigned) {
+                    option.textContent += ' [Đã gán]';
+                }
+                helmetSelect.appendChild(option);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading helmets:', error);
+    }
+}
+
 // Display workers in grid
 function displayWorkers(workers) {
     const grid = document.querySelector('.employees-list');
@@ -152,11 +187,14 @@ function openEmployeeModal(mode, workerId = null) {
     const modal = document.getElementById('employeeModal');
     const modalTitle = document.getElementById('modalTitle');
     const form = document.getElementById('employeeForm');
+    const helmetSelect = document.getElementById('employeeHelmet');
     
     if (mode === 'add') {
         modalTitle.textContent = 'Thêm công nhân mới';
         form.reset();
         delete form.dataset.workerId;
+        if (helmetSelect) helmetSelect.dataset.editMode = '';
+        loadAvailableHelmets(); // Load helmets for new worker
     } else if (mode === 'edit' && workerId) {
         modalTitle.textContent = 'Sửa thông tin công nhân';
         
@@ -168,6 +206,16 @@ function openEmployeeModal(mode, workerId = null) {
             document.getElementById('employeeLocation').value = worker.position || '';
             
             form.dataset.workerId = workerId;
+            
+            // Load helmets and select current one if exists
+            if (helmetSelect) {
+                helmetSelect.dataset.editMode = 'true';
+                loadAvailableHelmets().then(() => {
+                    if (worker.helmet && worker.helmet.id) {
+                        helmetSelect.value = worker.helmet.id;
+                    }
+                });
+            }
         }
     }
     
@@ -215,6 +263,12 @@ async function saveEmployee() {
         employeeId: formData.get('employeeId'),
         position: formData.get('employeeLocation') || ''
     };
+    
+    // Get selected helmet ID (optional)
+    const helmetId = formData.get('employeeHelmet');
+    if (helmetId) {
+        workerData.helmetId = parseInt(helmetId);
+    }
     
     // Validate
     if (!workerData.name || !workerData.phone || !workerData.employeeId) {

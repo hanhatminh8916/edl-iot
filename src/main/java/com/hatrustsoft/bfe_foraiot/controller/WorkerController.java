@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.hatrustsoft.bfe_foraiot.model.Helmet;
 import com.hatrustsoft.bfe_foraiot.model.Worker;
+import com.hatrustsoft.bfe_foraiot.repository.HelmetRepository;
 import com.hatrustsoft.bfe_foraiot.repository.WorkerRepository;
 import com.hatrustsoft.bfe_foraiot.service.DashboardService;
 
@@ -26,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class WorkerController {
 
     private final WorkerRepository workerRepository;
+    private final HelmetRepository helmetRepository;
     private final DashboardService dashboardService;
 
     @GetMapping
@@ -46,6 +49,20 @@ public class WorkerController {
         w.setUpdatedAt(LocalDateTime.now());
 
         Worker saved = workerRepository.save(w);
+
+        // Assign helmet if provided
+        if (payload.containsKey("helmetId")) {
+            try {
+                Long helmetId = Long.valueOf(payload.get("helmetId").toString());
+                helmetRepository.findById(helmetId).ifPresent(helmet -> {
+                    helmet.setWorker(saved);
+                    helmet.setUpdatedAt(LocalDateTime.now());
+                    helmetRepository.save(helmet);
+                });
+            } catch (NumberFormatException e) {
+                // Invalid helmetId, ignore
+            }
+        }
 
         // return the newly created worker structure similar to GET
         return ResponseEntity.created(URI.create("/api/workers/" + saved.getId()))
