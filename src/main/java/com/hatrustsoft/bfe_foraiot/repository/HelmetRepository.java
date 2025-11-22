@@ -13,4 +13,6 @@ import com.hatrustsoft.bfe_foraiot.model.HelmetStatus;
 public interface HelmetRepository extends JpaRepository<Helmet, Long> {
     List<Helmet> findByStatus(HelmetStatus status);
     Optional<Helmet> findByHelmetId(Long helmetId);
+    Optional<Helmet> findByMacAddress(String macAddress);
+    List<Helmet> findAllByOrderByHelmetIdAsc();
 }

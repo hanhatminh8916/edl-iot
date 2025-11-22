@@ -125,4 +125,78 @@ public class HelmetService {
         // TODO: Implement MQTT command publishing
         // mqttTemplate.convertAndSend("helmet/" + helmet.getHelmetId() + "/command", command);
     }
+    
+    /**
+     * Auto-create or update helmet when MAC address is detected from MQTT
+     */
+    @Transactional
+    public Helmet findOrCreateHelmetByMac(String macAddress) {
+        return helmetRepository.findByMacAddress(macAddress)
+                .orElseGet(() -> {
+                    // Auto-generate helmet ID (next available number)
+                    Integer nextHelmetId = helmetRepository.findAll().stream()
+                            .map(Helmet::getHelmetId)
+                            .filter(java.util.Objects::nonNull)
+                            .max(Integer::compareTo)
+                            .map(id -> id + 1)
+                            .orElse(1);
+                    
+                    Helmet newHelmet = new Helmet();
+                    newHelmet.setHelmetId(nextHelmetId);
+                    newHelmet.setMacAddress(macAddress);
+                    newHelmet.setStatus(HelmetStatus.ACTIVE);
+                    newHelmet.setBatteryLevel(100);
+                    newHelmet.setCreatedAt(LocalDateTime.now());
+                    newHelmet.setUpdatedAt(LocalDateTime.now());
+                    newHelmet.setLastSeen(LocalDateTime.now());
+                    
+                    return helmetRepository.save(newHelmet);
+                });
+    }
+    
+    /**
+     * Update helmet data from MQTT message
+     */
+    @Transactional
+    public void updateHelmetData(String macAddress, Double battery, Double lat, Double lon, HelmetStatus status) {
+        Helmet helmet = findOrCreateHelmetByMac(macAddress);
+        
+        if (battery != null) {
+            helmet.setBatteryLevel(battery.intValue());
+        }
+        if (lat != null && lat != 0.0) {
+            helmet.setLastLat(lat);
+        }
+        if (lon != null && lon != 0.0) {
+            helmet.setLastLon(lon);
+        }
+        if (status != null) {
+            helmet.setStatus(status);
+        }
+        
+        helmet.setLastSeen(LocalDateTime.now());
+        helmet.setUpdatedAt(LocalDateTime.now());
+        
+        helmetRepository.save(helmet);
+    }
+    
+    /**
+     * Get all helmets sorted by ID
+     */
+    public List<Helmet> getAllHelmets() {
+        return helmetRepository.findAllByOrderByHelmetIdAsc();
+    }
+    
+    /**
+     * Assign helmet to worker
+     */
+    @Transactional
+    public Helmet assignHelmetToWorker(Long helmetId, Long workerId) {
+        Helmet helmet = helmetRepository.findById(helmetId)
+                .orElseThrow(() -> new RuntimeException("Helmet not found"));
+        
+        // TODO: Fetch worker from WorkerRepository and assign
+        // For now, just return the helmet
+        return helmetRepository.save(helmet);
+    }
 }

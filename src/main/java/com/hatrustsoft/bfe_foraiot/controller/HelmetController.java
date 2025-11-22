@@ -48,4 +48,22 @@ public class HelmetController {
         helmetService.sendCommandToHelmet(id, command);
         return ResponseEntity.ok().build();
     }
+    
+    /**
+     * Get all helmets (for management page)
+     */
+    @GetMapping("/all")
+    public ResponseEntity<List<Helmet>> getAllHelmets() {
+        return ResponseEntity.ok(helmetService.getAllHelmets());
+    }
+    
+    /**
+     * Assign helmet to worker
+     */
+    @PostMapping("/{helmetId}/assign/{workerId}")
+    public ResponseEntity<Helmet> assignToWorker(
+            @PathVariable Long helmetId,
+            @PathVariable Long workerId) {
+        return ResponseEntity.ok(helmetService.assignHelmetToWorker(helmetId, workerId));
+    }
 }

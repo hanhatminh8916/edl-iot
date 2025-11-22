@@ -36,6 +36,9 @@ public class MqttMessageHandler implements MessageHandler {
 
     @Autowired
     private RedisPublisherService redisPublisher; // ⭐ Thêm Redis Publisher
+    
+    @Autowired
+    private HelmetService helmetService; // ⭐ Thêm HelmetService để auto-create helmet
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -113,6 +116,10 @@ public class MqttMessageHandler implements MessageHandler {
 
             // Map MAC address -> Employee
             String macAddress = data.getMac();
+            
+            // ⭐ AUTO-CREATE HELMET if not exists
+            helmetService.findOrCreateHelmetByMac(macAddress);
+            
             employeeRepository.findByMacAddress(macAddress).ifPresentOrElse(
                 employee -> {
                     data.setEmployeeId(employee.getEmployeeId());
@@ -145,6 +152,15 @@ public class MqttMessageHandler implements MessageHandler {
                 helmetDataRepository.save(data);
                 lastSavedData.put(macAddress, data);
                 lastSavedTime.put(macAddress, LocalDateTime.now());
+                
+                // ⭐ UPDATE HELMET DATA (battery, location, status)
+                helmetService.updateHelmetData(
+                    macAddress, 
+                    data.getBattery(), 
+                    data.getLat(), 
+                    data.getLon(), 
+                    null // status will be determined by alerts
+                );
                 
                 // ⭐ PUBLISH TO REDIS (sẽ tự động forward qua WebSocket)
                 redisPublisher.publishHelmetData(data);
