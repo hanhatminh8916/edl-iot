@@ -115,6 +115,11 @@ function initializeMap() {
                     await createAnchorFromVertex(vertex, anchorName, layer.zoneId, anchorNumber);
                 }
                 
+                // ✅ RELOAD ANCHORS để hiển thị realtime
+                setTimeout(() => {
+                    loadAnchorsFromDatabase();
+                }, 500);
+                
                 showNotification(`✅ Đã cập nhật khu vực ${layer.zoneName} và ${newCoords.length} anchors`, 'success');
             } else {
                 // ✅ Đây là safe zone
