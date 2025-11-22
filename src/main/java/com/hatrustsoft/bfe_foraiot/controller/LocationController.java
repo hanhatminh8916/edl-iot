@@ -76,16 +76,22 @@ public class LocationController {
             LocalDateTime lastUpdate = data.getReceivedAt();
             String status = "ACTIVE";
             
+            log.info("⏰ Helmet {} - receivedAt: {}, now: {}", data.getMac(), lastUpdate, now);
+            
             if (lastUpdate != null) {
                 long secondsAgo = java.time.temporal.ChronoUnit.SECONDS.between(lastUpdate, now);
                 
+                log.info("⏱️ Helmet {} - Time difference: {} seconds", data.getMac(), secondsAgo);
+                
                 if (secondsAgo > 30) {
                     // Sau 30s không nhận data → INACTIVE (màu xám)
-                    log.debug("🕐 Helmet {} offline for {} seconds -> INACTIVE", data.getMac(), secondsAgo);
+                    log.info("🕐 Helmet {} offline for {} seconds -> INACTIVE", data.getMac(), secondsAgo);
                     status = "INACTIVE";
                 } else {
-                    log.debug("✅ Helmet {} active ({} seconds ago)", data.getMac(), secondsAgo);
+                    log.info("✅ Helmet {} active ({} seconds ago)", data.getMac(), secondsAgo);
                 }
+            } else {
+                log.warn("⚠️ Helmet {} has NULL receivedAt!", data.getMac());
             }
 
             // Tạo helmet info
