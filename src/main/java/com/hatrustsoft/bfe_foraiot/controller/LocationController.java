@@ -30,9 +30,63 @@ public class LocationController {
 
     @Autowired
     private HelmetDataRepository helmetDataRepository;
+    
+    @Autowired
+    private com.hatrustsoft.bfe_foraiot.service.RedisCacheService redisCacheService;
 
     /**
-     * API trả về dữ liệu bản đồ cho location.html
+     * ⭐ NEW: API lấy dữ liệu REALTIME từ Redis cache
+     * Dùng cho location.html - hiển thị worker đang hoạt động
+     */
+    @GetMapping("/map-data-realtime")
+    public ResponseEntity<List<WorkerMapData>> getMapDataRealtime() {
+        List<WorkerMapData> result = new ArrayList<>();
+
+        // ✅ Lấy tất cả helmet data đang active từ Redis
+        List<HelmetData> activeHelmets = redisCacheService.getAllActiveHelmets();
+        
+        log.info("📡 Redis cache has {} active helmets", activeHelmets.size());
+
+        // Map với employee data
+        for (HelmetData data : activeHelmets) {
+            Employee emp = employeeRepository.findByMacAddress(data.getMac()).orElse(null);
+            
+            WorkerMapData workerData = new WorkerMapData();
+            if (emp != null) {
+                workerData.setId(emp.getEmployeeId());
+                workerData.setName(emp.getName());
+                workerData.setPosition(emp.getPosition());
+                workerData.setDepartment(emp.getDepartment());
+            } else {
+                // Nếu không tìm thấy employee, dùng data từ helmet
+                workerData.setId(data.getEmployeeId() != null ? data.getEmployeeId() : data.getMac());
+                workerData.setName(data.getEmployeeName() != null ? data.getEmployeeName() : "Worker " + data.getMac().substring(Math.max(0, data.getMac().length() - 4)));
+                workerData.setPosition("Unknown");
+                workerData.setDepartment("Unknown");
+            }
+
+            // Tạo helmet info
+            HelmetInfo helmet = new HelmetInfo();
+            helmet.setHelmetId(data.getMac());
+            helmet.setStatus("ACTIVE"); // Từ Redis = đang active
+            helmet.setBatteryLevel(data.getBattery() != null ? data.getBattery().intValue() : 100);
+
+            // Location
+            LocationInfo location = new LocationInfo();
+            location.setLatitude(data.getLat() != null ? data.getLat() : 0.0);
+            location.setLongitude(data.getLon() != null ? data.getLon() : 0.0);
+            helmet.setLastLocation(location);
+
+            workerData.setHelmet(helmet);
+            result.add(workerData);
+        }
+
+        log.info("📍 Realtime map data: {} workers from Redis", result.size());
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * API trả về dữ liệu bản đồ cho location.html (từ DATABASE - legacy)
      * Format tương thích với code hiện tại
      */
     @GetMapping("/map-data")

@@ -22,6 +22,9 @@ public class RedisPublisherService {
 
     @Autowired
     private ChannelTopic helmetDataTopic;
+    
+    @Autowired
+    private RedisCacheService redisCacheService;
 
     /**
      * Publish helmet data to Redis channel
@@ -29,6 +32,10 @@ public class RedisPublisherService {
      */
     public void publishHelmetData(HelmetData data) {
         try {
+            // ✅ Lưu vào Redis cache (cho API lấy dữ liệu)
+            redisCacheService.cacheHelmetData(data);
+            
+            // ✅ Publish qua channel (cho WebSocket realtime)
             redisTemplate.convertAndSend(helmetDataTopic.getTopic(), data);
             log.debug("📡 Published to Redis: {}", data.getMac());
         } catch (Exception e) {

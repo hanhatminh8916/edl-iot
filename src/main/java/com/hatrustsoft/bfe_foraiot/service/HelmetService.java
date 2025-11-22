@@ -170,13 +170,8 @@ public class HelmetService {
         if (lon != null && lon != 0.0) {
             helmet.setLastLon(lon);
         }
-        
-        // ✅ Tự động set ACTIVE khi nhận data (helmet đang hoạt động)
         if (status != null) {
             helmet.setStatus(status);
-        } else {
-            // Nếu không truyền status, mặc định là ACTIVE (vì đang nhận data)
-            helmet.setStatus(HelmetStatus.ACTIVE);
         }
         
         helmet.setLastSeen(LocalDateTime.now());

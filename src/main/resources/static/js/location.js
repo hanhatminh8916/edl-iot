@@ -321,9 +321,10 @@ function getMarkerColor(lat, lon, status) {
 async function loadWorkers() {
     console.log("Loading workers data...");
     try {
-        var res = await fetch("/api/location/map-data");
+        // ✅ Dùng API realtime từ Redis
+        var res = await fetch("/api/location/map-data-realtime");
         workersData = await res.json();
-        console.log("Loaded:", workersData.length, "workers");
+        console.log("Loaded:", workersData.length, "workers (from Redis cache)");
         updateMapMarkers(workersData);
         displayWorkersList(workersData);
         
