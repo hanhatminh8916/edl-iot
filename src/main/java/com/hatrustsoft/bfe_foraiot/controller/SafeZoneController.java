@@ -98,6 +98,42 @@ public class SafeZoneController {
     }
 
     /**
+     * Xóa khu vực an toàn active
+     */
+    @DeleteMapping("/active")
+    public ResponseEntity<Map<String, Object>> deleteActiveSafeZone() {
+        try {
+            return safeZoneRepository.findLatestActiveZone()
+                    .map(zone -> {
+                        safeZoneRepository.delete(zone);
+                        
+                        // 📡 Push WebSocket DELETE event
+                        safeZonePublisher.publishSafeZoneUpdate(zone, "DELETE");
+                        
+                        Map<String, Object> response = new HashMap<>();
+                        response.put("success", true);
+                        response.put("message", "Xóa khu vực an toàn thành công!");
+                        
+                        log.info("🗑️ Deleted active safe zone: id={}", zone.getId());
+                        
+                        return ResponseEntity.ok(response);
+                    })
+                    .orElseGet(() -> {
+                        Map<String, Object> response = new HashMap<>();
+                        response.put("success", false);
+                        response.put("message", "Không tìm thấy khu vực active để xóa");
+                        return ResponseEntity.ok(response);
+                    });
+        } catch (Exception e) {
+            log.error("❌ Error deleting active safe zone", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Lỗi: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /**
      * Xóa khu vực an toàn
      */
     @DeleteMapping("/{id}")
