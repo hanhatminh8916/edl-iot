@@ -34,6 +34,11 @@ function initializeMap() {
     // ✅ Initialize with safe zone mode (default)
     updateDrawControl('safezone');
 
+    // ✅ Add zoom event listener to update anchor sizes
+    map.on('zoomend', function() {
+        updateAnchorSizes();
+    });
+
     // ✅ Khi vẽ xong polygon → LƯU VÀO DATABASE
     map.on(L.Draw.Event.CREATED, function (e) {
         const layer = e.layer;
@@ -1342,19 +1347,36 @@ function loadAnchorsFromDatabase() {
 
 // Add anchor marker to map
 function addAnchorMarker(anchor) {
+    // Get current zoom level to calculate size
+    const currentZoom = map ? map.getZoom() : 15;
+    const baseZoom = 15; // Base zoom level
+    const zoomDiff = currentZoom - baseZoom;
+    
+    // Calculate size based on zoom (min 12px, max 28px)
+    const baseSize = 20;
+    const size = Math.max(12, Math.min(28, baseSize + (zoomDiff * 2)));
+    
+    // Calculate font size and padding proportionally
+    const fontSize = Math.max(6, Math.min(9, 7 + (zoomDiff * 0.4)));
+    const padding = Math.max(1, Math.min(4, 2 + (zoomDiff * 0.4)));
+    const borderWidth = Math.max(1, Math.min(2, 1.5 + (zoomDiff * 0.15)));
+    
     const anchorIcon = L.divIcon({
         className: 'anchor-marker',
-        html: `<div style="background: #2196F3; color: white; padding: 8px 12px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); font-weight: bold; font-size: 12px; text-align: center; min-width: 40px;">
+        html: `<div style="background: #2196F3; color: white; padding: ${padding}px ${padding + 2}px; border-radius: 50%; border: ${borderWidth}px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-weight: bold; font-size: ${fontSize}px; text-align: center; min-width: ${size - 6}px;">
                     ${anchor.anchorId}
                </div>`,
-        iconSize: [50, 50],
-        iconAnchor: [25, 25]
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2]
     });
     
     const marker = L.marker([anchor.latitude, anchor.longitude], {
         icon: anchorIcon,
         draggable: false
     });
+    
+    // Store anchor data for re-rendering on zoom
+    marker.anchorData = anchor;
     
     // ✅ Add to anchorLayer instead of map directly
     anchorLayer.addLayer(marker);
@@ -1389,6 +1411,35 @@ function addAnchorMarker(anchor) {
     });
     
     anchorMarkers.push({ id: anchor.id, marker: marker, anchor: anchor });
+}
+
+// ✅ Update all anchor marker sizes based on current zoom level
+function updateAnchorSizes() {
+    const currentZoom = map.getZoom();
+    const baseZoom = 15;
+    const zoomDiff = currentZoom - baseZoom;
+    
+    // Calculate size based on zoom
+    const baseSize = 20;
+    const size = Math.max(12, Math.min(28, baseSize + (zoomDiff * 2)));
+    const fontSize = Math.max(6, Math.min(9, 7 + (zoomDiff * 0.4)));
+    const padding = Math.max(1, Math.min(4, 2 + (zoomDiff * 0.4)));
+    const borderWidth = Math.max(1, Math.min(2, 1.5 + (zoomDiff * 0.15)));
+    
+    // Update all anchor markers
+    anchorMarkers.forEach(am => {
+        const anchor = am.anchor;
+        const newIcon = L.divIcon({
+            className: 'anchor-marker',
+            html: `<div style="background: #2196F3; color: white; padding: ${padding}px ${padding + 2}px; border-radius: 50%; border: ${borderWidth}px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-weight: bold; font-size: ${fontSize}px; text-align: center; min-width: ${size - 6}px;">
+                        ${anchor.anchorId}
+                   </div>`,
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2]
+        });
+        
+        am.marker.setIcon(newIcon);
+    });
 }
 
 // ✅ Anchors are now created automatically when drawing work zone polygons
