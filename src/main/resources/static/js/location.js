@@ -67,21 +67,27 @@ function initializeMap() {
             const zoneName = prompt('Nhập tên khu vực:', `Khu ${workZonesLayer.getLayers().length}`);
             
             if (zoneName) {
-                layer.bindPopup(`<b>${zoneName}</b><br><small>Click để xem chi tiết</small>`).openPopup();
+                layer.bindPopup(`<b>${zoneName}</b><br><small>Double-click để xem chi tiết sơ đồ 2D</small>`).openPopup();
                 layer.zoneName = zoneName;
                 
-                // ✅ Click vào zone để xem sơ đồ 2D
-                layer.on('click', function() {
+                // ✅ Double-click vào zone để xem sơ đồ 2D (tránh conflict với edit mode)
+                layer.on('dblclick', function(e) {
+                    L.DomEvent.stopPropagation(e);
                     window.location.href = `positioning-2d.html?zone=${layer.zoneId || ''}`;
                 });
                 
                 // ✅ LƯU WORK ZONE VÀO DATABASE trước
-                saveWorkZoneToDatabase(layer.getLatLngs(), layer, zoneName).then(zoneId => {
+                saveWorkZoneToDatabase(layer.getLatLngs(), layer, zoneName).then(async zoneId => {
+                    // ✅ Lấy số anchor hiện tại để tạo ID tuần tự
+                    const currentMaxId = await getMaxAnchorId();
+                    
                     // ✅ Tạo anchor cho mỗi đỉnh polygon
-                    vertices.forEach((vertex, index) => {
+                    for (let index = 0; index < vertices.length; index++) {
+                        const vertex = vertices[index];
+                        const anchorNumber = currentMaxId + index + 1;
                         const anchorName = `${zoneName}-A${index + 1}`;
-                        createAnchorFromVertex(vertex, anchorName, zoneId);
-                    });
+                        await createAnchorFromVertex(vertex, anchorName, zoneId, anchorNumber);
+                    }
                     
                     showNotification(`✅ Đã tạo ${vertices.length} anchors cho ${zoneName}`, 'success');
                 });
@@ -855,10 +861,11 @@ async function loadWorkZonesFromDatabase() {
             
             polygon.zoneId = zone.id;
             polygon.zoneName = zone.name;
-            polygon.bindPopup(`<b>${zone.name}</b><br><small>Click để xem chi tiết</small>`);
+            polygon.bindPopup(`<b>${zone.name}</b><br><small>Double-click để xem chi tiết sơ đồ 2D</small>`);
             
-            // Click to view 2D diagram
-            polygon.on('click', function() {
+            // Double-click to view 2D diagram
+            polygon.on('dblclick', function(e) {
+                L.DomEvent.stopPropagation(e);
                 window.location.href = `positioning-2d.html?zone=${zone.id}`;
             });
             
@@ -901,14 +908,34 @@ async function saveWorkZoneToDatabase(latlngs, layer, zoneName) {
     }
 }
 
-// ✅ TẠO ANCHOR TỪ ĐỈNH POLYGON
-async function createAnchorFromVertex(vertex, anchorName, zoneId) {
+// ✅ LẤY SỐ ANCHOR LỚN NHẤT HIỆN TẠI
+async function getMaxAnchorId() {
     try {
-        // Generate unique anchorId from timestamp + random
-        const anchorId = `A${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100)}`;
+        const response = await fetch('/api/anchors');
+        const anchors = await response.json();
+        
+        // Tìm số lớn nhất từ anchorId dạng A1, A2, A3...
+        const maxId = anchors
+            .map(a => a.anchorId)
+            .filter(id => id && id.match(/^A\d+$/))
+            .map(id => parseInt(id.substring(1)))
+            .reduce((max, num) => Math.max(max, num), 0);
+        
+        return maxId;
+    } catch (error) {
+        console.error('Error getting max anchor ID:', error);
+        return 0;
+    }
+}
+
+// ✅ TẠO ANCHOR TỪ ĐỈNH POLYGON
+async function createAnchorFromVertex(vertex, anchorName, zoneId, anchorIndex) {
+    try {
+        // Generate sequential anchorId: A1, A2, A3...
+        const anchorId = `A${anchorIndex}`;
         
         const payload = {
-            anchorId: anchorId,  // Bắt buộc và unique
+            anchorId: anchorId,  // A1, A2, A3...
             name: anchorName,
             latitude: vertex.lat,
             longitude: vertex.lng,
