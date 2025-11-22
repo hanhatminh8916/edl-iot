@@ -16,6 +16,12 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hatrustsoft.bfe_foraiot.entity.HelmetData;
+import com.hatrustsoft.bfe_foraiot.model.Alert;
+import com.hatrustsoft.bfe_foraiot.model.AlertSeverity;
+import com.hatrustsoft.bfe_foraiot.model.AlertStatus;
+import com.hatrustsoft.bfe_foraiot.model.AlertType;
+import com.hatrustsoft.bfe_foraiot.model.Helmet;
+import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
 import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetDataRepository;
 
@@ -30,6 +36,12 @@ public class MqttMessageHandler implements MessageHandler {
 
     @Autowired
     private EmployeeRepository employeeRepository;
+    
+    @Autowired
+    private AlertRepository alertRepository;
+    
+    @Autowired
+    private AlertPublisher alertPublisher; // ⭐ Push alert qua WebSocket
 
     @Autowired
     private MessengerService messengerService;
@@ -81,6 +93,13 @@ public class MqttMessageHandler implements MessageHandler {
             data.setLat(jsonNode.has("lat") ? jsonNode.get("lat").asDouble() : null);
             data.setLon(jsonNode.has("lon") ? jsonNode.get("lon").asDouble() : null);
             data.setCounter(jsonNode.has("counter") ? jsonNode.get("counter").asInt() : null);
+
+            // ⭐ Parse safety data (fallDetected, helpRequest)
+            Integer fallDetected = jsonNode.has("fallDetected") ? jsonNode.get("fallDetected").asInt() : 0;
+            Integer helpRequest = jsonNode.has("helpRequest") ? jsonNode.get("helpRequest").asInt() : 0;
+            Double temp = jsonNode.has("temp") ? jsonNode.get("temp").asDouble() : null;
+            Double heartRate = jsonNode.has("hr") ? jsonNode.get("hr").asDouble() : null;
+            Double spo2 = jsonNode.has("spo2") ? jsonNode.get("spo2").asDouble() : null;
 
             // ⭐ Parse metadata từ Gateway Python
             String mode = jsonNode.has("mode") ? jsonNode.get("mode").asText() : "direct";
@@ -169,6 +188,15 @@ public class MqttMessageHandler implements MessageHandler {
                          saveReason, macAddress, mode, data.getBattery(), data.getLat(), data.getLon());
             } else {
                 log.debug("{}: MAC={}, Mode={}", saveReason, macAddress, mode);
+            }
+
+            // ⭐ CRITICAL: Kiểm tra ngã và SOS TRƯỚC TIÊN!
+            if (fallDetected == 1) {
+                createFallDetectedAlert(data);
+            }
+            
+            if (helpRequest == 1) {
+                createHelpRequestAlert(data);
             }
 
             // ⭐ Kiểm tra cảnh báo khu vực nguy hiểm (từ Anchor qua Gateway)
@@ -360,6 +388,122 @@ public class MqttMessageHandler implements MessageHandler {
             // Broadcast cảnh báo qua Messenger
             messengerService.broadcastDangerAlert(employeeInfo, alertType, location);
             log.warn("🚨 Danger alert broadcasted for MAC: {}", data.getMac());
+        }
+    }
+    
+    /**
+     * ⭐ Tạo cảnh báo khi phát hiện FALL (ngã)
+     */
+    private void createFallDetectedAlert(HelmetData data) {
+        try {
+            // Tìm helmet theo MAC
+            Helmet helmet = helmetService.findOrCreateHelmetByMac(data.getMac());
+            
+            // Tạo Alert
+            Alert alert = new Alert();
+            alert.setHelmet(helmet);
+            alert.setAlertType(AlertType.FALL);
+            alert.setSeverity(AlertSeverity.CRITICAL);
+            alert.setStatus(AlertStatus.PENDING);
+            alert.setTriggeredAt(LocalDateTime.now());
+            alert.setGpsLat(data.getLat());
+            alert.setGpsLon(data.getLon());
+            
+            String employeeInfo = data.getEmployeeName() != null 
+                ? data.getEmployeeName() + " (" + data.getEmployeeId() + ")"
+                : "MAC: " + data.getMac();
+            
+            alert.setMessage(String.format("🚨 PHÁT HIỆN NGÃ: %s", employeeInfo));
+            
+            Alert saved = alertRepository.save(alert);
+            
+            // ⭐ Push alert qua WebSocket để frontend nhận realtime
+            alertPublisher.publishNewAlert(saved);
+            
+            // Gửi thông báo qua Messenger
+            double lat = Objects.requireNonNullElse(data.getLat(), 0.0);
+            double lon = Objects.requireNonNullElse(data.getLon(), 0.0);
+            String location = String.format("%.6f, %.6f", lat, lon);
+            
+            StringBuilder alertMsg = new StringBuilder();
+            alertMsg.append("🚨 CẢNH BÁO KHẨN CẤP - PHÁT HIỆN NGÃ!\n");
+            alertMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            alertMsg.append(String.format("👤 Nhân viên: %s\n", employeeInfo));
+            alertMsg.append(String.format("📍 Vị trí: %.6f, %.6f\n", lat, lon));
+            
+            if (data.getBattery() != null) {
+                alertMsg.append(String.format("🔋 Pin: %.1f%%\n", data.getBattery()));
+            }
+            
+            alertMsg.append("⏰ Thời gian: ").append(LocalDateTime.now().format(
+                java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
+            )).append("\n");
+            alertMsg.append("\n⚠️ VUI LÒNG KIỂM TRA NGAY LẬP TỨC!");
+            
+            messengerService.broadcastDangerAlert(employeeInfo, alertMsg.toString(), location);
+            
+            log.error("🚨 FALL DETECTED: {} at ({}, {})", employeeInfo, lat, lon);
+            
+        } catch (Exception e) {
+            log.error("❌ Error creating fall alert: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * ⭐ Tạo cảnh báo khi nhận được SOS (helpRequest)
+     */
+    private void createHelpRequestAlert(HelmetData data) {
+        try {
+            // Tìm helmet theo MAC
+            Helmet helmet = helmetService.findOrCreateHelmetByMac(data.getMac());
+            
+            // Tạo Alert
+            Alert alert = new Alert();
+            alert.setHelmet(helmet);
+            alert.setAlertType(AlertType.HELP_REQUEST); // ⭐ Sử dụng HELP_REQUEST cho SOS
+            alert.setSeverity(AlertSeverity.CRITICAL);
+            alert.setStatus(AlertStatus.PENDING);
+            alert.setTriggeredAt(LocalDateTime.now());
+            alert.setGpsLat(data.getLat());
+            alert.setGpsLon(data.getLon());
+            
+            String employeeInfo = data.getEmployeeName() != null 
+                ? data.getEmployeeName() + " (" + data.getEmployeeId() + ")"
+                : "MAC: " + data.getMac();
+            
+            alert.setMessage(String.format("🆘 YÊU CẦU TRỢ GIÚP: %s", employeeInfo));
+            
+            Alert saved = alertRepository.save(alert);
+            
+            // ⭐ Push alert qua WebSocket để frontend nhận realtime
+            alertPublisher.publishNewAlert(saved);
+            
+            // Gửi thông báo qua Messenger
+            double lat = Objects.requireNonNullElse(data.getLat(), 0.0);
+            double lon = Objects.requireNonNullElse(data.getLon(), 0.0);
+            String location = String.format("%.6f, %.6f", lat, lon);
+            
+            StringBuilder alertMsg = new StringBuilder();
+            alertMsg.append("🆘 CẢNH BÁO KHẨN CẤP - YÊU CẦU TRỢ GIÚP!\n");
+            alertMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            alertMsg.append(String.format("👤 Nhân viên: %s\n", employeeInfo));
+            alertMsg.append(String.format("📍 Vị trí: %.6f, %.6f\n", lat, lon));
+            
+            if (data.getBattery() != null) {
+                alertMsg.append(String.format("🔋 Pin: %.1f%%\n", data.getBattery()));
+            }
+            
+            alertMsg.append("⏰ Thời gian: ").append(LocalDateTime.now().format(
+                java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
+            )).append("\n");
+            alertMsg.append("\n⚠️ NHÂN VIÊN CẦN TRỢ GIÚP NGAY!");
+            
+            messengerService.broadcastDangerAlert(employeeInfo, alertMsg.toString(), location);
+            
+            log.error("🆘 HELP REQUEST: {} at ({}, {})", employeeInfo, lat, lon);
+            
+        } catch (Exception e) {
+            log.error("❌ Error creating help request alert: {}", e.getMessage(), e);
         }
     }
 }

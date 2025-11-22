@@ -268,12 +268,15 @@ function formatDateTime(dateString) {
 
 function getAlertTypeText(type) {
     const types = {
-        'FALL': 'Té ngã',
-        'PROXIMITY': 'Gần nguy hiểm',
-        'LOW_BATTERY': 'Pin yếu',
-        'TEMPERATURE': 'Nhiệt độ cao',
-        'IMPACT': 'Va chạm',
-        'NO_SIGNAL': 'Mất tín hiệu'
+        'FALL': '🚨 Phát hiện ngã',
+        'HELP_REQUEST': '🆘 Yêu cầu trợ giúp',
+        'PROXIMITY': '⚠️ Gần khu vực nguy hiểm',
+        'LOW_BATTERY': '🔋 Pin yếu',
+        'OUT_OF_ZONE': '📍 Ra ngoài khu vực',
+        'ABNORMAL': '⚡ Bất thường',
+        'TEMPERATURE': '🌡️ Nhiệt độ cao',
+        'IMPACT': '💥 Va chạm',
+        'NO_SIGNAL': '📡 Mất tín hiệu'
     };
     return types[type] || type;
 }
