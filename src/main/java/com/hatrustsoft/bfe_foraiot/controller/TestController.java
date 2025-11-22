@@ -1,15 +1,21 @@
 package com.hatrustsoft.bfe_foraiot.controller;
 
-import com.hatrustsoft.bfe_foraiot.service.MqttMessageHandler;
-import lombok.extern.slf4j.Slf4j;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.GenericMessage;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.Map;
+import com.hatrustsoft.bfe_foraiot.service.MqttMessageHandler;
+
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/test")
