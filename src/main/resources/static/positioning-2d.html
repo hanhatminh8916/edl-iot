@@ -555,6 +555,13 @@
             ctx.font = 'bold 12px Arial';
             ctx.textAlign = 'center';
             ctx.fillText(anchor.id, x, y - 15);
+            
+            // ✅ Nếu ở chế độ tổng quan và anchor có zoneId, thêm indicator nhỏ
+            if (!currentZoneId && anchor.zoneId) {
+                ctx.fillStyle = '#FFA500';
+                ctx.font = '10px Arial';
+                ctx.fillText('📍', x + 12, y - 12);
+            }
         }
 
         // Draw tag
@@ -674,10 +681,14 @@
             // Update anchor list
             const anchorList = document.getElementById('anchorList');
             anchorList.innerHTML = anchors.map(anchor => `
-                <li class="device-item">
+                <li class="device-item" style="${!currentZoneId && anchor.zoneId ? 'cursor: pointer;' : ''}" 
+                    ${!currentZoneId && anchor.zoneId ? `onclick="window.location.href='positioning-2d.html?zone=${anchor.zoneId}'"` : ''}>
                     <span class="status-indicator ${anchor.status}"></span>
                     <strong>${anchor.id}</strong> - ${anchor.name}
-                    <div class="distance-info">Vị trí: (${anchor.x.toFixed(1)}m, ${anchor.y.toFixed(1)}m)</div>
+                    <div class="distance-info">
+                        Vị trí: (${anchor.x.toFixed(1)}m, ${anchor.y.toFixed(1)}m)
+                        ${!currentZoneId && anchor.zoneId ? '<br><small style="color: #FFA500;">📍 Click để xem khu vực</small>' : ''}
+                    </div>
                 </li>
             `).join('');
 
@@ -745,6 +756,68 @@
             isAnimating = !isAnimating;
             document.getElementById('animationBtn').textContent = isAnimating ? '⏸ Dừng' : '▶️ Chạy';
         }
+        
+        // ✅ Handle canvas click - navigate to zone detail when clicking anchor in overview mode
+        canvas.addEventListener('click', function(event) {
+            // Only handle clicks in overview mode
+            if (currentZoneId) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const clickY = event.clientY - rect.top;
+            
+            // Convert to canvas coordinates (accounting for padding)
+            const canvasX = clickX - 40;
+            const canvasY = clickY - 40;
+            
+            // Check if click is on any anchor
+            anchors.forEach(anchor => {
+                const anchorX = anchor.x * scale;
+                const anchorY = (areaSize - anchor.y) * scale;
+                
+                const distance = Math.sqrt(
+                    Math.pow(canvasX - anchorX, 2) + 
+                    Math.pow(canvasY - anchorY, 2)
+                );
+                
+                // If clicked within 15px of anchor center and anchor has zoneId
+                if (distance < 15 && anchor.zoneId) {
+                    console.log('🖱️ Clicked on anchor:', anchor.id, 'Zone:', anchor.zoneId);
+                    window.location.href = `positioning-2d.html?zone=${anchor.zoneId}`;
+                }
+            });
+        });
+        
+        // Add hover effect
+        canvas.addEventListener('mousemove', function(event) {
+            // Only in overview mode
+            if (currentZoneId) {
+                canvas.style.cursor = 'crosshair';
+                return;
+            }
+            
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left - 40;
+            const mouseY = event.clientY - rect.top - 40;
+            
+            let isOverAnchor = false;
+            
+            anchors.forEach(anchor => {
+                const anchorX = anchor.x * scale;
+                const anchorY = (areaSize - anchor.y) * scale;
+                
+                const distance = Math.sqrt(
+                    Math.pow(mouseX - anchorX, 2) + 
+                    Math.pow(mouseY - anchorY, 2)
+                );
+                
+                if (distance < 15 && anchor.zoneId) {
+                    isOverAnchor = true;
+                }
+            });
+            
+            canvas.style.cursor = isOverAnchor ? 'pointer' : 'crosshair';
+        });
 
         // Logout function
         function logout() {
