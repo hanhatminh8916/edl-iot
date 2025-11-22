@@ -73,14 +73,19 @@ public class LocationController {
             }
 
             // ⭐ Xác định status dựa trên thời gian cập nhật
-            LocalDateTime lastUpdate = data.getReceivedAt() != null ? data.getReceivedAt() : data.getTimestamp();
+            LocalDateTime lastUpdate = data.getReceivedAt();
             String status = "ACTIVE";
             
-            if (lastUpdate != null && lastUpdate.isBefore(now.minusSeconds(30))) {
-                // Sau 30s không nhận data → INACTIVE (màu xám)
+            if (lastUpdate != null) {
                 long secondsAgo = java.time.temporal.ChronoUnit.SECONDS.between(lastUpdate, now);
-                log.debug("🕐 Helmet {} offline for {} seconds -> INACTIVE", data.getMac(), secondsAgo);
-                status = "INACTIVE";
+                
+                if (secondsAgo > 30) {
+                    // Sau 30s không nhận data → INACTIVE (màu xám)
+                    log.debug("🕐 Helmet {} offline for {} seconds -> INACTIVE", data.getMac(), secondsAgo);
+                    status = "INACTIVE";
+                } else {
+                    log.debug("✅ Helmet {} active ({} seconds ago)", data.getMac(), secondsAgo);
+                }
             }
 
             // Tạo helmet info

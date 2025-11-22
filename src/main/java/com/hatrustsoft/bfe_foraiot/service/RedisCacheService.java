@@ -34,9 +34,12 @@ public class RedisCacheService {
      */
     public void cacheHelmetData(HelmetData data) {
         try {
+            // ⏰ Update receivedAt to current server time
+            data.setReceivedAt(java.time.LocalDateTime.now());
+            
             String key = HELMET_CACHE_PREFIX + data.getMac();
             redisTemplate.opsForValue().set(key, data, CACHE_TTL_SECONDS, TimeUnit.SECONDS);
-            log.debug("💾 Cached helmet data: {} (TTL: {}s)", data.getMac(), CACHE_TTL_SECONDS);
+            log.debug("💾 Cached helmet data: {} at {} (TTL: {}s)", data.getMac(), data.getReceivedAt(), CACHE_TTL_SECONDS);
         } catch (Exception e) {
             log.error("❌ Error caching helmet data: {}", e.getMessage(), e);
         }
