@@ -58,20 +58,11 @@ public class MqttMessageHandler implements MessageHandler {
     private static final double BATTERY_LOW_THRESHOLD = 20.0; // Pin < 20%
     private static final double VOLTAGE_LOW_THRESHOLD = 10.0; // Điện áp < 10V
     private static final double CURRENT_HIGH_THRESHOLD = 50.0; // Dòng điện > 50A
-    // ⭐ BỎ DANGER_ZONE_DISTANCE - Anchor = nguy hiểm rồi, không cần check distance
 
-    // ===== SMART FILTERING CONFIG =====
-    private static final long MIN_TIME_BETWEEN_SAVES_SECONDS = 10; // Tối thiểu 10 giây giữa các lần lưu
-    private static final double MIN_DISTANCE_METERS = 5.0; // Di chuyển tối thiểu 5m mới lưu
-    private static final double MIN_BATTERY_CHANGE = 1.0; // Pin thay đổi 1% mới lưu
-    private static final double MIN_VOLTAGE_CHANGE = 0.5; // Voltage thay đổi 0.5V mới lưu
-
-    // Cache để lưu dữ liệu cuối cùng của mỗi MAC
-    private final Map<String, HelmetData> lastSavedData = new HashMap<>();
-    private final Map<String, LocalDateTime> lastSavedTime = new HashMap<>();
-    private final Map<String, LocalDateTime> lastDangerZoneAlert = new HashMap<>(); // ⭐ Cache cảnh báo anchor
-    private final Map<String, LocalDateTime> lastFallAlert = new HashMap<>(); // ⭐ Cache cảnh báo ngã
-    private final Map<String, LocalDateTime> lastHelpRequestAlert = new HashMap<>(); // ⭐ Cache cảnh báo SOS
+    // ⭐ Alert debounce cache
+    private final Map<String, LocalDateTime> lastDangerZoneAlert = new HashMap<>();
+    private final Map<String, LocalDateTime> lastFallAlert = new HashMap<>();
+    private final Map<String, LocalDateTime> lastHelpRequestAlert = new HashMap<>();
     
     // Debounce time cho alerts (30 giây)
     private static final long ALERT_DEBOUNCE_SECONDS = 30;
@@ -162,43 +153,45 @@ public class MqttMessageHandler implements MessageHandler {
                 }
             );
 
-            // ⭐ LOGIC LƯU DỮ LIỆU dựa trên MODE
-            boolean shouldSave;
-            String saveReason;
+            // ⭐ LOGIC LƯU DỮ LIỆU - CHỈ LƯU KHI CẦN THIẾT
+            // Không lưu vào helmet_data để tiết kiệm tài nguyên
+            // Chỉ lưu vào helmets (vị trí cuối cùng) + Redis (realtime)
+            
+            boolean shouldSaveToHelmetData = false; // ✅ TẮT auto-save vào helmet_data
+            String saveReason = "⏭️ SKIP (using Redis)";
 
-            if (inDangerZone) {
-                // 🚨 MODE ANCHOR: Lưu hết, không filter
-                shouldSave = true;
-                saveReason = "🚨 DANGER ZONE";
-                log.warn("🚨 {} in danger zone: {}, distance: {}m", macAddress, dangerZoneId, distanceToAnchor);
-            } else {
-                // ✅ MODE DIRECT: Smart filtering
-                shouldSave = shouldSaveToDatabase(data);
-                saveReason = shouldSave ? "✅ SAVE" : "⏭️ SKIP";
+            // ⚠️ Chỉ lưu vào helmet_data khi:
+            // 1. Có cảnh báo (fall, help request, danger zone)
+            // 2. Pin dưới 20%
+            // 3. Helmet offline → online (lần đầu nhận data sau khi mất kết nối)
+            if (fallDetected == 1 || helpRequest == 1 || inDangerZone) {
+                shouldSaveToHelmetData = true;
+                saveReason = "🚨 ALERT - save to DB";
+            } else if (data.getBattery() != null && data.getBattery() < 20) {
+                shouldSaveToHelmetData = true;
+                saveReason = "🔋 LOW BATTERY - save to DB";
             }
 
-            if (shouldSave) {
+            if (shouldSaveToHelmetData) {
+                // Lưu vào helmet_data (chỉ khi có alert)
                 helmetDataRepository.save(data);
-                lastSavedData.put(macAddress, data);
-                lastSavedTime.put(macAddress, LocalDateTime.now());
-                
-                // ⭐ UPDATE HELMET DATA (battery, location, status)
-                helmetService.updateHelmetData(
-                    macAddress, 
-                    data.getBattery(), 
-                    data.getLat(), 
-                    data.getLon(), 
-                    null // status will be determined by alerts
-                );
-                
-                // ⭐ PUBLISH TO REDIS (sẽ tự động forward qua WebSocket)
-                redisPublisher.publishHelmetData(data);
-                
-                log.info("{}: MAC={}, Mode={}, Battery={}%, Loc=({},{})", 
-                         saveReason, macAddress, mode, data.getBattery(), data.getLat(), data.getLon());
-            } else {
-                log.debug("{}: MAC={}, Mode={}", saveReason, macAddress, mode);
+                log.info("{}: Saved to helmet_data table", saveReason);
             }
+            
+            // ✅ LUÔN CẬP NHẬT VỊ TRÍ CUỐI CÙNG VÀO HELMETS TABLE
+            helmetService.updateHelmetData(
+                macAddress, 
+                data.getBattery(), 
+                data.getLat(), 
+                data.getLon(), 
+                null // status will be determined by alerts
+            );
+            
+            // ✅ LUÔN PUBLISH QUA REDIS → WEBSOCKET (cho realtime positioning)
+            redisPublisher.publishHelmetData(data);
+            
+            log.info("📡 Realtime: MAC={}, Battery={}%, Loc=({},{}), Mode={}", 
+                     macAddress, data.getBattery(), data.getLat(), data.getLon(), mode);
 
             // ⭐ CRITICAL: Kiểm tra ngã và SOS TRƯỚC TIÊN!
             log.info("⚡ Alert Check - fallDetected={}, helpRequest={}", fallDetected, helpRequest);
@@ -234,83 +227,6 @@ public class MqttMessageHandler implements MessageHandler {
      * 3. Di chuyển >= 5 mét
      * 4. Pin/voltage thay đổi đáng kể
      */
-    private boolean shouldSaveToDatabase(HelmetData newData) {
-        String mac = newData.getMac();
-        
-        // Lần đầu tiên nhận data từ MAC này → lưu
-        if (!lastSavedData.containsKey(mac)) {
-            log.info("🆕 First data from MAC: {} → SAVE", mac);
-            return true;
-        }
-
-        HelmetData lastData = lastSavedData.get(mac);
-        LocalDateTime lastTime = lastSavedTime.get(mac);
-        LocalDateTime now = LocalDateTime.now();
-
-        // 1️⃣ Kiểm tra thời gian: >= 10 giây
-        long secondsSinceLastSave = Duration.between(lastTime, now).getSeconds();
-        if (secondsSinceLastSave >= MIN_TIME_BETWEEN_SAVES_SECONDS) {
-            log.info("⏰ Time passed: {}s >= {}s → SAVE", secondsSinceLastSave, MIN_TIME_BETWEEN_SAVES_SECONDS);
-            return true;
-        }
-
-        // 2️⃣ Kiểm tra khoảng cách: >= 5 mét
-        if (newData.getLat() != null && newData.getLon() != null 
-            && lastData.getLat() != null && lastData.getLon() != null) {
-            
-            double distance = calculateDistance(
-                lastData.getLat(), lastData.getLon(),
-                newData.getLat(), newData.getLon()
-            );
-            
-            if (distance >= MIN_DISTANCE_METERS) {
-                log.info("📍 Distance: {}m >= {}m → SAVE", String.format("%.2f", distance), MIN_DISTANCE_METERS);
-                return true;
-            }
-        }
-
-        // 3️⃣ Kiểm tra thay đổi pin: >= 1%
-        if (newData.getBattery() != null && lastData.getBattery() != null) {
-            double batteryChange = Math.abs(newData.getBattery() - lastData.getBattery());
-            if (batteryChange >= MIN_BATTERY_CHANGE) {
-                log.info("🔋 Battery change: {}% >= {}% → SAVE", String.format("%.1f", batteryChange), MIN_BATTERY_CHANGE);
-                return true;
-            }
-        }
-
-        // 4️⃣ Kiểm tra thay đổi voltage: >= 0.5V
-        if (newData.getVoltage() != null && lastData.getVoltage() != null) {
-            double voltageChange = Math.abs(newData.getVoltage() - lastData.getVoltage());
-            if (voltageChange >= MIN_VOLTAGE_CHANGE) {
-                log.info("⚡ Voltage change: {}V >= {}V → SAVE", String.format("%.2f", voltageChange), MIN_VOLTAGE_CHANGE);
-                return true;
-            }
-        }
-
-        // Không có thay đổi đáng kể → không lưu
-        log.debug("⏭️ No significant change → SKIP ({}s since last save)", secondsSinceLastSave);
-        return false;
-    }
-
-    /**
-     * Tính khoảng cách giữa 2 tọa độ GPS (Haversine formula)
-     * @return Khoảng cách tính bằng mét
-     */
-    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-        final int EARTH_RADIUS = 6371000; // mét
-
-        double dLat = Math.toRadians(lat2 - lat1);
-        double dLon = Math.toRadians(lon2 - lon1);
-
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                 + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                 * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return EARTH_RADIUS * c; // Khoảng cách tính bằng mét
-    }
-
     /**
      * ⭐ Cảnh báo khi vào khu vực nguy hiểm (từ Anchor qua Gateway)
      */
