@@ -68,7 +68,11 @@ public class LocationController {
             // Tạo helmet info
             HelmetInfo helmet = new HelmetInfo();
             helmet.setHelmetId(data.getMac());
-            helmet.setStatus("ACTIVE"); // Từ Redis = đang active
+            
+            // ✅ Kiểm tra timestamp để xác định status
+            String status = determineHelmetStatus(data);
+            helmet.setStatus(status);
+            
             helmet.setBatteryLevel(data.getBattery() != null ? data.getBattery().intValue() : 100);
 
             // Location
