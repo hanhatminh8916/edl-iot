@@ -306,6 +306,15 @@ function getMarkerColor(lat, lon, status) {
     // Kiểm tra Geo-Fence (trong/ngoài polygon)
     const inside = isInsidePolygon(lat, lon, activePolygon);
     
+    // 🔍 DEBUG LOG
+    console.log('🎨 Worker color check:', {
+        lat, lon, 
+        status,
+        hasPolygon: !!activePolygon,
+        inside: inside,
+        color: inside ? 'GREEN' : 'RED'
+    });
+    
     if (!inside) {
         return '#ef4444'; // Đỏ - Ra ngoài vùng an toàn
     }
