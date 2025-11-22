@@ -63,7 +63,7 @@ function displayAlerts(alerts) {
     if (alerts.length === 0) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="7" style="text-align: center; padding: 2rem;">
+                <td colspan="6" style="text-align: center; padding: 2rem;">
                     <i class="fas fa-inbox" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
                     <p style="color: #64748b;">Không có cảnh báo nào</p>
                 </td>
@@ -72,31 +72,61 @@ function displayAlerts(alerts) {
         return;
     }
     
-    tableBody.innerHTML = alerts.map(alert => {
+    tableBody.innerHTML = alerts.map((alert, index) => {
         const severityClass = alert.severity?.toLowerCase() || 'info';
         const statusClass = alert.status?.toLowerCase() || 'pending';
         
+        // Extract worker name from alert message or helmet info
+        let workerName = 'Công nhân #' + (alert.helmet?.helmetId || 'N/A');
+        if (alert.message) {
+            // Try to extract name from message like "🚨 PHÁT HIỆN NGÃ: Nguyễn Văn Test (TEST01)"
+            const match = alert.message.match(/: (.+?) \(/);
+            if (match) {
+                workerName = match[1];
+            }
+        }
+        
         return `
             <tr data-alert-id="${alert.id}">
-                <td><input type="checkbox" class="alert-checkbox" data-id="${alert.id}"></td>
-                <td>#${alert.id}</td>
-                <td>${formatDateTime(alert.triggeredAt)}</td>
-                <td>Công nhân #${alert.helmet?.helmetId || 'N/A'}</td>
-                <td>${getAlertTypeText(alert.alertType)}</td>
-                <td><span class="badge badge-${severityClass}">${getSeverityText(alert.severity)}</span></td>
-                <td><span class="badge badge-${statusClass}">${getStatusText(alert.status)}</span></td>
+                <td style="text-align: center; font-weight: 600;">#${index + 1}</td>
                 <td>
-                    <button class="btn-action view" onclick="viewAlert(${alert.id})" title="Xem chi tiết">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    ${alert.status === 'PENDING' ? `
-                        <button class="btn-action acknowledge" onclick="acknowledgeAlert(${alert.id})" title="Xác nhận">
-                            <i class="fas fa-check"></i>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
+                            ${workerName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: #1e293b;">${workerName}</div>
+                            <div style="font-size: 0.85em; color: #64748b;">${getAlertTypeText(alert.alertType)}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div style="font-weight: 500;">${formatDateTime(alert.triggeredAt)}</div>
+                </td>
+                <td>
+                    <span class="badge badge-${severityClass}" style="font-size: 0.9em; padding: 6px 12px;">
+                        ${getSeverityText(alert.severity)}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge badge-${statusClass}" style="font-size: 0.9em; padding: 6px 12px;">
+                        ${getStatusText(alert.status)}
+                    </span>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-action view" onclick="viewAlert(${alert.id})" title="Xem chi tiết" style="padding: 8px 12px;">
+                            <i class="fas fa-eye"></i>
                         </button>
-                        <button class="btn-action resolve" onclick="resolveAlert(${alert.id})" title="Giải quyết">
-                            <i class="fas fa-check-double"></i>
-                        </button>
-                    ` : ''}
+                        ${alert.status === 'PENDING' ? `
+                            <button class="btn-action acknowledge" onclick="acknowledgeAlert(${alert.id})" title="Xác nhận" style="padding: 8px 12px; background: #10b981;">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button class="btn-action resolve" onclick="resolveAlert(${alert.id})" title="Giải quyết" style="padding: 8px 12px; background: #6366f1;">
+                                <i class="fas fa-check-double"></i>
+                            </button>
+                        ` : ''}
+                    </div>
                 </td>
             </tr>
         `;
