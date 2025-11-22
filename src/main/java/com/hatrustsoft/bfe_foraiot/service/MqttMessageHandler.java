@@ -518,12 +518,26 @@ public class MqttMessageHandler implements MessageHandler {
             
             alert.setMessage(String.format("🆘 YÊU CẦU TRỢ GIÚP: %s", employeeInfo));
             
-            Alert saved = alertRepository.save(alert);
-            log.info("💾 HELP_REQUEST alert saved to database - ID: {}", saved.getId());
+            // ⭐ LƯU VÀO DATABASE
+            log.info("💾 Saving HELP_REQUEST alert to database...");
+            Alert saved = null;
+            try {
+                saved = alertRepository.save(alert);
+                log.info("✅ HELP_REQUEST alert saved successfully - ID: {}, Type: {}, Severity: {}", 
+                    saved.getId(), saved.getAlertType(), saved.getSeverity());
+            } catch (Exception saveEx) {
+                log.error("❌ CRITICAL: Failed to save HELP_REQUEST alert to database", saveEx);
+                throw saveEx; // Re-throw để thấy lỗi
+            }
             
             // ⭐ Push alert qua WebSocket để frontend nhận realtime
-            alertPublisher.publishNewAlert(saved);
-            log.info("📡 HELP_REQUEST alert published via WebSocket");
+            try {
+                alertPublisher.publishNewAlert(saved);
+                log.info("📡 HELP_REQUEST alert published via WebSocket");
+            } catch (Exception wsEx) {
+                log.error("⚠️ Failed to publish HELP_REQUEST alert via WebSocket: {}", wsEx.getMessage());
+                // Không throw, vì đã lưu DB thành công
+            }
             
             // Gửi thông báo qua Messenger
             double lat = Objects.requireNonNullElse(data.getLat(), 0.0);
@@ -550,10 +564,13 @@ public class MqttMessageHandler implements MessageHandler {
             // ⭐ Cập nhật cache để debounce
             lastHelpRequestAlert.put(mac, now);
             
-            log.error("🆘 HELP REQUEST: {} at ({}, {})", employeeInfo, lat, lon);
+            log.error("🆘 HELP REQUEST ALERT CREATED: {} at ({}, {})", employeeInfo, lat, lon);
             
         } catch (Exception e) {
-            log.error("❌ Error creating help request alert: {}", e.getMessage(), e);
+            log.error("❌❌❌ CRITICAL ERROR creating help request alert for MAC {}: {}", 
+                data.getMac(), e.getMessage(), e);
+            // In ra full stack trace để debug
+            e.printStackTrace();
         }
     }
 }
