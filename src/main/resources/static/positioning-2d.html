@@ -267,6 +267,9 @@
                     <button class="btn btn-secondary" onclick="switchToOverview()" id="btnOverview" style="display:none;">
                         <i class="fas fa-th"></i> Xem tổng quan
                     </button>
+                    <button class="btn btn-primary" onclick="switchToZone()" id="btnBackToZone" style="display:none;">
+                        <i class="fas fa-map-marked-alt"></i> Quay lại <span id="zoneName"></span>
+                    </button>
                 </div>
             </div>
 
@@ -343,11 +346,13 @@
         // Zone filtering
         let currentZoneId = null;
         let currentZone = null;
+        let previousZoneId = null; // Store previous zone for navigation
 
         // Check if zone parameter exists in URL
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('zone')) {
             currentZoneId = urlParams.get('zone');
+            previousZoneId = currentZoneId; // Remember this zone
             loadZoneInfo(currentZoneId);
         }
 
@@ -359,7 +364,31 @@
         
         // Switch back to overview mode
         function switchToOverview() {
-            window.location.href = 'positioning-2d.html';
+            currentZoneId = null; // Clear current zone but keep previousZoneId
+            loadAnchorsFromDatabase(); // Reload all anchors
+            
+            // Update UI
+            document.getElementById('viewMode').innerHTML = `
+                <i class="fas fa-globe"></i> Chế độ: Tổng quan toàn bộ khu vực
+            `;
+            document.getElementById('areaTitle').textContent = 'Khu Vực Giám Sát (20m × 20m)';
+            document.getElementById('btnOverview').style.display = 'none';
+            
+            // Show back to zone button if there was a previous zone
+            if (previousZoneId && currentZone) {
+                document.getElementById('btnBackToZone').style.display = 'inline-block';
+                document.getElementById('zoneName').textContent = currentZone.name;
+            }
+            
+            // Update URL without zone parameter
+            window.history.pushState({}, '', 'positioning-2d.html');
+        }
+        
+        // Switch back to previous zone
+        function switchToZone() {
+            if (previousZoneId) {
+                window.location.href = `positioning-2d.html?zone=${previousZoneId}`;
+            }
         }
         
         // Load zone information
@@ -368,11 +397,14 @@
                 const response = await fetch(`/api/zones/${zoneId}`);
                 if (response.ok) {
                     currentZone = await response.json();
+                    previousZoneId = zoneId; // Remember this zone
+                    
                     document.getElementById('viewMode').innerHTML = `
                         <i class="fas fa-map-marked-alt"></i> Chế độ: Khu vực chi tiết "<strong>${currentZone.name}</strong>"
                     `;
                     document.getElementById('areaTitle').textContent = `${currentZone.name} (Khu vực chi tiết)`;
                     document.getElementById('btnOverview').style.display = 'inline-block';
+                    document.getElementById('btnBackToZone').style.display = 'none'; // Hide when in zone view
                     console.log('✅ Viewing zone:', currentZone);
                 }
             } catch (error) {
@@ -555,13 +587,6 @@
             ctx.font = 'bold 12px Arial';
             ctx.textAlign = 'center';
             ctx.fillText(anchor.id, x, y - 15);
-            
-            // ✅ Nếu ở chế độ tổng quan và anchor có zoneId, thêm indicator nhỏ
-            if (!currentZoneId && anchor.zoneId) {
-                ctx.fillStyle = '#FFA500';
-                ctx.font = '10px Arial';
-                ctx.fillText('📍', x + 12, y - 12);
-            }
         }
 
         // Draw tag
@@ -681,14 +706,10 @@
             // Update anchor list
             const anchorList = document.getElementById('anchorList');
             anchorList.innerHTML = anchors.map(anchor => `
-                <li class="device-item" style="${!currentZoneId && anchor.zoneId ? 'cursor: pointer;' : ''}" 
-                    ${!currentZoneId && anchor.zoneId ? `onclick="window.location.href='positioning-2d.html?zone=${anchor.zoneId}'"` : ''}>
+                <li class="device-item">
                     <span class="status-indicator ${anchor.status}"></span>
                     <strong>${anchor.id}</strong> - ${anchor.name}
-                    <div class="distance-info">
-                        Vị trí: (${anchor.x.toFixed(1)}m, ${anchor.y.toFixed(1)}m)
-                        ${!currentZoneId && anchor.zoneId ? '<br><small style="color: #FFA500;">📍 Click để xem khu vực</small>' : ''}
-                    </div>
+                    <div class="distance-info">Vị trí: (${anchor.x.toFixed(1)}m, ${anchor.y.toFixed(1)}m)</div>
                 </li>
             `).join('');
 
@@ -756,68 +777,6 @@
             isAnimating = !isAnimating;
             document.getElementById('animationBtn').textContent = isAnimating ? '⏸ Dừng' : '▶️ Chạy';
         }
-        
-        // ✅ Handle canvas click - navigate to zone detail when clicking anchor in overview mode
-        canvas.addEventListener('click', function(event) {
-            // Only handle clicks in overview mode
-            if (currentZoneId) return;
-            
-            const rect = canvas.getBoundingClientRect();
-            const clickX = event.clientX - rect.left;
-            const clickY = event.clientY - rect.top;
-            
-            // Convert to canvas coordinates (accounting for padding)
-            const canvasX = clickX - 40;
-            const canvasY = clickY - 40;
-            
-            // Check if click is on any anchor
-            anchors.forEach(anchor => {
-                const anchorX = anchor.x * scale;
-                const anchorY = (areaSize - anchor.y) * scale;
-                
-                const distance = Math.sqrt(
-                    Math.pow(canvasX - anchorX, 2) + 
-                    Math.pow(canvasY - anchorY, 2)
-                );
-                
-                // If clicked within 15px of anchor center and anchor has zoneId
-                if (distance < 15 && anchor.zoneId) {
-                    console.log('🖱️ Clicked on anchor:', anchor.id, 'Zone:', anchor.zoneId);
-                    window.location.href = `positioning-2d.html?zone=${anchor.zoneId}`;
-                }
-            });
-        });
-        
-        // Add hover effect
-        canvas.addEventListener('mousemove', function(event) {
-            // Only in overview mode
-            if (currentZoneId) {
-                canvas.style.cursor = 'crosshair';
-                return;
-            }
-            
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = event.clientX - rect.left - 40;
-            const mouseY = event.clientY - rect.top - 40;
-            
-            let isOverAnchor = false;
-            
-            anchors.forEach(anchor => {
-                const anchorX = anchor.x * scale;
-                const anchorY = (areaSize - anchor.y) * scale;
-                
-                const distance = Math.sqrt(
-                    Math.pow(mouseX - anchorX, 2) + 
-                    Math.pow(mouseY - anchorY, 2)
-                );
-                
-                if (distance < 15 && anchor.zoneId) {
-                    isOverAnchor = true;
-                }
-            });
-            
-            canvas.style.cursor = isOverAnchor ? 'pointer' : 'crosshair';
-        });
 
         // Logout function
         function logout() {
