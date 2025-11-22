@@ -37,9 +37,12 @@ public class WorkerController {
 
     @PostMapping
     public ResponseEntity<Map<String, Object>> createWorker(@RequestBody Map<String, Object> payload) {
+        // Auto-generate employee ID in format REV01-REVn
+        String employeeId = generateNextEmployeeId();
+        
         Worker w = new Worker();
         w.setFullName((String) payload.getOrDefault("name", payload.getOrDefault("fullName", "")));
-        w.setEmployeeId((String) payload.getOrDefault("employeeId", ""));
+        w.setEmployeeId(employeeId);
         w.setPosition((String) payload.getOrDefault("position", ""));
         w.setDepartment((String) payload.getOrDefault("department", ""));
         w.setPhoneNumber((String) payload.getOrDefault("phone", ""));
@@ -66,5 +69,29 @@ public class WorkerController {
         // return the newly created worker structure similar to GET
         return ResponseEntity.created(URI.create("/api/workers/" + saved.getId()))
                 .body(Map.of("id", saved.getId(), "name", saved.getFullName(), "employeeId", saved.getEmployeeId()));
+    }
+    
+    // Generate next employee ID in format REV01, REV02, ..., REVn
+    private String generateNextEmployeeId() {
+        List<Worker> allWorkers = workerRepository.findAll();
+        
+        // Find the highest number from existing REVxx IDs
+        int maxNumber = allWorkers.stream()
+            .map(Worker::getEmployeeId)
+            .filter(id -> id != null && id.matches("REV\\d+"))
+            .map(id -> id.substring(3)) // Remove "REV" prefix
+            .map(num -> {
+                try {
+                    return Integer.parseInt(num);
+                } catch (NumberFormatException e) {
+                    return 0;
+                }
+            })
+            .max(Integer::compareTo)
+            .orElse(0);
+        
+        // Generate next ID
+        int nextNumber = maxNumber + 1;
+        return String.format("REV%02d", nextNumber);
     }
 }

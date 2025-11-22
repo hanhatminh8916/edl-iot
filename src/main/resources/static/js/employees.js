@@ -202,7 +202,6 @@ function openEmployeeModal(mode, workerId = null) {
         if (worker) {
             document.getElementById('employeeName').value = worker.name || worker.fullName || '';
             document.getElementById('employeePhone').value = worker.phone || worker.phoneNumber || '';
-            document.getElementById('employeeId').value = worker.employeeId || '';
             document.getElementById('employeeLocation').value = worker.position || '';
             
             form.dataset.workerId = workerId;
@@ -260,7 +259,6 @@ async function saveEmployee() {
     const workerData = {
         name: formData.get('employeeName'),
         phone: formData.get('employeePhone'),
-        employeeId: formData.get('employeeId'),
         position: formData.get('employeeLocation') || ''
     };
     
@@ -271,7 +269,7 @@ async function saveEmployee() {
     }
     
     // Validate
-    if (!workerData.name || !workerData.phone || !workerData.employeeId) {
+    if (!workerData.name || !workerData.phone) {
         showNotification('Vui lòng điền đầy đủ thông tin bắt buộc!', 'error');
         return;
     }
