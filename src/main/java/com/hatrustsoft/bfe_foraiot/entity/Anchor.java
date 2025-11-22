@@ -33,6 +33,8 @@ public class Anchor {
     
     private String description;
     
+    private Long zoneId; // Liên kết với Zone (work zone)
+    
     @Column(nullable = false)
     private String status = "online"; // online, offline
     
@@ -100,6 +102,14 @@ public class Anchor {
     
     public void setDescription(String description) {
         this.description = description;
+    }
+    
+    public Long getZoneId() {
+        return zoneId;
+    }
+    
+    public void setZoneId(Long zoneId) {
+        this.zoneId = zoneId;
     }
     
     public String getStatus() {

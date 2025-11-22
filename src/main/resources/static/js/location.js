@@ -62,11 +62,10 @@ function initializeMap() {
             });
             workZonesLayer.addLayer(layer);
             
-            // ✅ LƯU WORK ZONE VÀO DATABASE
-            saveWorkZoneToDatabase(layer.getLatLngs(), layer);
-            
-            // ✅ Thêm popup với tên khu vực
+            // ✅ TỰ ĐỘNG TẠO ANCHORS TỪ CÁC ĐIỂM POLYGON
+            const vertices = layer.getLatLngs()[0]; // Lấy các đỉnh polygon
             const zoneName = prompt('Nhập tên khu vực:', `Khu ${workZonesLayer.getLayers().length}`);
+            
             if (zoneName) {
                 layer.bindPopup(`<b>${zoneName}</b><br><small>Click để xem chi tiết</small>`).openPopup();
                 layer.zoneName = zoneName;
@@ -74,6 +73,17 @@ function initializeMap() {
                 // ✅ Click vào zone để xem sơ đồ 2D
                 layer.on('click', function() {
                     window.location.href = `positioning-2d.html?zone=${layer.zoneId || ''}`;
+                });
+                
+                // ✅ LƯU WORK ZONE VÀO DATABASE trước
+                saveWorkZoneToDatabase(layer.getLatLngs(), layer, zoneName).then(zoneId => {
+                    // ✅ Tạo anchor cho mỗi đỉnh polygon
+                    vertices.forEach((vertex, index) => {
+                        const anchorName = `${zoneName}-A${index + 1}`;
+                        createAnchorFromVertex(vertex, anchorName, zoneId);
+                    });
+                    
+                    showNotification(`✅ Đã tạo ${vertices.length} anchors cho ${zoneName}`, 'success');
                 });
             }
         } else {
@@ -114,13 +124,6 @@ function initializeMap() {
     // ✅ LOAD ANCHORS FROM DATABASE
     loadAnchorsFromDatabase();
     
-    // ✅ ANCHOR PLACEMENT: Click on map to place anchor
-    map.on('click', function(e) {
-        if (isAnchorMode) {
-            placeAnchor(e.latlng);
-        }
-    });
-    
     // ✅ ADD ZONE MODE TOGGLE BUTTON
     var ZoneModeControl = L.Control.extend({
         options: {
@@ -150,36 +153,6 @@ function initializeMap() {
     });
     
     map.addControl(new ZoneModeControl());
-    
-    // ✅ ADD ANCHOR CONTROL BUTTON TO MAP
-    var AnchorControl = L.Control.extend({
-        options: {
-            position: 'topleft'
-        },
-        onAdd: function(map) {
-            var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-            var button = L.DomUtil.create('a', 'leaflet-control-anchor', container);
-            button.innerHTML = '<i class="fas fa-map-pin" style="font-size: 16px;"></i>';
-            button.href = '#';
-            button.title = 'Đặt Anchor';
-            button.style.width = '30px';
-            button.style.height = '30px';
-            button.style.lineHeight = '30px';
-            button.style.textAlign = 'center';
-            button.style.background = 'white';
-            button.style.color = '#2196F3';
-            
-            L.DomEvent.on(button, 'click', function(e) {
-                L.DomEvent.preventDefault(e);
-                L.DomEvent.stopPropagation(e);
-                toggleAnchorMode();
-            });
-            
-            return container;
-        }
-    });
-    
-    map.addControl(new AnchorControl());
     
     // Thêm nhãn Hoàng Sa, Trường Sa
     var hoangSaIcon = L.divIcon({
@@ -897,12 +870,12 @@ async function loadWorkZonesFromDatabase() {
 }
 
 // Save work zone to database
-async function saveWorkZoneToDatabase(latlngs, layer) {
+async function saveWorkZoneToDatabase(latlngs, layer, zoneName) {
     try {
         const coords = latlngs[0].map(ll => [ll.lat, ll.lng]);
         
         const payload = {
-            name: layer.zoneName || `Khu ${workZonesLayer.getLayers().length}`,
+            name: zoneName || layer.zoneName || `Khu ${workZonesLayer.getLayers().length}`,
             polygonCoordinates: JSON.stringify(coords),
             color: '#FFA500',
             description: 'Work zone'
@@ -918,12 +891,44 @@ async function saveWorkZoneToDatabase(latlngs, layer) {
             const savedZone = await response.json();
             layer.zoneId = savedZone.id;
             console.log('✅ Work zone saved to DB:', savedZone);
-            showNotification('✅ Đã lưu khu vực làm việc', 'success');
+            return savedZone.id; // Trả về zoneId
         }
+        return null;
     } catch (error) {
         console.error('Error saving work zone:', error);
         showNotification('❌ Lỗi khi lưu khu vực', 'error');
+        return null;
     }
+}
+
+// ✅ TẠO ANCHOR TỪ ĐỈNH POLYGON
+async function createAnchorFromVertex(vertex, anchorName, zoneId) {
+    try {
+        const payload = {
+            name: anchorName,
+            latitude: vertex.lat,
+            longitude: vertex.lng,
+            zoneId: zoneId // Liên kết anchor với zone
+        };
+        
+        const response = await fetch('/api/anchors', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+            const savedAnchor = await response.json();
+            console.log('✅ Anchor created:', savedAnchor);
+            
+            // ✅ Hiển thị anchor trên bản đồ
+            addAnchorMarker(savedAnchor);
+            return savedAnchor;
+        }
+    } catch (error) {
+        console.error('Error creating anchor:', error);
+    }
+    return null;
 }
 
 // ========== ANCHOR FUNCTIONS ==========
