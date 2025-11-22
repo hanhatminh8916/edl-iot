@@ -568,6 +568,20 @@ function connectWebSocket() {
             }
         });
         
+        // ✅ Subscribe to Work Zone updates
+        stompClient.subscribe('/topic/zone/update', function(message) {
+            try {
+                const update = JSON.parse(message.body);
+                console.log('🟨 Received Work Zone update:', update.action);
+                
+                // Xử lý Work Zone realtime
+                handleWorkZoneUpdate(update);
+                
+            } catch (e) {
+                console.error('❌ Error parsing Work Zone message:', e);
+            }
+        });
+        
     }, function(error) {
         console.error('❌ WebSocket connection error:', error);
         // Retry after 5 seconds
@@ -715,6 +729,85 @@ function handleAnchorUpdate(update) {
             anchorLayer.removeLayer(anchorMarker.marker);
             anchorMarkers = anchorMarkers.filter(a => a.id !== anchorId);
             console.log('✅ Anchor deleted from WebSocket:', anchorId);
+        }
+    }
+}
+
+/**
+ * ✅ Xử lý Work Zone updates từ WebSocket (realtime)
+ */
+function handleWorkZoneUpdate(update) {
+    const action = update.action;
+    
+    if (action === 'CREATE') {
+        // Thêm work zone mới
+        const zone = update.zone;
+        
+        // Kiểm tra xem zone đã tồn tại chưa
+        const exists = workZonesLayer.getLayers().find(layer => layer.zoneId === zone.id);
+        if (!exists) {
+            const coords = JSON.parse(zone.polygonCoordinates);
+            const polygon = L.polygon(coords, {
+                color: zone.color || '#FFA500',
+                fillColor: zone.color || '#FFA500',
+                fillOpacity: 0.3
+            });
+            
+            polygon.zoneId = zone.id;
+            polygon.zoneName = zone.name;
+            polygon.bindPopup(`<b>${zone.name}</b><br><small>Double-click để xem chi tiết sơ đồ 2D</small>`);
+            
+            polygon.on('dblclick', function(e) {
+                L.DomEvent.stopPropagation(e);
+                window.location.href = `positioning-2d.html?zone=${zone.id}`;
+            });
+            
+            workZonesLayer.addLayer(polygon);
+            console.log('✅ Work zone created from WebSocket:', zone.name);
+        }
+        
+    } else if (action === 'UPDATE') {
+        // Cập nhật work zone
+        const zone = update.zone;
+        
+        // Tìm và xóa polygon cũ
+        const layers = workZonesLayer.getLayers();
+        const existingLayer = layers.find(layer => layer.zoneId === zone.id);
+        
+        if (existingLayer) {
+            workZonesLayer.removeLayer(existingLayer);
+        }
+        
+        // Thêm polygon mới với tọa độ mới
+        const coords = JSON.parse(zone.polygonCoordinates);
+        const polygon = L.polygon(coords, {
+            color: zone.color || '#FFA500',
+            fillColor: zone.color || '#FFA500',
+            fillOpacity: 0.3
+        });
+        
+        polygon.zoneId = zone.id;
+        polygon.zoneName = zone.name;
+        polygon.bindPopup(`<b>${zone.name}</b><br><small>Double-click để xem chi tiết sơ đồ 2D</small>`);
+        
+        polygon.on('dblclick', function(e) {
+            L.DomEvent.stopPropagation(e);
+            window.location.href = `positioning-2d.html?zone=${zone.id}`;
+        });
+        
+        workZonesLayer.addLayer(polygon);
+        console.log('✅ Work zone updated from WebSocket:', zone.name);
+        
+    } else if (action === 'DELETE') {
+        // Xóa work zone
+        const zoneId = update.zoneId;
+        
+        const layers = workZonesLayer.getLayers();
+        const layerToRemove = layers.find(layer => layer.zoneId === zoneId);
+        
+        if (layerToRemove) {
+            workZonesLayer.removeLayer(layerToRemove);
+            console.log('✅ Work zone deleted from WebSocket:', zoneId);
         }
     }
 }

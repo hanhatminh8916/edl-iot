@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 public class ZoneController {
 
     private final ZoneRepository zoneRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @GetMapping
     public ResponseEntity<List<Zone>> getAllZones() {
@@ -59,6 +61,13 @@ public class ZoneController {
         zone.setUpdatedAt(LocalDateTime.now());
 
         Zone saved = zoneRepository.save(zone);
+        
+        // ✅ Broadcast CREATE event via WebSocket
+        Map<String, Object> message = new HashMap<>();
+        message.put("action", "CREATE");
+        message.put("zone", saved);
+        messagingTemplate.convertAndSend("/topic/zone/update", message);
+        
         return ResponseEntity.created(URI.create("/api/zones/" + saved.getId())).body(saved);
     }
 
@@ -84,6 +93,13 @@ public class ZoneController {
                     zone.setUpdatedAt(LocalDateTime.now());
                     
                     Zone updated = zoneRepository.save(zone);
+                    
+                    // ✅ Broadcast UPDATE event via WebSocket
+                    Map<String, Object> message = new HashMap<>();
+                    message.put("action", "UPDATE");
+                    message.put("zone", updated);
+                    messagingTemplate.convertAndSend("/topic/zone/update", message);
+                    
                     return ResponseEntity.ok(updated);
                 })
                 .orElse(ResponseEntity.notFound().build());
@@ -94,6 +110,13 @@ public class ZoneController {
         return zoneRepository.findById(id)
                 .map(zone -> {
                     zoneRepository.delete(zone);
+                    
+                    // ✅ Broadcast DELETE event via WebSocket
+                    Map<String, Object> message = new HashMap<>();
+                    message.put("action", "DELETE");
+                    message.put("zoneId", id);
+                    messagingTemplate.convertAndSend("/topic/zone/update", message);
+                    
                     Map<String, String> response = new HashMap<>();
                     response.put("message", "Zone deleted successfully");
                     return ResponseEntity.ok(response);
