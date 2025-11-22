@@ -15,7 +15,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.hatrustsoft.bfe_foraiot.entity.Employee;
 import com.hatrustsoft.bfe_foraiot.model.Worker;
+import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetRepository;
 import com.hatrustsoft.bfe_foraiot.repository.WorkerRepository;
 import com.hatrustsoft.bfe_foraiot.service.DashboardService;
@@ -31,6 +33,7 @@ public class WorkerController {
     private final WorkerRepository workerRepository;
     private final HelmetRepository helmetRepository;
     private final DashboardService dashboardService;
+    private final EmployeeRepository employeeRepository;
 
     @GetMapping
     public ResponseEntity<List<Map<String, Object>>> listWorkers() {
@@ -55,6 +58,15 @@ public class WorkerController {
 
         Worker saved = workerRepository.save(w);
 
+        // ⭐ Sync to Employee table
+        Employee employee = new Employee();
+        employee.setEmployeeId(saved.getEmployeeId());
+        employee.setName(saved.getFullName());
+        employee.setPosition(saved.getPosition());
+        employee.setDepartment(saved.getDepartment());
+        employee.setPhoneNumber(saved.getPhoneNumber());
+        employee.setStatus("ACTIVE");
+        
         // Assign helmet if provided
         if (payload.containsKey("helmetId")) {
             try {
@@ -63,11 +75,19 @@ public class WorkerController {
                     helmet.setWorker(saved);
                     helmet.setUpdatedAt(LocalDateTime.now());
                     helmetRepository.save(helmet);
+                    
+                    // ⭐ Update Employee with macAddress from helmet
+                    if (helmet.getMacAddress() != null) {
+                        employee.setMacAddress(helmet.getMacAddress());
+                    }
                 });
             } catch (NumberFormatException e) {
                 // Invalid helmetId, ignore
             }
         }
+        
+        // ⭐ Save Employee
+        employeeRepository.save(employee);
 
         // return the newly created worker structure similar to GET
         return ResponseEntity.created(URI.create("/api/workers/" + saved.getId()))
@@ -101,6 +121,16 @@ public class WorkerController {
                 worker.setUpdatedAt(LocalDateTime.now());
                 Worker updated = workerRepository.save(worker);
                 
+                // ⭐ Sync to Employee table
+                Employee employee = employeeRepository.findById(updated.getEmployeeId())
+                    .orElse(new Employee());
+                employee.setEmployeeId(updated.getEmployeeId());
+                employee.setName(updated.getFullName());
+                employee.setPosition(updated.getPosition());
+                employee.setDepartment(updated.getDepartment());
+                employee.setPhoneNumber(updated.getPhoneNumber());
+                employee.setStatus(updated.getStatus().toString());
+                
                 // Handle helmet assignment/reassignment
                 if (payload.containsKey("helmetId")) {
                     try {
@@ -111,6 +141,11 @@ public class WorkerController {
                             oldHelmet.setWorker(null);
                             oldHelmet.setUpdatedAt(LocalDateTime.now());
                             helmetRepository.save(oldHelmet);
+                            
+                            // ⭐ Clear macAddress from old employee
+                            if (oldHelmet.getMacAddress() != null) {
+                                employee.setMacAddress(null);
+                            }
                         });
                         
                         // Assign worker to new helmet
@@ -118,11 +153,19 @@ public class WorkerController {
                             newHelmet.setWorker(updated);
                             newHelmet.setUpdatedAt(LocalDateTime.now());
                             helmetRepository.save(newHelmet);
+                            
+                            // ⭐ Update Employee with macAddress from new helmet
+                            if (newHelmet.getMacAddress() != null) {
+                                employee.setMacAddress(newHelmet.getMacAddress());
+                            }
                         });
                     } catch (NumberFormatException e) {
                         // Invalid helmetId, ignore
                     }
                 }
+                
+                // ⭐ Save Employee
+                employeeRepository.save(employee);
                 
                 return ResponseEntity.ok(Map.of(
                     "id", updated.getId(),
