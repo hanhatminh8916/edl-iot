@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Alert System - EDL SafeWork</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .test-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 1.5rem;
+        }
+
+        .test-card h2 {
+            color: #1e293b;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .test-card h2 i {
+            font-size: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+        }
+
+        .checkbox-item:hover {
+            border-color: #667eea;
+            background: #f8fafc;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .checkbox-item.fall input[type="checkbox"]:checked ~ label {
+            color: #dc2626;
+        }
+
+        .checkbox-item.help input[type="checkbox"]:checked ~ label {
+            color: #f59e0b;
+        }
+
+        .checkbox-item label {
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            color: #64748b;
+            transition: color 0.2s;
+        }
+
+        .checkbox-item input[type="checkbox"]:checked ~ label {
+            color: #1e293b;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .log-section {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .log-section h3 {
+            color: #1e293b;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .log-container {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 1.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .log-entry {
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .log-entry.success {
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .log-entry.error {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .log-entry.info {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+        }
+
+        .log-entry.warning {
+            color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .timestamp {
+            opacity: 0.6;
+            margin-right: 0.5rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .stat-box {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-box .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-box .label {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-flask"></i> Test Alert System</h1>
+            <p>Gửi MQTT message để test hệ thống cảnh báo Fall Detection và Help Request</p>
+        </div>
+
+        <div class="test-card">
+            <h2><i class="fas fa-hard-hat"></i> Thông tin mũ bảo hiểm</h2>
+            
+            <div class="form-group">
+                <label for="macAddress">MAC Address</label>
+                <input type="text" id="macAddress" value="F4DD40BA2010" placeholder="Nhập MAC address">
+            </div>
+
+            <div class="form-group">
+                <label for="latitude">Vĩ độ (Latitude)</label>
+                <input type="number" id="latitude" value="15.945118" step="0.000001" placeholder="VD: 15.945118">
+            </div>
+
+            <div class="form-group">
+                <label for="longitude">Kinh độ (Longitude)</label>
+                <input type="number" id="longitude" value="108.254488" step="0.000001" placeholder="VD: 108.254488">
+            </div>
+
+            <div class="form-group">
+                <label for="battery">Mức pin (%)</label>
+                <input type="number" id="battery" value="45" min="0" max="100" placeholder="0-100">
+            </div>
+        </div>
+
+        <div class="test-card">
+            <h2><i class="fas fa-exclamation-triangle"></i> Loại cảnh báo</h2>
+            
+            <div class="checkbox-group">
+                <div class="checkbox-item fall">
+                    <input type="checkbox" id="fallDetected">
+                    <label for="fallDetected">🚨 Phát hiện ngã (Fall Detection)</label>
+                </div>
+                
+                <div class="checkbox-item help">
+                    <input type="checkbox" id="helpRequest">
+                    <label for="helpRequest">🆘 Yêu cầu trợ giúp (SOS)</label>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="sendMQTT()">
+                    <i class="fas fa-paper-plane"></i>
+                    Gửi MQTT Message
+                </button>
+                <button class="btn btn-secondary" onclick="clearLog()">
+                    <i class="fas fa-trash"></i>
+                    Xóa Log
+                </button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="value" id="sentCount">0</div>
+                    <div class="label">Đã gửi</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="successCount">0</div>
+                    <div class="label">Thành công</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="errorCount">0</div>
+                    <div class="label">Lỗi</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="log-section">
+            <h3><i class="fas fa-terminal"></i> Console Log</h3>
+            <div class="log-container" id="logContainer">
+                <div class="log-entry info">
+                    <span class="timestamp">[00:00:00]</span>
+                    <span>✅ Hệ thống sẵn sàng. Chọn loại cảnh báo và nhấn "Gửi MQTT Message"</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sentCount = 0;
+        let successCount = 0;
+        let errorCount = 0;
+
+        function addLog(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString('vi-VN');
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span><span>${message}</span>`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function clearLog() {
+            const logContainer = document.getElementById('logContainer');
+            logContainer.innerHTML = '';
+            addLog('✅ Log đã được xóa', 'info');
+        }
+
+        function updateStats() {
+            document.getElementById('sentCount').textContent = sentCount;
+            document.getElementById('successCount').textContent = successCount;
+            document.getElementById('errorCount').textContent = errorCount;
+        }
+
+        async function sendMQTT() {
+            const mac = document.getElementById('macAddress').value;
+            const lat = parseFloat(document.getElementById('latitude').value);
+            const lon = parseFloat(document.getElementById('longitude').value);
+            const battery = parseFloat(document.getElementById('battery').value);
+            const fallDetected = document.getElementById('fallDetected').checked ? 1 : 0;
+            const helpRequest = document.getElementById('helpRequest').checked ? 1 : 0;
+
+            if (!mac) {
+                addLog('❌ Vui lòng nhập MAC address', 'error');
+                return;
+            }
+
+            if (!fallDetected && !helpRequest) {
+                addLog('⚠️ Vui lòng chọn ít nhất một loại cảnh báo', 'warning');
+                return;
+            }
+
+            const payload = {
+                mac: mac,
+                temp: 33.85,
+                voltage: 3.48,
+                current: 510.8,
+                battery: battery,
+                lat: lat,
+                lon: lon,
+                hr: 0.0,
+                spo2: 0.0,
+                uwb: {
+                    A0: -1.0,
+                    A1: -1.0,
+                    TAG2: -1.0,
+                    A2: -1.0,
+                    baseline_A1: 0.0,
+                    baseline_A2: 0.0,
+                    ready: 1
+                },
+                fallDetected: fallDetected,
+                helpRequest: helpRequest,
+                timestamp: new Date().toISOString()
+            };
+
+            sentCount++;
+            updateStats();
+
+            addLog(`📤 Đang gửi MQTT message...`, 'info');
+            addLog(`   MAC: ${mac}`, 'info');
+            addLog(`   Fall: ${fallDetected === 1 ? '🚨 BẬT' : 'Tắt'}, Help: ${helpRequest === 1 ? '🆘 BẬT' : 'Tắt'}`, 'info');
+            
+            try {
+                const response = await fetch('/api/test/mqtt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    successCount++;
+                    updateStats();
+                    addLog('✅ MQTT message đã được gửi thành công!', 'success');
+                    
+                    if (fallDetected === 1) {
+                        addLog('   🚨 Alert FALL đã được tạo', 'success');
+                    }
+                    if (helpRequest === 1) {
+                        addLog('   🆘 Alert HELP_REQUEST đã được tạo', 'success');
+                    }
+                    
+                    addLog('📊 Kiểm tra trang /alerts.html để xem cảnh báo mới', 'info');
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                errorCount++;
+                updateStats();
+                addLog(`❌ Lỗi: ${error.message}`, 'error');
+                addLog('⚠️ Kiểm tra backend có đang chạy không', 'warning');
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                sendMQTT();
+            }
+        });
+
+        addLog('💡 Tip: Nhấn Ctrl+Enter để gửi nhanh', 'info');
+    </script>
+</body>
+</html>
