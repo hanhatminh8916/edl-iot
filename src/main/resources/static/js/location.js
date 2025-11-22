@@ -92,10 +92,36 @@ function initializeMap() {
     // ✅ Khi chỉnh sửa polygon
     map.on(L.Draw.Event.EDITED, function (e) {
         const layers = e.layers;
-        layers.eachLayer(function (layer) {
-            activePolygon = layer;
-            console.log("✅ Polygon edited:", layer.getLatLngs());
-            saveSafeZoneToDatabase(layer.getLatLngs());
+        layers.eachLayer(async function (layer) {
+            // Kiểm tra xem layer này thuộc work zone hay safe zone
+            if (layer.zoneId) {
+                // ✅ Đây là work zone → cập nhật zone và anchors
+                console.log('✏️ Editing work zone:', layer.zoneName);
+                
+                const newCoords = layer.getLatLngs()[0];
+                
+                // Cập nhật work zone trong database
+                await updateWorkZoneInDatabase(layer.zoneId, newCoords, layer);
+                
+                // Xóa anchors cũ
+                await deleteAnchorsByZoneId(layer.zoneId);
+                
+                // Tạo anchors mới tại các đỉnh mới
+                const currentMaxId = await getMaxAnchorId();
+                for (let index = 0; index < newCoords.length; index++) {
+                    const vertex = newCoords[index];
+                    const anchorNumber = currentMaxId + index + 1;
+                    const anchorName = `${layer.zoneName}-A${index + 1}`;
+                    await createAnchorFromVertex(vertex, anchorName, layer.zoneId, anchorNumber);
+                }
+                
+                showNotification(`✅ Đã cập nhật khu vực ${layer.zoneName} và ${newCoords.length} anchors`, 'success');
+            } else {
+                // ✅ Đây là safe zone
+                activePolygon = layer;
+                console.log("✅ Safe zone edited:", layer.getLatLngs());
+                saveSafeZoneToDatabase(layer.getLatLngs());
+            }
         });
     });
 
@@ -937,6 +963,37 @@ async function saveWorkZoneToDatabase(latlngs, layer, zoneName) {
         console.error('Error saving work zone:', error);
         showNotification('❌ Lỗi khi lưu khu vực', 'error');
         return null;
+    }
+}
+
+// ✅ CẬP NHẬT WORK ZONE TRONG DATABASE
+async function updateWorkZoneInDatabase(zoneId, latlngs, layer) {
+    try {
+        const coords = latlngs.map(ll => [ll.lat, ll.lng]);
+        
+        const payload = {
+            name: layer.zoneName,
+            polygonCoordinates: JSON.stringify(coords),
+            color: '#FFA500',
+            description: 'Work zone'
+        };
+        
+        const response = await fetch(`/api/zones/${zoneId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+            const updatedZone = await response.json();
+            console.log('✅ Work zone updated in DB:', updatedZone);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Error updating work zone:', error);
+        showNotification('❌ Lỗi khi cập nhật khu vực', 'error');
+        return false;
     }
 }
 
