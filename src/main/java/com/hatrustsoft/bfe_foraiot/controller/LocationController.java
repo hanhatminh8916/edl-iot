@@ -13,8 +13,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.hatrustsoft.bfe_foraiot.entity.Employee;
 import com.hatrustsoft.bfe_foraiot.entity.HelmetData;
+import com.hatrustsoft.bfe_foraiot.model.Helmet;
 import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetDataRepository;
+import com.hatrustsoft.bfe_foraiot.repository.HelmetRepository;
+import java.util.HashMap;
+import java.util.Map;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -32,24 +36,40 @@ public class LocationController {
     private HelmetDataRepository helmetDataRepository;
     
     @Autowired
+    private HelmetRepository helmetRepository;
+    
+    @Autowired
     private com.hatrustsoft.bfe_foraiot.service.RedisCacheService redisCacheService;
 
     /**
-     * ⭐ NEW: API lấy dữ liệu REALTIME từ Redis cache
-     * Dùng cho location.html - hiển thị worker đang hoạt động
+     * ⭐ NEW: API lấy dữ liệu REALTIME từ Redis cache + Database
+     * Dùng cho location.html - hiển thị TẤT CẢ worker (active + offline)
      */
     @GetMapping("/map-data-realtime")
     public ResponseEntity<List<WorkerMapData>> getMapDataRealtime() {
         List<WorkerMapData> result = new ArrayList<>();
 
-        // ✅ Lấy tất cả helmet data đang active từ Redis
-        List<HelmetData> activeHelmets = redisCacheService.getAllActiveHelmets();
+        // ✅ Lấy tất cả helmet từ database
+        List<Helmet> allHelmets = helmetRepository.findAll();
         
-        log.info("📡 Redis cache has {} active helmets", activeHelmets.size());
+        // ✅ Lấy data realtime từ Redis
+        List<HelmetData> realtimeData = redisCacheService.getAllActiveHelmets();
+        Map<String, HelmetData> realtimeMap = new HashMap<>();
+        for (HelmetData data : realtimeData) {
+            realtimeMap.put(data.getMac(), data);
+        }
+        
+        log.info("📡 Total helmets in DB: {}, Realtime in Redis: {}", allHelmets.size(), realtimeData.size());
 
-        // Map với employee data
-        for (HelmetData data : activeHelmets) {
-            Employee emp = employeeRepository.findByMacAddress(data.getMac()).orElse(null);
+        // Map với employee data - ƯU TIÊN helmets từ database
+        for (Helmet helmet : allHelmets) {
+            String mac = helmet.getMacAddress();
+            if (mac == null) continue;
+            
+            // Lấy data realtime từ Redis (nếu có)
+            HelmetData data = realtimeMap.get(mac);
+            
+            Employee emp = employeeRepository.findByMacAddress(mac).orElse(null);
             
             WorkerMapData workerData = new WorkerMapData();
             if (emp != null) {
@@ -57,35 +77,58 @@ public class LocationController {
                 workerData.setName(emp.getName());
                 workerData.setPosition(emp.getPosition());
                 workerData.setDepartment(emp.getDepartment());
+            } else if (helmet.getWorker() != null) {
+                // Lấy từ Worker entity
+                workerData.setId(helmet.getWorker().getWorkerId().toString());
+                workerData.setName(helmet.getWorker().getName());
+                workerData.setPosition(helmet.getWorker().getPosition());
+                workerData.setDepartment(helmet.getWorker().getDepartment());
             } else {
-                // Nếu không tìm thấy employee, dùng data từ helmet
-                workerData.setId(data.getEmployeeId() != null ? data.getEmployeeId() : data.getMac());
-                workerData.setName(data.getEmployeeName() != null ? data.getEmployeeName() : "Worker " + data.getMac().substring(Math.max(0, data.getMac().length() - 4)));
+                // Không có thông tin worker
+                workerData.setId(mac);
+                workerData.setName("Worker " + mac.substring(Math.max(0, mac.length() - 4)));
                 workerData.setPosition("Unknown");
                 workerData.setDepartment("Unknown");
             }
 
             // Tạo helmet info
-            HelmetInfo helmet = new HelmetInfo();
-            helmet.setHelmetId(data.getMac());
+            HelmetInfo helmetInfo = new HelmetInfo();
+            helmetInfo.setHelmetId(mac);
             
-            // ✅ Kiểm tra timestamp để xác định status
-            String status = determineHelmetStatus(data);
-            helmet.setStatus(status);
+            // ✅ Xác định status: nếu có data realtime → check timestamp, không có → INACTIVE
+            String status;
+            Double lat;
+            Double lon;
+            Integer battery;
             
-            helmet.setBatteryLevel(data.getBattery() != null ? data.getBattery().intValue() : 100);
+            if (data != null) {
+                // Có data realtime từ Redis
+                status = determineHelmetStatus(data);
+                lat = data.getLat() != null ? data.getLat() : helmet.getLastLatitude();
+                lon = data.getLon() != null ? data.getLon() : helmet.getLastLongitude();
+                battery = data.getBattery() != null ? data.getBattery().intValue() : 100;
+            } else {
+                // Không có data realtime → OFFLINE (màu xám vĩnh viễn)
+                status = "INACTIVE";
+                lat = helmet.getLastLatitude();
+                lon = helmet.getLastLongitude();
+                battery = 0;
+            }
+            
+            helmetInfo.setStatus(status);
+            helmetInfo.setBatteryLevel(battery);
 
             // Location
             LocationInfo location = new LocationInfo();
-            location.setLatitude(data.getLat() != null ? data.getLat() : 0.0);
-            location.setLongitude(data.getLon() != null ? data.getLon() : 0.0);
-            helmet.setLastLocation(location);
+            location.setLatitude(lat != null ? lat : 0.0);
+            location.setLongitude(lon != null ? lon : 0.0);
+            helmetInfo.setLastLocation(location);
 
-            workerData.setHelmet(helmet);
+            workerData.setHelmet(helmetInfo);
             result.add(workerData);
         }
 
-        log.info("📍 Realtime map data: {} workers from Redis", result.size());
+        log.info("📍 Realtime map data: {} workers total", result.size());
         return ResponseEntity.ok(result);
     }
 
