@@ -914,6 +914,13 @@ async function loadWorkZonesFromDatabase() {
         console.log('✅ Loaded work zones from DB:', zones);
         
         zones.forEach(zone => {
+            // ✅ Kiểm tra xem zone đã tồn tại chưa (tránh duplicate)
+            const exists = workZonesLayer.getLayers().find(layer => layer.zoneId === zone.id);
+            if (exists) {
+                console.log(`⚠️ Zone ${zone.name} already exists, skipping`);
+                return;
+            }
+            
             const coords = JSON.parse(zone.polygonCoordinates);
             const polygon = L.polygon(coords, {
                 color: zone.color || '#FFA500',
@@ -932,6 +939,7 @@ async function loadWorkZonesFromDatabase() {
             });
             
             workZonesLayer.addLayer(polygon);
+            console.log(`✅ Loaded work zone: ${zone.name}`);
         });
     } catch (error) {
         console.error('Error loading work zones:', error);
@@ -984,14 +992,16 @@ async function deleteAnchorsByZoneId(zoneId) {
         
         // Xóa từng anchor
         for (const anchor of zoneAnchors) {
-            await fetch(`/api/anchors/${anchor.id}`, { method: 'DELETE' });
-            
-            // Xóa marker khỏi bản đồ
-            const markerData = anchorMarkers.find(am => am.anchor.id === anchor.id);
+            // Xóa marker khỏi bản đồ TRƯỚC khi xóa database
+            const markerData = anchorMarkers.find(am => am.id === anchor.id);
             if (markerData) {
                 anchorLayer.removeLayer(markerData.marker);
-                anchorMarkers = anchorMarkers.filter(am => am.anchor.id !== anchor.id);
+                anchorMarkers = anchorMarkers.filter(am => am.id !== anchor.id);
+                console.log(`✅ Removed anchor marker ${anchor.anchorId} from map`);
             }
+            
+            // Xóa từ database (WebSocket sẽ broadcast nhưng marker đã xóa rồi)
+            await fetch(`/api/anchors/${anchor.id}`, { method: 'DELETE' });
         }
         
         return true;
@@ -1065,8 +1075,8 @@ async function createAnchorFromVertex(vertex, anchorName, zoneId, anchorIndex) {
             const savedAnchor = await response.json();
             console.log('✅ Anchor created:', savedAnchor);
             
-            // ✅ Hiển thị anchor trên bản đồ
-            addAnchorMarker(savedAnchor);
+            // ❌ KHÔNG add marker ngay - để WebSocket broadcast handle (tránh duplicate)
+            // WebSocket sẽ broadcast CREATE event và add marker ở tất cả clients
             return savedAnchor;
         } else {
             const errorText = await response.text();
