@@ -13,40 +13,32 @@ import jakarta.persistence.Table;
 import lombok.Data;
 
 @Entity
-@Table(name = "workers")
+@Table(name = "zones")
 @Data
-public class Worker {
+public class Zone {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
-    private String fullName;
-
-    private String employeeId;
+    private String name;  // Zone name: Khu A, Khu B, etc.
     
-    private String position;  // Job title: Công nhân, Kỹ sư, etc.
+    private String description;
     
-    private String location;  // Work location/area: Khu đông, Bắc, etc.
+    @Column(columnDefinition = "TEXT")
+    private String polygonCoordinates;  // JSON string of polygon coordinates: [[lat,lng],[lat,lng],...]
     
-    private String department;
-    
-    private String phoneNumber;
-    
-    private String email;
+    private String color;  // Zone color (default: yellow)
     
     @Enumerated(EnumType.STRING)
-    private WorkerStatus status; // ACTIVE, INACTIVE, ON_LEAVE
-    
-    private LocalDateTime hiredDate;
+    private ZoneStatus status;  // ACTIVE, INACTIVE
     
     private LocalDateTime createdAt;
     
     private LocalDateTime updatedAt;
     
-    public enum WorkerStatus {
+    public enum ZoneStatus {
         ACTIVE,
-        INACTIVE,
-        ON_LEAVE
+        INACTIVE
     }
 }

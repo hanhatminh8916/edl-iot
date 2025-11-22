@@ -3,6 +3,9 @@ var map, markers = [], workersData = [], drawnItems = null, activePolygon = null
 var anchorMarkers = []; // Store anchor markers
 var anchorLayer = null; // Separate layer for anchors
 var isAnchorMode = false; // Toggle anchor placement mode
+// Work zones (màu vàng) - khu vực làm việc nhỏ
+var workZonesLayer = null; // Layer for work zones
+var drawingMode = 'safezone'; // 'safezone' (green) or 'workzone' (yellow)
 // Tọa độ tâm khu vực an toàn - ĐÀ NẴNG (cập nhật từ dữ liệu thực tế MQTT)
 var safeZoneCenter = [15.97331, 108.25183];
 var safeZoneRadius = 200; // Bán kính 200 mét (chỉ để tham khảo, giờ dùng polygon vẽ tay)
@@ -16,7 +19,11 @@ function initializeMap() {
     anchorLayer = new L.FeatureGroup();
     map.addLayer(anchorLayer);
     
-    // ✅ Khởi tạo Leaflet Draw để vẽ polygon (vùng an toàn)
+    // ✅ Layer riêng cho Work Zones (màu vàng)
+    workZonesLayer = new L.FeatureGroup();
+    map.addLayer(workZonesLayer);
+    
+    // ✅ Khởi tạo Leaflet Draw để vẽ polygon (vùng an toàn màu xanh)
     drawnItems = new L.FeatureGroup();
     map.addLayer(drawnItems);
 
@@ -44,11 +51,42 @@ function initializeMap() {
 
     // ✅ Khi vẽ xong polygon → LƯU VÀO DATABASE
     map.on(L.Draw.Event.CREATED, function (e) {
-        drawnItems.clearLayers(); // Xóa polygon cũ
         const layer = e.layer;
-        drawnItems.addLayer(layer);
-        activePolygon = layer;
-        document.getElementById("alertBox").style.display = "none";
+        
+        if (drawingMode === 'workzone') {
+            // ✅ Vẽ Work Zone màu vàng
+            layer.setStyle({
+                color: '#FFA500',
+                fillColor: '#FFA500',
+                fillOpacity: 0.3
+            });
+            workZonesLayer.addLayer(layer);
+            
+            // ✅ LƯU WORK ZONE VÀO DATABASE
+            saveWorkZoneToDatabase(layer.getLatLngs(), layer);
+            
+            // ✅ Thêm popup với tên khu vực
+            const zoneName = prompt('Nhập tên khu vực:', `Khu ${workZonesLayer.getLayers().length}`);
+            if (zoneName) {
+                layer.bindPopup(`<b>${zoneName}</b><br><small>Click để xem chi tiết</small>`).openPopup();
+                layer.zoneName = zoneName;
+                
+                // ✅ Click vào zone để xem sơ đồ 2D
+                layer.on('click', function() {
+                    window.location.href = `positioning-2d.html?zone=${layer.zoneId || ''}`;
+                });
+            }
+        } else {
+            // ✅ Vẽ Safe Zone màu xanh (như cũ)
+            drawnItems.clearLayers(); // Xóa safe zone cũ (chỉ 1 safe zone)
+            drawnItems.addLayer(layer);
+            activePolygon = layer;
+            document.getElementById("alertBox").style.display = "none";
+            
+            // ✅ LƯU SAFE ZONE VÀO DATABASE
+            saveSafeZoneToDatabase(layer.getLatLngs());
+        }
+    });
         console.log("✅ Polygon created:", layer.getLatLngs());
         
         // ✅ LƯU VÀO DATABASE qua API
@@ -75,6 +113,9 @@ function initializeMap() {
     // ✅ LOAD POLYGON TỪ DATABASE khi khởi động
     loadSafeZoneFromDatabase();
     
+    // ✅ LOAD WORK ZONES FROM DATABASE
+    loadWorkZonesFromDatabase();
+    
     // ✅ LOAD ANCHORS FROM DATABASE
     loadAnchorsFromDatabase();
     
@@ -84,6 +125,36 @@ function initializeMap() {
             placeAnchor(e.latlng);
         }
     });
+    
+    // ✅ ADD ZONE MODE TOGGLE BUTTON
+    var ZoneModeControl = L.Control.extend({
+        options: {
+            position: 'topleft'
+        },
+        onAdd: function(map) {
+            var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+            var button = L.DomUtil.create('a', 'leaflet-control-zone-mode', container);
+            button.innerHTML = '<i class="fas fa-square" style="font-size: 16px;"></i>';
+            button.href = '#';
+            button.title = 'Vẽ Khu Vực (Vàng)';
+            button.style.width = '30px';
+            button.style.height = '30px';
+            button.style.lineHeight = '30px';
+            button.style.textAlign = 'center';
+            button.style.background = 'white';
+            button.style.color = '#FFA500';
+            
+            L.DomEvent.on(button, 'click', function(e) {
+                L.DomEvent.preventDefault(e);
+                L.DomEvent.stopPropagation(e);
+                toggleZoneMode(button);
+            });
+            
+            return container;
+        }
+    });
+    
+    map.addControl(new ZoneModeControl());
     
     // ✅ ADD ANCHOR CONTROL BUTTON TO MAP
     var AnchorControl = L.Control.extend({
@@ -777,6 +848,86 @@ function toggleAnchorMode() {
             anchorButton.style.color = '#2196F3';
         }
         map.getContainer().style.cursor = '';
+    }
+}
+
+// ========== ZONE MODE TOGGLE ==========
+function toggleZoneMode(button) {
+    if (drawingMode === 'safezone') {
+        drawingMode = 'workzone';
+        button.style.color = '#FFA500';
+        button.style.background = '#FFF3CD';
+        button.title = 'Chế độ: Vẽ Khu Vực (Vàng)';
+        showNotification('🟨 Chế độ vẽ Khu Vực làm việc (màu vàng)', 'info');
+    } else {
+        drawingMode = 'safezone';
+        button.style.color = '#10b981';
+        button.style.background = 'white';
+        button.title = 'Chế độ: Vẽ Vùng An Toàn (Xanh)';
+        showNotification('🟩 Chế độ vẽ Vùng An Toàn (màu xanh)', 'info');
+    }
+}
+
+// ========== WORK ZONE FUNCTIONS ==========
+
+// Load work zones from database
+async function loadWorkZonesFromDatabase() {
+    try {
+        const response = await fetch('/api/zones/active');
+        const zones = await response.json();
+        console.log('✅ Loaded work zones from DB:', zones);
+        
+        zones.forEach(zone => {
+            const coords = JSON.parse(zone.polygonCoordinates);
+            const polygon = L.polygon(coords, {
+                color: zone.color || '#FFA500',
+                fillColor: zone.color || '#FFA500',
+                fillOpacity: 0.3
+            });
+            
+            polygon.zoneId = zone.id;
+            polygon.zoneName = zone.name;
+            polygon.bindPopup(`<b>${zone.name}</b><br><small>Click để xem chi tiết</small>`);
+            
+            // Click to view 2D diagram
+            polygon.on('click', function() {
+                window.location.href = `positioning-2d.html?zone=${zone.id}`;
+            });
+            
+            workZonesLayer.addLayer(polygon);
+        });
+    } catch (error) {
+        console.error('Error loading work zones:', error);
+    }
+}
+
+// Save work zone to database
+async function saveWorkZoneToDatabase(latlngs, layer) {
+    try {
+        const coords = latlngs[0].map(ll => [ll.lat, ll.lng]);
+        
+        const payload = {
+            name: layer.zoneName || `Khu ${workZonesLayer.getLayers().length}`,
+            polygonCoordinates: JSON.stringify(coords),
+            color: '#FFA500',
+            description: 'Work zone'
+        };
+        
+        const response = await fetch('/api/zones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+            const savedZone = await response.json();
+            layer.zoneId = savedZone.id;
+            console.log('✅ Work zone saved to DB:', savedZone);
+            showNotification('✅ Đã lưu khu vực làm việc', 'success');
+        }
+    } catch (error) {
+        console.error('Error saving work zone:', error);
+        showNotification('❌ Lỗi khi lưu khu vực', 'error');
     }
 }
 

@@ -259,14 +259,19 @@
             <div class="page-header">
                 <div>
                     <h1>📐 Sơ Đồ 2D Positioning System</h1>
-                    <p>Theo dõi khoảng cách và vị trí Tag-Anchor realtime</p>
+                    <p id="viewMode">Chế độ: Tổng quan toàn bộ khu vực</p>
+                </div>
+                <div>
+                    <button class="btn btn-secondary" onclick="switchToOverview()" id="btnOverview" style="display:none;">
+                        <i class="fas fa-arrow-left"></i> Quay lại tổng quan
+                    </button>
                 </div>
             </div>
 
         <!-- Canvas Container -->
         <div class="canvas-container">
             <div class="canvas-header">
-                <h2>Khu Vực Giám Sát (20m × 20m)</h2>
+                <h2 id="areaTitle">Khu Vực Giám Sát (20m × 20m)</h2>
                 <div class="controls">
                     <div class="control-group">
                         <label>Tỷ lệ:</label>
@@ -333,11 +338,43 @@
         const areaSize = 20; // 20m × 20m
         let isAnimating = true;
 
+        // Zone filtering
+        let currentZoneId = null;
+        let currentZone = null;
+
+        // Check if zone parameter exists in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('zone')) {
+            currentZoneId = urlParams.get('zone');
+            loadZoneInfo(currentZoneId);
+        }
+
         // Anchors - will be loaded from database
         let anchors = [];
         
         // Reference point for coordinate conversion (use first anchor as reference or fixed point)
         let referencePoint = null;
+        
+        // Switch back to overview mode
+        function switchToOverview() {
+            window.location.href = 'positioning-2d.html';
+        }
+        
+        // Load zone information
+        async function loadZoneInfo(zoneId) {
+            try {
+                const response = await fetch(`/api/zones/${zoneId}`);
+                if (response.ok) {
+                    currentZone = await response.json();
+                    document.getElementById('viewMode').textContent = `Chế độ: Khu vực "${currentZone.name}"`;
+                    document.getElementById('areaTitle').textContent = `${currentZone.name}`;
+                    document.getElementById('btnOverview').style.display = 'inline-block';
+                    console.log('✅ Viewing zone:', currentZone);
+                }
+            } catch (error) {
+                console.error('Error loading zone info:', error);
+            }
+        }
         
         // Convert lat/lng to local x/y coordinates (meters)
         function latLngToXY(lat, lng, refLat, refLng) {
