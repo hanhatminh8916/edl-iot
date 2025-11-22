@@ -341,6 +341,7 @@ async function loadWorkers() {
     }
 }
 function updateMapMarkers(workers) {
+    console.log('🗺️ updateMapMarkers called with', workers.length, 'workers');
     markers.forEach(function(m) { map.removeLayer(m); });
     markers = [];
     
@@ -348,11 +349,14 @@ function updateMapMarkers(workers) {
     let hasOutOfBounds = false;
     
     workers.forEach(function(w) {
+        console.log('🔍 Processing worker:', w.name, 'helmet:', w.helmet);
         if (!w.helmet || !w.helmet.lastLocation) return;
         var lat = w.helmet.lastLocation.latitude;
         var lon = w.helmet.lastLocation.longitude;
         var battery = w.helmet.batteryLevel;
         var status = w.helmet.status; // ACTIVE, ALERT, INACTIVE
+        
+        console.log('📍 Worker location:', {name: w.name, lat, lon, status});
         
         // ✅ Xác định màu dựa trên polygon và status
         var color = getMarkerColor(lat, lon, status);
