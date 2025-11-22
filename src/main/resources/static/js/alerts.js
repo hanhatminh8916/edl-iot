@@ -287,12 +287,17 @@ async function resolveAlert(alertId) {
 function formatDateTime(dateString) {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    return date.toLocaleString('vi-VN', {
+    
+    // Convert to Vietnam timezone (UTC+7)
+    const vietnamTime = new Date(date.getTime() + (7 * 60 * 60 * 1000));
+    
+    return vietnamTime.toLocaleString('vi-VN', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        timeZone: 'Asia/Ho_Chi_Minh'
     });
 }
 
