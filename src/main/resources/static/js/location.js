@@ -1,18 +1,4 @@
 ﻿console.log("location.js loaded");
-
-// ✅ Auto-reload nếu có parameter reload=1 từ positioning-2d.html
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('reload') === '1' && !sessionStorage.getItem('mapReloaded')) {
-    console.log('🔄 Refreshing map to reset event handlers...');
-    sessionStorage.setItem('mapReloaded', 'true');
-    // Remove reload parameter and reload
-    window.history.replaceState({}, document.title, 'location.html');
-    setTimeout(() => {
-        sessionStorage.removeItem('mapReloaded');
-        window.location.reload();
-    }, 100);
-}
-
 var map, markers = [], workersData = [], drawnItems = null, activePolygon = null;
 var anchorMarkers = []; // Store anchor markers
 var anchorLayer = null; // Separate layer for anchors
@@ -197,10 +183,13 @@ function initializeMap() {
     });
 
     // ✅ LOAD POLYGON TỪ DATABASE khi khởi động
-    loadSafeZoneFromDatabase();
-    
-    // ✅ LOAD WORK ZONES FROM DATABASE
-    loadWorkZonesFromDatabase();
+    loadSafeZoneFromDatabase().then(() => {
+        // Load work zones after safe zone to ensure proper layering
+        loadWorkZonesFromDatabase().then(() => {
+            // Bring all work zones to front after loading
+            bringWorkZonesToFront();
+        });
+    });
     
     // ✅ LOAD ANCHORS FROM DATABASE
     loadAnchorsFromDatabase();
@@ -498,6 +487,11 @@ async function loadSafeZoneFromDatabase() {
                 fillColor: safeZone.color || '#10b981',
                 fillOpacity: 0.2
             }).addTo(drawnItems);
+            
+            // Ensure work zones stay on top after safe zone is rendered
+            setTimeout(() => {
+                bringWorkZonesToFront();
+            }, 100);
             
             console.log("✅ Polygon rendered on map");
             showNotification("✅ Đã tải khu vực an toàn từ server!", "success");
@@ -926,6 +920,11 @@ function drawPolygonFromData(safeZone) {
         drawnItems.addLayer(polygon);
         activePolygon = polygon;
         
+        // Ensure work zones stay on top after safe zone is redrawn
+        setTimeout(() => {
+            bringWorkZonesToFront();
+        }, 100);
+        
         console.log('✅ Polygon drawn:', safeZone.zoneName);
         
         // Fit map to polygon bounds
@@ -1104,7 +1103,7 @@ async function loadWorkZonesFromDatabase() {
             polygon.zoneName = zone.name;
             polygon.bindPopup(`<b>${zone.name}</b><br><small>Double-click để xem chi tiết sơ đồ 2D</small>`);
             
-            // Double-click to view 2D diagram - use once() để tránh duplicate handlers
+            // Double-click to view 2D diagram
             polygon.on('dblclick', function(e) {
                 L.DomEvent.stopPropagation(e);
                 L.DomEvent.preventDefault(e);
@@ -1130,6 +1129,17 @@ async function loadWorkZonesFromDatabase() {
     } catch (error) {
         console.error('Error loading work zones:', error);
     }
+}
+
+// ✅ Bring all work zones to front (ensure they're above safe zone)
+function bringWorkZonesToFront() {
+    const layers = workZonesLayer.getLayers();
+    layers.forEach(layer => {
+        if (layer.bringToFront) {
+            layer.bringToFront();
+        }
+    });
+    console.log(`✅ Brought ${layers.length} work zones to front`);
 }
 
 // Save work zone to database
