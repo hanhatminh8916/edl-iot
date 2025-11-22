@@ -509,6 +509,66 @@
                 });
         }
 
+        // Safe zones data
+        let safeZones = [];
+        
+        // Load safe zones from API
+        function loadSafeZones() {
+            fetch('/api/safe-zones')
+                .then(response => response.json())
+                .then(zones => {
+                    safeZones = zones.filter(z => z.active).map(zone => ({
+                        id: zone.id,
+                        name: zone.zoneName,
+                        coordinates: zone.polygonCoordinates,
+                        color: zone.color || '#4CAF50'
+                    }));
+                    console.log('✅ Loaded', safeZones.length, 'safe zones');
+                    draw();
+                })
+                .catch(error => {
+                    console.error('❌ Error loading safe zones:', error);
+                    safeZones = [];
+                });
+        }
+        
+        // Check if point is inside polygon (Ray casting algorithm)
+        function isPointInPolygon(x, y, polygon) {
+            let inside = false;
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                const xi = polygon[i].x, yi = polygon[i].y;
+                const xj = polygon[j].x, yj = polygon[j].y;
+                
+                const intersect = ((yi > y) !== (yj > y))
+                    && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+        
+        // Check if worker is in any safe zone
+        function isWorkerInSafeZone(tag) {
+            for (let zone of safeZones) {
+                if (!zone.coordinates || zone.coordinates.length === 0) continue;
+                
+                // Convert lat/lng coordinates to 2D canvas coordinates
+                const polygon2D = zone.coordinates.map(coord => {
+                    // Simple conversion - you may need to adjust based on your coordinate system
+                    return {
+                        x: tag.x, // This is simplified - actual conversion needed
+                        y: tag.y
+                    };
+                });
+                
+                // For now, we'll use a simple bounding box check
+                // TODO: Implement proper lat/lng to canvas coordinate conversion
+                if (isPointInPolygon(tag.x, tag.y, polygon2D)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         // Sample data - Tags (moving positions)
         let tags = [
             { id: 'T1', name: 'Nguyễn Văn An', x: 5, y: 5, vx: 0.02, vy: 0.015, status: 'online', helmet: 'H001' },
@@ -589,15 +649,21 @@
             ctx.fillText(anchor.id, x, y - 15);
         }
 
-        // Draw tag
+        // Draw tag với màu theo vị trí safe zone
         function drawTag(tag) {
             const x = tag.x * scale;
             const y = (areaSize - tag.y) * scale;
+            
+            // Kiểm tra xem có trong safe zone không
+            const inSafeZone = isWorkerInSafeZone(tag);
+            
+            // TRONG safe zone = XANH, NGOÀI safe zone = ĐỎ
+            const markerColor = inSafeZone ? '#4CAF50' : '#f44336'; // Xanh : Đỏ
 
             // Draw circle
             ctx.beginPath();
             ctx.arc(x, y, 10, 0, 2 * Math.PI);
-            ctx.fillStyle = tag.status === 'online' ? '#f44336' : '#999';
+            ctx.fillStyle = tag.status === 'online' ? markerColor : '#999';
             ctx.fill();
             ctx.strokeStyle = '#333';
             ctx.lineWidth = 2;
@@ -663,6 +729,46 @@
             });
         }
 
+        // Draw safe zone polygon
+        function drawSafeZone(zone) {
+            if (!zone.coordinates || zone.coordinates.length < 3) return;
+            
+            ctx.beginPath();
+            zone.coordinates.forEach((coord, index) => {
+                // Convert to canvas coordinates - simplified for now
+                // TODO: Implement proper lat/lng to canvas conversion
+                const x = coord.lng * scale; // Simplified
+                const y = (areaSize - coord.lat) * scale; // Simplified
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.closePath();
+            
+            // Fill with semi-transparent green
+            ctx.fillStyle = 'rgba(76, 175, 80, 0.15)';
+            ctx.fill();
+            
+            // Stroke with green border
+            ctx.strokeStyle = zone.color || '#4CAF50';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw zone name
+            if (zone.coordinates.length > 0) {
+                const centerX = zone.coordinates.reduce((sum, c) => sum + c.lng, 0) / zone.coordinates.length * scale;
+                const centerY = (areaSize - zone.coordinates.reduce((sum, c) => sum + c.lat, 0) / zone.coordinates.length) * scale;
+                
+                ctx.fillStyle = '#2E7D32';
+                ctx.font = 'bold 11px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(zone.name, centerX, centerY);
+            }
+        }
+
         // Main draw function
         function draw() {
             // Clear canvas
@@ -676,6 +782,9 @@
 
             // Draw grid
             drawGrid();
+            
+            // Draw safe zones FIRST (as background)
+            safeZones.forEach(zone => drawSafeZone(zone));
 
             // Draw distance lines first (so they appear behind)
             tags.forEach(tag => {
@@ -808,6 +917,7 @@
             canvas.width = areaSize * scale + 80;
             canvas.height = areaSize * scale + 80;
             
+            loadSafeZones(); // Load safe zones for color detection
             startAnchorSync(); // Load anchors from DB
             animate();
         });
