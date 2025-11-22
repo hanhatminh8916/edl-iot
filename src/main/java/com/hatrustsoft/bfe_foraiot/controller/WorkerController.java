@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.hatrustsoft.bfe_foraiot.model.Helmet;
 import com.hatrustsoft.bfe_foraiot.model.Worker;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetRepository;
 import com.hatrustsoft.bfe_foraiot.repository.WorkerRepository;

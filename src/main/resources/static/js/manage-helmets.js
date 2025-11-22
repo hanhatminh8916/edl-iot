@@ -77,8 +77,8 @@ function createHelmetCard(helmet) {
             </div>
             
             <div class="helmet-actions">
-                <button class="btn-action btn-assign" onclick="showAssignDialog(${helmet.id})">
-                    <i class="fas fa-user-plus"></i> Gán
+                <button class="btn-action btn-edit" onclick="editHelmet(${helmet.id})">
+                    <i class="fas fa-edit"></i> Chỉnh sửa
                 </button>
                 <button class="btn-action btn-details" onclick="showHelmetDetails(${helmet.id})">
                     <i class="fas fa-info-circle"></i> Chi tiết
@@ -118,13 +118,13 @@ function refreshHelmets() {
     showNotification('Đã làm mới danh sách mũ', 'success');
 }
 
-// Show assign dialog (placeholder)
-function showAssignDialog(helmetId) {
+// Edit helmet (placeholder)
+function editHelmet(helmetId) {
     const helmet = helmets.find(h => h.id === helmetId);
     if (!helmet) return;
     
-    // TODO: Implement assign dialog with employee selection
-    alert(`Tính năng gán mũ #${helmet.helmetId} cho công nhân đang được phát triển.\n\nSẽ hiển thị modal chọn công nhân.`);
+    // TODO: Implement edit dialog for helmet information
+    alert(`Tính năng chỉnh sửa thông tin mũ #${helmet.helmetId} đang được phát triển.\n\nBạn có thể sửa MAC, trạng thái, và thông tin khác.`);
 }
 
 // Show helmet details (placeholder)
