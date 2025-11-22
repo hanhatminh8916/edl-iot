@@ -298,12 +298,7 @@ function getMarkerColor(lat, lon, status) {
         return '#6b7280'; // Xám
     }
     
-    // ALERT (đỏ) - Lỗi hệ thống (battery, voltage, current)
-    if (status === "ALERT") {
-        return '#ef4444'; // Đỏ
-    }
-    
-    // Kiểm tra Geo-Fence (trong/ngoài polygon)
+    // ✅ ƯU TIÊN KIỂM TRA SAFE ZONE TRƯỚC
     const inside = isInsidePolygon(lat, lon, activePolygon);
     
     // 🔍 DEBUG LOG
@@ -312,14 +307,16 @@ function getMarkerColor(lat, lon, status) {
         status,
         hasPolygon: !!activePolygon,
         inside: inside,
-        color: inside ? 'GREEN' : 'RED'
+        finalColor: inside ? 'GREEN #10b981' : (status === 'ALERT' ? 'RED #ef4444 (ALERT)' : 'RED #ef4444 (OUT OF ZONE)')
     });
     
-    if (!inside) {
-        return '#ef4444'; // Đỏ - Ra ngoài vùng an toàn
+    // Nếu TRONG safe zone → XANH (bỏ qua ALERT)
+    if (inside) {
+        return '#10b981'; // Xanh lá - An toàn trong khu vực
     }
     
-    return '#10b981'; // Xanh lá - An toàn
+    // Nếu NGOÀI safe zone → ĐỎ
+    return '#ef4444'; // Đỏ - Ra ngoài vùng an toàn hoặc ALERT
 }
 async function loadWorkers() {
     console.log("Loading workers data...");
