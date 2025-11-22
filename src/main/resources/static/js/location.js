@@ -27,30 +27,12 @@ function initializeMap() {
     drawnItems = new L.FeatureGroup();
     map.addLayer(drawnItems);
 
-    const drawControl = new L.Control.Draw({
-        draw: {
-            polygon: {
-                shapeOptions: {
-                    color: '#10b981',
-                    fillColor: '#10b981',
-                    fillOpacity: 0.2
-                }
-            },
-            marker: false,
-            circle: false,
-            rectangle: false,
-            polyline: false,
-            circlemarker: false
-        },
-        edit: { 
-            featureGroup: drawnItems,
-            remove: true
-        }
-    });
-    map.addControl(drawControl);
+    // ✅ Don't create draw control here - will be created by updateDrawControl()
+    // This ensures the correct featureGroup is used based on drawingMode
+    window.currentDrawControl = null;
     
-    // ✅ Store draw control globally to update later
-    window.currentDrawControl = drawControl;
+    // ✅ Initialize with safe zone mode (default)
+    updateDrawControl('safezone');
 
     // ✅ Khi vẽ xong polygon → LƯU VÀO DATABASE
     map.on(L.Draw.Event.CREATED, function (e) {
