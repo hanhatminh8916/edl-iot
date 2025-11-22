@@ -70,6 +70,11 @@ public class MqttMessageHandler implements MessageHandler {
     private final Map<String, HelmetData> lastSavedData = new HashMap<>();
     private final Map<String, LocalDateTime> lastSavedTime = new HashMap<>();
     private final Map<String, LocalDateTime> lastDangerZoneAlert = new HashMap<>(); // ⭐ Cache cảnh báo anchor
+    private final Map<String, LocalDateTime> lastFallAlert = new HashMap<>(); // ⭐ Cache cảnh báo ngã
+    private final Map<String, LocalDateTime> lastHelpRequestAlert = new HashMap<>(); // ⭐ Cache cảnh báo SOS
+    
+    // Debounce time cho alerts (30 giây)
+    private static final long ALERT_DEBOUNCE_SECONDS = 30;
 
     @Override
     public void handleMessage(Message<?> message) throws MessagingException {
@@ -393,9 +398,21 @@ public class MqttMessageHandler implements MessageHandler {
     
     /**
      * ⭐ Tạo cảnh báo khi phát hiện FALL (ngã)
+     * Debounce: Chỉ tạo alert mới nếu > 30 giây kể từ alert trước
      */
     private void createFallDetectedAlert(HelmetData data) {
         try {
+            String mac = data.getMac();
+            LocalDateTime now = LocalDateTime.now();
+            
+            // ⭐ DEBOUNCE: Kiểm tra alert gần đây
+            LocalDateTime lastAlert = lastFallAlert.get(mac);
+            if (lastAlert != null && Duration.between(lastAlert, now).getSeconds() < ALERT_DEBOUNCE_SECONDS) {
+                log.debug("⏭️ Skip duplicate fall alert (debounce: {}s since last)", 
+                    Duration.between(lastAlert, now).getSeconds());
+                return;
+            }
+            
             // Tìm helmet theo MAC
             Helmet helmet = helmetService.findOrCreateHelmetByMac(data.getMac());
             
@@ -442,6 +459,9 @@ public class MqttMessageHandler implements MessageHandler {
             
             messengerService.broadcastDangerAlert(employeeInfo, alertMsg.toString(), location);
             
+            // ⭐ Cập nhật cache để debounce
+            lastFallAlert.put(mac, now);
+            
             log.error("🚨 FALL DETECTED: {} at ({}, {})", employeeInfo, lat, lon);
             
         } catch (Exception e) {
@@ -451,9 +471,21 @@ public class MqttMessageHandler implements MessageHandler {
     
     /**
      * ⭐ Tạo cảnh báo khi nhận được SOS (helpRequest)
+     * Debounce: Chỉ tạo alert mới nếu > 30 giây kể từ alert trước
      */
     private void createHelpRequestAlert(HelmetData data) {
         try {
+            String mac = data.getMac();
+            LocalDateTime now = LocalDateTime.now();
+            
+            // ⭐ DEBOUNCE: Kiểm tra alert gần đây
+            LocalDateTime lastAlert = lastHelpRequestAlert.get(mac);
+            if (lastAlert != null && Duration.between(lastAlert, now).getSeconds() < ALERT_DEBOUNCE_SECONDS) {
+                log.debug("⏭️ Skip duplicate help request alert (debounce: {}s since last)", 
+                    Duration.between(lastAlert, now).getSeconds());
+                return;
+            }
+            
             // Tìm helmet theo MAC
             Helmet helmet = helmetService.findOrCreateHelmetByMac(data.getMac());
             
@@ -499,6 +531,9 @@ public class MqttMessageHandler implements MessageHandler {
             alertMsg.append("\n⚠️ NHÂN VIÊN CẦN TRỢ GIÚP NGAY!");
             
             messengerService.broadcastDangerAlert(employeeInfo, alertMsg.toString(), location);
+            
+            // ⭐ Cập nhật cache để debounce
+            lastHelpRequestAlert.put(mac, now);
             
             log.error("🆘 HELP REQUEST: {} at ({}, {})", employeeInfo, lat, lon);
             
