@@ -904,12 +904,18 @@ async function saveWorkZoneToDatabase(latlngs, layer, zoneName) {
 // ✅ TẠO ANCHOR TỪ ĐỈNH POLYGON
 async function createAnchorFromVertex(vertex, anchorName, zoneId) {
     try {
+        // Generate unique anchorId from timestamp + random
+        const anchorId = `A${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100)}`;
+        
         const payload = {
+            anchorId: anchorId,  // Bắt buộc và unique
             name: anchorName,
             latitude: vertex.lat,
             longitude: vertex.lng,
             zoneId: zoneId // Liên kết anchor với zone
         };
+        
+        console.log('🔄 Creating anchor:', payload);
         
         const response = await fetch('/api/anchors', {
             method: 'POST',
@@ -924,9 +930,12 @@ async function createAnchorFromVertex(vertex, anchorName, zoneId) {
             // ✅ Hiển thị anchor trên bản đồ
             addAnchorMarker(savedAnchor);
             return savedAnchor;
+        } else {
+            const errorText = await response.text();
+            console.error('❌ Failed to create anchor:', response.status, errorText);
         }
     } catch (error) {
-        console.error('Error creating anchor:', error);
+        console.error('❌ Error creating anchor:', error);
     }
     return null;
 }
