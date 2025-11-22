@@ -79,8 +79,8 @@ public class LocationController {
                 workerData.setDepartment(emp.getDepartment());
             } else if (helmet.getWorker() != null) {
                 // Lấy từ Worker entity
-                workerData.setId(helmet.getWorker().getWorkerId().toString());
-                workerData.setName(helmet.getWorker().getName());
+                workerData.setId(helmet.getWorker().getId().toString());
+                workerData.setName(helmet.getWorker().getFullName());
                 workerData.setPosition(helmet.getWorker().getPosition());
                 workerData.setDepartment(helmet.getWorker().getDepartment());
             } else {
@@ -104,14 +104,14 @@ public class LocationController {
             if (data != null) {
                 // Có data realtime từ Redis
                 status = determineHelmetStatus(data);
-                lat = data.getLat() != null ? data.getLat() : helmet.getLastLatitude();
-                lon = data.getLon() != null ? data.getLon() : helmet.getLastLongitude();
+                lat = data.getLat() != null ? data.getLat() : helmet.getLastLat();
+                lon = data.getLon() != null ? data.getLon() : helmet.getLastLon();
                 battery = data.getBattery() != null ? data.getBattery().intValue() : 100;
             } else {
                 // Không có data realtime → OFFLINE (màu xám vĩnh viễn)
                 status = "INACTIVE";
-                lat = helmet.getLastLatitude();
-                lon = helmet.getLastLongitude();
+                lat = helmet.getLastLat();
+                lon = helmet.getLastLon();
                 battery = 0;
             }
             
