@@ -697,8 +697,9 @@ function updateMarkerRealtime(data) {
         updateMapMarkers(workersData);
         
     } else {
-        console.log('⚠️ Worker not found for MAC:', data.mac, '- reloading all workers');
-        loadWorkers(); // Reload nếu không tìm thấy
+        console.log('⚠️ Worker not found for MAC:', data.mac, '- ignoring update');
+        // KHÔNG reload để tránh vòng lặp vô hạn
+        // loadWorkers(); 
     }
 }
 
