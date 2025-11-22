@@ -102,6 +102,11 @@ public class MqttMessageHandler implements MessageHandler {
             // ⭐ Parse safety data (fallDetected, helpRequest)
             Integer fallDetected = jsonNode.has("fallDetected") ? jsonNode.get("fallDetected").asInt() : 0;
             Integer helpRequest = jsonNode.has("helpRequest") ? jsonNode.get("helpRequest").asInt() : 0;
+            
+            // ⭐ LOG CRITICAL: In ra giá trị fallDetected và helpRequest
+            log.info("🔍 Safety Check - MAC: {}, fallDetected: {}, helpRequest: {}", 
+                data.getMac(), fallDetected, helpRequest);
+            
             Double temp = jsonNode.has("temp") ? jsonNode.get("temp").asDouble() : null;
             Double heartRate = jsonNode.has("hr") ? jsonNode.get("hr").asDouble() : null;
             Double spo2 = jsonNode.has("spo2") ? jsonNode.get("spo2").asDouble() : null;
@@ -196,11 +201,15 @@ public class MqttMessageHandler implements MessageHandler {
             }
 
             // ⭐ CRITICAL: Kiểm tra ngã và SOS TRƯỚC TIÊN!
+            log.info("⚡ Alert Check - fallDetected={}, helpRequest={}", fallDetected, helpRequest);
+            
             if (fallDetected == 1) {
+                log.warn("🚨 FALL DETECTED - Creating alert...");
                 createFallDetectedAlert(data);
             }
             
             if (helpRequest == 1) {
+                log.warn("🆘 HELP REQUEST - Creating alert...");
                 createHelpRequestAlert(data);
             }
 
@@ -478,6 +487,8 @@ public class MqttMessageHandler implements MessageHandler {
             String mac = data.getMac();
             LocalDateTime now = LocalDateTime.now();
             
+            log.warn("🆘 createHelpRequestAlert() called for MAC: {}", mac);
+            
             // ⭐ DEBOUNCE: Kiểm tra alert gần đây
             LocalDateTime lastAlert = lastHelpRequestAlert.get(mac);
             if (lastAlert != null && Duration.between(lastAlert, now).getSeconds() < ALERT_DEBOUNCE_SECONDS) {
@@ -485,6 +496,8 @@ public class MqttMessageHandler implements MessageHandler {
                     Duration.between(lastAlert, now).getSeconds());
                 return;
             }
+            
+            log.info("✅ Creating HELP_REQUEST alert...");
             
             // Tìm helmet theo MAC
             Helmet helmet = helmetService.findOrCreateHelmetByMac(data.getMac());
@@ -506,9 +519,11 @@ public class MqttMessageHandler implements MessageHandler {
             alert.setMessage(String.format("🆘 YÊU CẦU TRỢ GIÚP: %s", employeeInfo));
             
             Alert saved = alertRepository.save(alert);
+            log.info("💾 HELP_REQUEST alert saved to database - ID: {}", saved.getId());
             
             // ⭐ Push alert qua WebSocket để frontend nhận realtime
             alertPublisher.publishNewAlert(saved);
+            log.info("📡 HELP_REQUEST alert published via WebSocket");
             
             // Gửi thông báo qua Messenger
             double lat = Objects.requireNonNullElse(data.getLat(), 0.0);
