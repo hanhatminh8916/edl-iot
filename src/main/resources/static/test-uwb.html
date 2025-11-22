@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test UWB Positioning - EDL SafeWork</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .distance-inputs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .distance-inputs .form-group {
+            margin-bottom: 0;
+        }
+
+        .anchor-info {
+            background: #f5f7fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .anchor-info h3 {
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .anchor-info p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .logs {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .logs .log-entry {
+            margin: 5px 0;
+            line-height: 1.5;
+        }
+
+        .logs .success {
+            color: #00ff00;
+        }
+
+        .logs .error {
+            color: #ff4444;
+        }
+
+        .logs .info {
+            color: #4da6ff;
+        }
+
+        .presets {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .preset-btn {
+            padding: 10px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .preset-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .auto-send {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .auto-send label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .auto-send input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .quick-actions button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-broadcast-tower"></i> Test UWB Positioning</h1>
+            <p>Gửi dữ liệu UWB ảo để test hệ thống định vị 2D</p>
+        </div>
+
+        <div class="content">
+            <!-- Anchor Info -->
+            <div class="anchor-info">
+                <h3><i class="fas fa-anchor"></i> Thông tin Anchors hiện tại</h3>
+                <p><strong>A0:</strong> Vị trí anchor 0 (Bottom-left)</p>
+                <p><strong>A1:</strong> Vị trí anchor 1 (Bottom-right)</p>
+                <p><strong>A2:</strong> Vị trí anchor 2 (Top-left)</p>
+                <p style="margin-top: 10px; color: #ff6b6b;"><i class="fas fa-info-circle"></i> Khoảng cách tính bằng mét (m)</p>
+            </div>
+
+            <!-- Presets -->
+            <div class="form-group">
+                <label><i class="fas fa-magic"></i> Vị trí mẫu nhanh:</label>
+                <div class="presets">
+                    <button class="preset-btn" onclick="setPreset(5, 5)">Góc dưới trái (5,5)</button>
+                    <button class="preset-btn" onclick="setPreset(15, 5)">Góc dưới phải (15,5)</button>
+                    <button class="preset-btn" onclick="setPreset(5, 15)">Góc trên trái (5,15)</button>
+                    <button class="preset-btn" onclick="setPreset(15, 15)">Góc trên phải (15,15)</button>
+                    <button class="preset-btn" onclick="setPreset(10, 10)">Trung tâm (10,10)</button>
+                    <button class="preset-btn" onclick="randomPosition()">Vị trí ngẫu nhiên</button>
+                </div>
+            </div>
+
+            <!-- Form inputs -->
+            <div class="form-group">
+                <label><i class="fas fa-id-card"></i> MAC Address:</label>
+                <input type="text" id="mac" value="F4DD40BA2010" placeholder="F4DD40BA2010">
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-user"></i> Tên nhân viên:</label>
+                <input type="text" id="employeeName" value="NGUYỄN VĂN TEST" placeholder="NGUYỄN VĂN A">
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-ruler"></i> Khoảng cách đến Anchors (meters):</label>
+                <div class="distance-inputs">
+                    <div class="form-group">
+                        <label>A0 (m):</label>
+                        <input type="number" id="distA0" value="5.4" step="0.1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>A1 (m):</label>
+                        <input type="number" id="distA1" value="2.91" step="0.1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>A2 (m):</label>
+                        <input type="number" id="distA2" value="4.35" step="0.1" min="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-battery-three-quarters"></i> Pin (%):</label>
+                <input type="number" id="battery" value="100" min="0" max="100">
+            </div>
+
+            <!-- Auto-send -->
+            <div class="auto-send">
+                <label>
+                    <input type="checkbox" id="autoSend">
+                    <span><i class="fas fa-sync-alt"></i> Tự động gửi mỗi 2 giây (random vị trí)</span>
+                </label>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <button class="btn btn-success" onclick="sendData()">
+                    <i class="fas fa-paper-plane"></i> Gửi dữ liệu
+                </button>
+                <button class="btn btn-secondary" onclick="clearLogs()">
+                    <i class="fas fa-trash"></i> Xóa logs
+                </button>
+            </div>
+
+            <button class="btn btn-primary" onclick="window.open('/positioning-2d.html', '_blank')">
+                <i class="fas fa-external-link-alt"></i> Mở trang 2D Positioning
+            </button>
+
+            <!-- Logs -->
+            <div class="logs" id="logs">
+                <div class="log-entry info">📡 Sẵn sàng gửi dữ liệu UWB...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoSendInterval = null;
+
+        // Calculate distances from coordinates (assuming anchors at fixed positions)
+        // A0: (0, 0), A1: (20, 0), A2: (0, 20)
+        function calculateDistances(x, y) {
+            const a0 = { x: 0, y: 0 };
+            const a1 = { x: 20, y: 0 };
+            const a2 = { x: 0, y: 20 };
+
+            const d0 = Math.sqrt(Math.pow(x - a0.x, 2) + Math.pow(y - a0.y, 2));
+            const d1 = Math.sqrt(Math.pow(x - a1.x, 2) + Math.pow(y - a1.y, 2));
+            const d2 = Math.sqrt(Math.pow(x - a2.x, 2) + Math.pow(y - a2.y, 2));
+
+            return { d0, d1, d2 };
+        }
+
+        // Set preset position
+        function setPreset(x, y) {
+            const distances = calculateDistances(x, y);
+            document.getElementById('distA0').value = distances.d0.toFixed(2);
+            document.getElementById('distA1').value = distances.d1.toFixed(2);
+            document.getElementById('distA2').value = distances.d2.toFixed(2);
+            
+            addLog(`info`, `🎯 Đặt vị trí (${x}, ${y}) - Distances: A0=${distances.d0.toFixed(2)}m, A1=${distances.d1.toFixed(2)}m, A2=${distances.d2.toFixed(2)}m`);
+        }
+
+        // Random position
+        function randomPosition() {
+            const x = Math.random() * 18 + 1; // 1-19
+            const y = Math.random() * 18 + 1;
+            setPreset(x.toFixed(1), y.toFixed(1));
+        }
+
+        // Send data
+        async function sendData() {
+            const mac = document.getElementById('mac').value;
+            const employeeName = document.getElementById('employeeName').value;
+            const battery = parseFloat(document.getElementById('battery').value);
+            const d0 = parseFloat(document.getElementById('distA0').value);
+            const d1 = parseFloat(document.getElementById('distA1').value);
+            const d2 = parseFloat(document.getElementById('distA2').value);
+
+            const payload = {
+                mac: mac,
+                employeeName: employeeName,
+                temp: 25.0 + (Math.random() * 10),
+                voltage: 3.7 + (Math.random() * 0.3),
+                current: 400 + (Math.random() * 200),
+                battery: battery,
+                lat: 0.0,
+                lon: 0.0,
+                hr: 70 + Math.floor(Math.random() * 30),
+                spo2: 95 + Math.floor(Math.random() * 5),
+                uwb: {
+                    A0: d0,
+                    A1: d1,
+                    TAG2: -1.0,
+                    A2: d2,
+                    baseline_A1: 0.0,
+                    baseline_A2: 0.0,
+                    ready: 1
+                },
+                fallDetected: 0,
+                helpRequest: 0,
+                timestamp: new Date().toISOString()
+            };
+
+            try {
+                addLog('info', `📤 Đang gửi dữ liệu cho ${employeeName} (${mac})...`);
+                
+                const response = await fetch('/api/test/mqtt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    addLog('success', `✅ Gửi thành công! UWB: A0=${d0}m, A1=${d1}m, A2=${d2}m`);
+                } else {
+                    addLog('error', `❌ Lỗi: ${result.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                addLog('error', `❌ Lỗi kết nối: ${error.message}`);
+            }
+        }
+
+        // Add log entry
+        function addLog(type, message) {
+            const logsDiv = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        // Clear logs
+        function clearLogs() {
+            const logsDiv = document.getElementById('logs');
+            logsDiv.innerHTML = '<div class="log-entry info">📡 Logs đã xóa...</div>';
+        }
+
+        // Auto-send toggle
+        document.getElementById('autoSend').addEventListener('change', function(e) {
+            if (e.target.checked) {
+                addLog('info', '🔄 Bật chế độ tự động gửi (2s/lần)');
+                autoSendInterval = setInterval(() => {
+                    randomPosition();
+                    setTimeout(sendData, 500);
+                }, 2000);
+            } else {
+                addLog('info', '⏸ Tắt chế độ tự động');
+                clearInterval(autoSendInterval);
+            }
+        });
+
+        // Keyboard shortcut
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                sendData();
+            }
+        });
+
+        addLog('info', '💡 Nhấn Ctrl+Enter để gửi nhanh');
+    </script>
+</body>
+</html>
