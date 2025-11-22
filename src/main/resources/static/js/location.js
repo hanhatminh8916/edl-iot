@@ -48,6 +48,9 @@ function initializeMap() {
         }
     });
     map.addControl(drawControl);
+    
+    // ✅ Store draw control globally to update later
+    window.currentDrawControl = drawControl;
 
     // ✅ Khi vẽ xong polygon → LƯU VÀO DATABASE
     map.on(L.Draw.Event.CREATED, function (e) {
@@ -117,16 +120,23 @@ function initializeMap() {
     // ✅ Khi xóa polygon
     map.on(L.Draw.Event.DELETED, function (e) {
         const layers = e.layers;
-        layers.eachLayer(function (layer) {
-            // Kiểm tra nếu là work zone (có zoneId)
+        layers.eachLayer(async function (layer) {
+            // Kiểm tra xem layer này thuộc work zone hay safe zone
             if (layer.zoneId) {
-                console.log("🗑️ Deleting work zone:", layer.zoneName, "ID:", layer.zoneId);
-                deleteWorkZoneAndAnchors(layer.zoneId);
+                // ✅ Đây là work zone → xóa cả anchors
+                console.log('🗑️ Deleting work zone and its anchors:', layer.zoneName);
+                
+                // Xóa tất cả anchors thuộc zone này
+                await deleteAnchorsByZoneId(layer.zoneId);
+                
+                // Xóa zone từ database
+                await deleteZoneFromDatabase(layer.zoneId);
+                
+                showNotification(`✅ Đã xóa khu vực ${layer.zoneName} và các anchors`, 'success');
             } else {
-                // Safe zone
+                // ✅ Đây là safe zone
                 activePolygon = null;
                 console.log("🗑️ Safe zone deleted");
-                // Có thể gọi API xóa safe zone nếu cần
             }
         });
     });
@@ -842,14 +852,56 @@ function toggleZoneMode(button) {
         button.style.color = '#FFA500';
         button.style.background = '#FFF3CD';
         button.title = 'Chế độ: Vẽ Khu Vực (Vàng)';
-        showNotification('🟨 Chế độ vẽ Khu Vực làm việc (màu vàng)', 'info');
+        
+        // ✅ Chuyển draw control để edit/delete work zones
+        updateDrawControl('workzone');
+        
+        showNotification('🟨 Chế độ vẽ Khu Vực làm việc (màu vàng) - Nút thùng rác chỉ xóa khu vàng', 'info');
     } else {
         drawingMode = 'safezone';
         button.style.color = '#10b981';
         button.style.background = 'white';
         button.title = 'Chế độ: Vẽ Vùng An Toàn (Xanh)';
+        
+        // ✅ Chuyển draw control để edit/delete safe zones
+        updateDrawControl('safezone');
+        
         showNotification('🟩 Chế độ vẽ Vùng An Toàn (màu xanh)', 'info');
     }
+}
+
+// ✅ CẬP NHẬT DRAW CONTROL THEO CHẾ ĐỘ
+function updateDrawControl(mode) {
+    // Remove old control
+    if (window.currentDrawControl) {
+        map.removeControl(window.currentDrawControl);
+    }
+    
+    // Create new control with appropriate featureGroup
+    const featureGroup = mode === 'workzone' ? workZonesLayer : drawnItems;
+    
+    window.currentDrawControl = new L.Control.Draw({
+        draw: {
+            polygon: {
+                shapeOptions: {
+                    color: mode === 'workzone' ? '#FFA500' : '#10b981',
+                    fillColor: mode === 'workzone' ? '#FFA500' : '#10b981',
+                    fillOpacity: mode === 'workzone' ? 0.3 : 0.2
+                }
+            },
+            marker: false,
+            circle: false,
+            rectangle: false,
+            polyline: false,
+            circlemarker: false
+        },
+        edit: { 
+            featureGroup: featureGroup,
+            remove: true
+        }
+    });
+    
+    map.addControl(window.currentDrawControl);
 }
 
 // ========== WORK ZONE FUNCTIONS ==========
@@ -918,46 +970,52 @@ async function saveWorkZoneToDatabase(latlngs, layer, zoneName) {
     }
 }
 
-// ✅ XÓA WORK ZONE VÀ TẤT CẢ ANCHORS BÊN TRONG
-async function deleteWorkZoneAndAnchors(zoneId) {
+// ✅ XÓA TẤT CẢ ANCHORS THUỘC ZONE
+async function deleteAnchorsByZoneId(zoneId) {
     try {
-        // 1. Lấy tất cả anchors thuộc zone này
+        // Lấy tất cả anchors
         const response = await fetch('/api/anchors');
-        const allAnchors = await response.json();
-        const zoneAnchors = allAnchors.filter(a => a.zoneId === zoneId);
+        const anchors = await response.json();
         
-        console.log(`🗑️ Deleting ${zoneAnchors.length} anchors in zone ${zoneId}`);
+        // Tìm anchors thuộc zone này
+        const zoneAnchors = anchors.filter(a => a.zoneId === zoneId);
         
-        // 2. Xóa tất cả anchors
-        const deletePromises = zoneAnchors.map(anchor => 
-            fetch(`/api/anchors/${anchor.id}`, { method: 'DELETE' })
-                .then(() => {
-                    // Xóa marker khỏi bản đồ
-                    const markerIndex = anchorMarkers.findIndex(am => am.anchor.id === anchor.id);
-                    if (markerIndex >= 0) {
-                        anchorLayer.removeLayer(anchorMarkers[markerIndex].marker);
-                        anchorMarkers.splice(markerIndex, 1);
-                    }
-                    console.log(`✅ Deleted anchor ${anchor.anchorId}`);
-                })
-        );
+        console.log(`🗑️ Deleting ${zoneAnchors.length} anchors from zone ${zoneId}`);
         
-        await Promise.all(deletePromises);
-        
-        // 3. Xóa zone
-        const zoneResponse = await fetch(`/api/zones/${zoneId}`, { method: 'DELETE' });
-        
-        if (zoneResponse.ok) {
-            console.log('✅ Zone and anchors deleted successfully');
-            showNotification(`✅ Đã xóa khu vực và ${zoneAnchors.length} anchors`, 'success');
-        } else {
-            console.error('Failed to delete zone');
-            showNotification('❌ Lỗi khi xóa khu vực', 'error');
+        // Xóa từng anchor
+        for (const anchor of zoneAnchors) {
+            await fetch(`/api/anchors/${anchor.id}`, { method: 'DELETE' });
+            
+            // Xóa marker khỏi bản đồ
+            const markerData = anchorMarkers.find(am => am.anchor.id === anchor.id);
+            if (markerData) {
+                anchorLayer.removeLayer(markerData.marker);
+                anchorMarkers = anchorMarkers.filter(am => am.anchor.id !== anchor.id);
+            }
         }
         
+        return true;
     } catch (error) {
-        console.error('Error deleting work zone and anchors:', error);
-        showNotification('❌ Lỗi khi xóa', 'error');
+        console.error('Error deleting anchors by zone:', error);
+        return false;
+    }
+}
+
+// ✅ XÓA ZONE TỪ DATABASE
+async function deleteZoneFromDatabase(zoneId) {
+    try {
+        const response = await fetch(`/api/zones/${zoneId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            console.log('✅ Zone deleted from DB:', zoneId);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Error deleting zone:', error);
+        return false;
     }
 }
 
