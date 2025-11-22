@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sơ Đồ 2D Positioning - EDL SafeWork</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Sơ Đồ 2D Positioning - EDL SafeWork v178</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/location.css">
+    <link rel="stylesheet" href="css/style.css?v=178">
+    <link rel="stylesheet" href="css/location.css?v=178">
     <style>
         .main-content {
             padding: 20px;
@@ -649,6 +652,11 @@
             
             // ✅ MẶC ĐỊNH TẤT CẢ ĐỀU XANH (TRONG SAFE ZONE)
             const markerColor = '#4CAF50'; // Luôn xanh
+            
+            // DEBUG: Log màu đang dùng
+            if (tag.id === 'T1') {
+                console.log('🎨 Drawing tag', tag.id, 'with color:', markerColor, '(GREEN)');
+            }
 
             // Draw circle
             ctx.beginPath();
