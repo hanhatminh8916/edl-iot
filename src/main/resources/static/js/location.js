@@ -671,51 +671,33 @@ function connectWebSocket() {
 }
 
 function updateMarkerRealtime(data) {
-    if (!data.latitude || !data.longitude) {
+    if (!data.lat || !data.lon) {
         console.log('⚠️ No GPS data for', data.mac);
         return;
     }
     
-    const lat = parseFloat(data.latitude);
-    const lon = parseFloat(data.longitude);
+    console.log('🔄 Updating marker realtime for', data.mac, 'at', data.lat, data.lon);
     
-    // Find existing marker by MAC
-    let existingMarker = markers.find(m => m.mac === data.mac);
+    // Tìm worker theo MAC và cập nhật dữ liệu
+    const workerIndex = workersData.findIndex(w => w.helmet && w.helmet.helmetId === data.mac);
     
-    if (existingMarker) {
-        // Update existing marker position
-        existingMarker.marker.setLatLng([lat, lon]);
+    if (workerIndex >= 0) {
+        // Cập nhật thông tin worker
+        const worker = workersData[workerIndex];
+        if (worker.helmet.lastLocation) {
+            worker.helmet.lastLocation.latitude = parseFloat(data.lat);
+            worker.helmet.lastLocation.longitude = parseFloat(data.lon);
+        }
+        worker.helmet.batteryLevel = data.battery || worker.helmet.batteryLevel;
         
-        // Update marker icon based on mode/status
-        const isInDanger = data.mode === 'ANCHOR' || data.battery < 20;
-        const iconUrl = isInDanger ? 
-            'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png' :
-            'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png';
+        console.log('✅ Updated worker data for', worker.name);
         
-        existingMarker.marker.setIcon(L.icon({
-            iconUrl: iconUrl,
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        }));
+        // Vẽ lại TẤT CẢ markers với màu mới
+        updateMapMarkers(workersData);
         
-        // Update popup content
-        const status = isInDanger ? '🔴 NGUY HIỂM' : '🟢 AN TOÀN';
-        const popupContent = `
-            <strong>MAC: ${data.mac}</strong><br>
-            Status: ${status}<br>
-            Battery: ${data.battery}%<br>
-            Mode: ${data.mode || 'N/A'}
-        `;
-        existingMarker.marker.setPopupContent(popupContent);
-        
-        console.log(`✅ Updated marker for ${data.mac}`);
     } else {
-        // Create new marker if not exists
-        console.log(`➕ Creating new marker for ${data.mac}`);
-        loadWorkers(); // Reload all workers to get complete data
+        console.log('⚠️ Worker not found for MAC:', data.mac, '- reloading all workers');
+        loadWorkers(); // Reload nếu không tìm thấy
     }
 }
 
