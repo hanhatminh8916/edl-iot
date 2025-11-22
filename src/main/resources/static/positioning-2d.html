@@ -548,48 +548,17 @@
         
         // Check if worker is in any safe zone
         function isWorkerInSafeZone(tag) {
-            // SIMPLE SOLUTION: Default to TRUE (inside safe zone)
-            // Workers are GREEN by default, only RED if they have OUT_OF_ZONE alert
+            // DEFAULT: ALL workers are INSIDE safe zone (GREEN)
+            // Only show RED if explicitly outside
             
-            // Check if there's a recent OUT_OF_ZONE alert for this worker
-            // This would require fetching alerts from API
-            // For now, we'll use a simple heuristic:
-            
-            // If worker is near edges of the canvas, consider them outside
-            const margin = 2; // 2 meters margin from edge
+            // Simple approach: If worker is very close to canvas edges, show RED
+            const margin = 1; // 1 meter margin from edge
             if (tag.x < margin || tag.x > (areaSize - margin) || 
                 tag.y < margin || tag.y > (areaSize - margin)) {
-                return false; // Outside safe zone (near boundary)
+                return false; // Near boundary = outside
             }
             
-            // If safe zones are loaded, check polygon intersection
-            if (safeZones.length > 0) {
-                for (let zone of safeZones) {
-                    if (!zone.coordinates || zone.coordinates.length < 3) continue;
-                    
-                    // Simple bounding box check first (for performance)
-                    const lats = zone.coordinates.map(c => c.lat || 0);
-                    const lngs = zone.coordinates.map(c => c.lng || 0);
-                    const minLat = Math.min(...lats);
-                    const maxLat = Math.max(...lats);
-                    const minLng = Math.min(...lngs);
-                    const maxLng = Math.max(...lngs);
-                    
-                    // Rough check: if worker's position is within lat/lng bounds
-                    // NOTE: This is very simplified - assumes x correlates with lng, y with lat
-                    const roughLat = 16.0 + (tag.y / areaSize) * 0.01; // Rough estimate
-                    const roughLng = 108.0 + (tag.x / areaSize) * 0.01; // Rough estimate
-                    
-                    if (roughLat >= minLat && roughLat <= maxLat &&
-                        roughLng >= minLng && roughLng <= maxLng) {
-                        return true; // Inside zone's bounding box
-                    }
-                }
-                // Not in any zone
-                return false;
-            }
-            
-            // Default: inside safe zone (show as GREEN)
+            // Otherwise, always GREEN (inside safe zone)
             return true;
         }
 
