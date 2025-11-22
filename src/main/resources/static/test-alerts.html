@@ -442,27 +442,32 @@
                     body: JSON.stringify(payload)
                 });
 
-                if (response.ok) {
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
                     successCount++;
                     updateStats();
-                    addLog('✅ MQTT message đã được gửi thành công!', 'success');
+                    addLog('✅ Backend response: ' + result.message, 'success');
+                    addLog('📊 Timestamp: ' + new Date(result.timestamp).toLocaleString('vi-VN'), 'info');
                     
                     if (fallDetected === 1) {
-                        addLog('   🚨 Alert FALL đã được tạo', 'success');
+                        addLog('   🚨 Alert FALL should be created', 'info');
                     }
                     if (helpRequest === 1) {
-                        addLog('   🆘 Alert HELP_REQUEST đã được tạo', 'success');
+                        addLog('   🆘 Alert HELP_REQUEST should be created', 'info');
                     }
                     
-                    addLog('📊 Kiểm tra trang /alerts.html để xem cảnh báo mới', 'info');
+                    addLog('📊 Kiểm tra database hoặc /alerts.html sau 2-3 giây', 'warning');
+                    addLog('🔍 Nếu không thấy alert, check Heroku logs', 'warning');
                 } else {
-                    throw new Error(`HTTP ${response.status}`);
+                    throw new Error(result.message || `HTTP ${response.status}`);
                 }
             } catch (error) {
                 errorCount++;
                 updateStats();
                 addLog(`❌ Lỗi: ${error.message}`, 'error');
                 addLog('⚠️ Kiểm tra backend có đang chạy không', 'warning');
+                addLog('🔍 Xem Heroku logs: heroku logs --tail --app edl-safework-iot', 'info');
             }
         }
 
