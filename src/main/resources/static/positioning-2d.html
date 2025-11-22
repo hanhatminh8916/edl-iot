@@ -6,10 +6,10 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Sơ Đồ 2D Positioning - EDL SafeWork v186</title>
+    <title>Sơ Đồ 2D Positioning - EDL SafeWork v187</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=186">
-    <link rel="stylesheet" href="css/location.css?v=186">
+    <link rel="stylesheet" href="css/style.css?v=187">
+    <link rel="stylesheet" href="css/location.css?v=187">
     <style>
         .main-content {
             padding: 20px;
@@ -344,7 +344,7 @@
         // Configuration
         let scale = 20; // pixels per meter
         const areaSize = 20; // 20m × 20m
-        let isAnimating = true;
+        let isAnimating = false; // ✅ Tắt animation demo, chỉ dùng UWB realtime
 
         // Zone filtering
         let currentZoneId = null;
@@ -566,12 +566,7 @@
         }
 
         // Sample data - Tags (moving positions)
-        let tags = [
-            { id: 'T1', name: 'Nguyễn Văn An', x: 5, y: 5, vx: 0.02, vy: 0.015, status: 'online', helmet: 'H001' },
-            { id: 'T2', name: 'Trần Thị Bình', x: 15, y: 8, vx: -0.015, vy: 0.02, status: 'online', helmet: 'H002' },
-            { id: 'T3', name: 'Lê Văn Cường', x: 12, y: 15, vx: 0.01, vy: -0.025, status: 'online', helmet: 'H003' },
-            { id: 'T4', name: 'Phạm Thị Dung', x: 8, y: 12, vx: -0.02, vy: -0.01, status: 'online', helmet: 'H004' }
-        ];
+        let tags = []; // ✅ Bỏ dữ liệu demo, chỉ dùng dữ liệu thực từ UWB
 
         // Calculate distance between two points
         function calculateDistance(x1, y1, x2, y2) {
@@ -868,13 +863,8 @@
             document.getElementById('scaleSlider').value = 20;
             document.getElementById('scaleValue').textContent = 20;
             
-            // Reset tag positions
-            tags = [
-                { id: 'T1', name: 'Nguyễn Văn An', x: 5, y: 5, vx: 0.02, vy: 0.015, status: 'online', helmet: 'H001' },
-                { id: 'T2', name: 'Trần Thị Bình', x: 15, y: 8, vx: -0.015, vy: 0.02, status: 'online', helmet: 'H002' },
-                { id: 'T3', name: 'Lê Văn Cường', x: 12, y: 15, vx: 0.01, vy: -0.025, status: 'online', helmet: 'H003' },
-                { id: 'T4', name: 'Phạm Thị Dung', x: 8, y: 12, vx: -0.02, vy: -0.01, status: 'online', helmet: 'H004' }
-            ];
+            // ✅ Không reset tags nữa, giữ nguyên tags từ UWB
+            // Tags sẽ được cập nhật tự động từ WebSocket
             
             draw();
         }
