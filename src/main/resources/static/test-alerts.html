@@ -442,7 +442,10 @@
                     body: JSON.stringify(payload)
                 });
 
+                addLog(`🔍 HTTP Status: ${response.status} ${response.statusText}`, 'info');
+                
                 const result = await response.json();
+                addLog(`🔍 Response JSON: ${JSON.stringify(result)}`, 'info');
                 
                 if (response.ok && result.success) {
                     successCount++;
@@ -451,23 +454,26 @@
                     addLog('📊 Timestamp: ' + new Date(result.timestamp).toLocaleString('vi-VN'), 'info');
                     
                     if (fallDetected === 1) {
-                        addLog('   🚨 Alert FALL should be created', 'info');
+                        addLog('🚨 Alert FALL should be created', 'warning');
                     }
                     if (helpRequest === 1) {
-                        addLog('   🆘 Alert HELP_REQUEST should be created', 'info');
+                        addLog('🆘 Alert HELP_REQUEST should be created', 'warning');
                     }
                     
                     addLog('📊 Kiểm tra database hoặc /alerts.html sau 2-3 giây', 'warning');
                     addLog('🔍 Nếu không thấy alert, check Heroku logs', 'warning');
                 } else {
-                    throw new Error(result.message || `HTTP ${response.status}`);
+                    errorCount++;
+                    updateStats();
+                    addLog(`❌ Backend trả về lỗi: ${result.message || 'Unknown error'}`, 'error');
+                    addLog(`🔍 Response: ${JSON.stringify(result)}`, 'error');
                 }
             } catch (error) {
                 errorCount++;
                 updateStats();
-                addLog(`❌ Lỗi: ${error.message}`, 'error');
+                addLog(`❌ Exception: ${error.message}`, 'error');
+                addLog(`🔍 Error stack: ${error.stack}`, 'error');
                 addLog('⚠️ Kiểm tra backend có đang chạy không', 'warning');
-                addLog('🔍 Xem Heroku logs: heroku logs --tail --app edl-safework-iot', 'info');
             }
         }
 
