@@ -259,11 +259,13 @@
             <div class="page-header">
                 <div>
                     <h1>📐 Sơ Đồ 2D Positioning System</h1>
-                    <p id="viewMode">Chế độ: Tổng quan toàn bộ khu vực</p>
+                    <p id="viewMode" style="font-size: 16px; color: #666; margin-top: 8px;">
+                        <i class="fas fa-globe"></i> Chế độ: Tổng quan toàn bộ khu vực
+                    </p>
                 </div>
-                <div>
+                <div style="display: flex; gap: 10px;">
                     <button class="btn btn-secondary" onclick="switchToOverview()" id="btnOverview" style="display:none;">
-                        <i class="fas fa-arrow-left"></i> Quay lại tổng quan
+                        <i class="fas fa-th"></i> Xem tổng quan
                     </button>
                 </div>
             </div>
@@ -366,8 +368,10 @@
                 const response = await fetch(`/api/zones/${zoneId}`);
                 if (response.ok) {
                     currentZone = await response.json();
-                    document.getElementById('viewMode').textContent = `Chế độ: Khu vực "${currentZone.name}"`;
-                    document.getElementById('areaTitle').textContent = `${currentZone.name}`;
+                    document.getElementById('viewMode').innerHTML = `
+                        <i class="fas fa-map-marked-alt"></i> Chế độ: Khu vực chi tiết "<strong>${currentZone.name}</strong>"
+                    `;
+                    document.getElementById('areaTitle').textContent = `${currentZone.name} (Khu vực chi tiết)`;
                     document.getElementById('btnOverview').style.display = 'inline-block';
                     console.log('✅ Viewing zone:', currentZone);
                 }
@@ -403,14 +407,28 @@
                         return;
                     }
                     
+                    // ✅ Filter anchors by zone if in detail mode
+                    let filteredData = data;
+                    if (currentZoneId) {
+                        filteredData = data.filter(anchor => anchor.zoneId == currentZoneId);
+                        console.log(`🔍 Filtered to ${filteredData.length} anchors for zone ${currentZoneId}`);
+                        
+                        if (filteredData.length === 0) {
+                            console.warn('⚠️ No anchors in this zone');
+                            anchors = [];
+                            draw();
+                            return;
+                        }
+                    }
+                    
                     // Use first anchor as reference point (origin)
                     referencePoint = {
-                        lat: data[0].latitude,
-                        lng: data[0].longitude
+                        lat: filteredData[0].latitude,
+                        lng: filteredData[0].longitude
                     };
                     
                     // Convert all anchors to relative coordinates
-                    const converted = data.map(anchor => {
+                    const converted = filteredData.map(anchor => {
                         const pos = latLngToXY(anchor.latitude, anchor.longitude, referencePoint.lat, referencePoint.lng);
                         return {
                             id: anchor.anchorId,
@@ -419,6 +437,7 @@
                             rawY: pos.y,
                             lat: anchor.latitude,
                             lng: anchor.longitude,
+                            zoneId: anchor.zoneId,
                             status: 'online'
                         };
                     });
@@ -443,6 +462,7 @@
                         name: anchor.name,
                         x: 1 + (anchor.rawX - minX) * scaleFactor,  // 1m margin
                         y: 1 + (anchor.rawY - minY) * scaleFactor,  // 1m margin
+                        zoneId: anchor.zoneId,
                         status: anchor.status
                     }));
                     
