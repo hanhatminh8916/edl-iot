@@ -500,9 +500,19 @@ public class MqttMessageHandler implements MessageHandler {
             log.info("✅ Creating HELP_REQUEST alert...");
             
             // Tìm helmet theo MAC
+            log.info("🔍 Finding helmet for MAC: {}", data.getMac());
             Helmet helmet = helmetService.findOrCreateHelmetByMac(data.getMac());
+            log.info("✅ Helmet found/created - ID: {}, Helmet ID: {}", 
+                helmet != null ? helmet.getId() : "NULL",
+                helmet != null ? helmet.getHelmetId() : "NULL");
+            
+            if (helmet == null) {
+                log.error("❌ CRITICAL: Helmet is NULL for MAC: {}", data.getMac());
+                throw new RuntimeException("Failed to find/create helmet for MAC: " + data.getMac());
+            }
             
             // Tạo Alert
+            log.info("🏗️ Creating Alert object...");
             Alert alert = new Alert();
             alert.setHelmet(helmet);
             alert.setAlertType(AlertType.HELP_REQUEST); // ⭐ Sử dụng HELP_REQUEST cho SOS
@@ -517,6 +527,7 @@ public class MqttMessageHandler implements MessageHandler {
                 : "MAC: " + data.getMac();
             
             alert.setMessage(String.format("🆘 YÊU CẦU TRỢ GIÚP: %s", employeeInfo));
+            log.info("✅ Alert object created with message: {}", alert.getMessage());
             
             // ⭐ LƯU VÀO DATABASE
             log.info("💾 Saving HELP_REQUEST alert to database...");
