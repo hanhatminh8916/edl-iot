@@ -87,11 +87,6 @@ function initializeMap() {
             saveSafeZoneToDatabase(layer.getLatLngs());
         }
     });
-        console.log("✅ Polygon created:", layer.getLatLngs());
-        
-        // ✅ LƯU VÀO DATABASE qua API
-        saveSafeZoneToDatabase(layer.getLatLngs());
-    });
 
     // ✅ Khi chỉnh sửa polygon
     map.on(L.Draw.Event.EDITED, function (e) {
