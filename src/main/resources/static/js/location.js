@@ -1,13 +1,16 @@
 ﻿console.log("location.js loaded");
 
-// ✅ Auto-reload nếu quay lại từ positioning-2d.html để refresh event handlers
-if (document.referrer.includes('positioning-2d.html') && !sessionStorage.getItem('mapReloaded')) {
-    console.log('🔄 Refreshing from 2D view...');
+// ✅ Auto-reload nếu có parameter reload=1 từ positioning-2d.html
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('reload') === '1' && !sessionStorage.getItem('mapReloaded')) {
+    console.log('🔄 Refreshing map to reset event handlers...');
     sessionStorage.setItem('mapReloaded', 'true');
+    // Remove reload parameter and reload
+    window.history.replaceState({}, document.title, 'location.html');
     setTimeout(() => {
         sessionStorage.removeItem('mapReloaded');
-    }, 1000);
-    window.location.reload();
+        window.location.reload();
+    }, 100);
 }
 
 var map, markers = [], workersData = [], drawnItems = null, activePolygon = null;
