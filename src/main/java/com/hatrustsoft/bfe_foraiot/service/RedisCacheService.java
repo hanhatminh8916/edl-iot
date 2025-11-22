@@ -25,12 +25,12 @@ public class RedisCacheService {
     private RedisTemplate<String, HelmetData> redisTemplate;
 
     private static final String HELMET_CACHE_PREFIX = "helmet:realtime:";
-    private static final long CACHE_TTL_SECONDS = 30; // 30 giây - nếu không nhận data thì xóa
+    private static final long CACHE_TTL_SECONDS = 43200; // 12 giờ - sau đó xóa hoàn toàn
 
     /**
      * Lưu helmet data vào Redis cache
      * Key: helmet:realtime:{MAC}
-     * TTL: 30 giây (tự động xóa nếu không update)
+     * TTL: 12 giờ (tự động xóa sau 12h không nhận data)
      */
     public void cacheHelmetData(HelmetData data) {
         try {

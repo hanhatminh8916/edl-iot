@@ -37,18 +37,25 @@ public class LocationController {
     /**
      * ⭐ NEW: API lấy dữ liệu REALTIME từ Redis cache
      * Dùng cho location.html - hiển thị worker đang hoạt động
+     * 
+     * Logic:
+     * - Nếu nhận data trong 30s: ACTIVE (màu xanh)
+     * - Nếu 30s - 12h: INACTIVE (màu xám)
+     * - Sau 12h: Tự động xóa khỏi Redis (không hiển thị)
      */
     @GetMapping("/map-data-realtime")
     public ResponseEntity<List<WorkerMapData>> getMapDataRealtime() {
         List<WorkerMapData> result = new ArrayList<>();
 
-        // ✅ Lấy tất cả helmet data đang active từ Redis
-        List<HelmetData> activeHelmets = redisCacheService.getAllActiveHelmets();
+        // ✅ Lấy tất cả helmet data từ Redis (TTL 12h)
+        List<HelmetData> cachedHelmets = redisCacheService.getAllActiveHelmets();
         
-        log.info("📡 Redis cache has {} active helmets", activeHelmets.size());
+        log.info("📡 Redis cache has {} helmets", cachedHelmets.size());
+
+        LocalDateTime now = LocalDateTime.now();
 
         // Map với employee data
-        for (HelmetData data : activeHelmets) {
+        for (HelmetData data : cachedHelmets) {
             Employee emp = employeeRepository.findByMacAddress(data.getMac()).orElse(null);
             
             WorkerMapData workerData = new WorkerMapData();
@@ -65,10 +72,21 @@ public class LocationController {
                 workerData.setDepartment("Unknown");
             }
 
+            // ⭐ Xác định status dựa trên thời gian cập nhật
+            LocalDateTime lastUpdate = data.getReceivedAt() != null ? data.getReceivedAt() : data.getTimestamp();
+            String status = "ACTIVE";
+            
+            if (lastUpdate != null && lastUpdate.isBefore(now.minusSeconds(30))) {
+                // Sau 30s không nhận data → INACTIVE (màu xám)
+                long secondsAgo = java.time.temporal.ChronoUnit.SECONDS.between(lastUpdate, now);
+                log.debug("🕐 Helmet {} offline for {} seconds -> INACTIVE", data.getMac(), secondsAgo);
+                status = "INACTIVE";
+            }
+
             // Tạo helmet info
             HelmetInfo helmet = new HelmetInfo();
             helmet.setHelmetId(data.getMac());
-            helmet.setStatus("ACTIVE"); // Từ Redis = đang active
+            helmet.setStatus(status); // ✅ ACTIVE hoặc INACTIVE dựa trên thời gian
             helmet.setBatteryLevel(data.getBattery() != null ? data.getBattery().intValue() : 100);
 
             // Location
