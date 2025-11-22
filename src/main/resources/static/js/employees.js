@@ -281,10 +281,24 @@ async function saveEmployee() {
         let response;
         
         if (workerId) {
-            // Update existing worker - endpoint not implemented yet
-            showNotification('Chức năng cập nhật đang được phát triển', 'info');
-            closeEmployeeModal();
-            return;
+            // Update existing worker
+            const res = await fetch(`${API_BASE_URL}/workers/${workerId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(workerData)
+            });
+
+            if (res.ok) {
+                showNotification('Đã cập nhật công nhân thành công', 'success');
+                closeEmployeeModal();
+                form.reset();
+                delete form.dataset.workerId;
+                await loadWorkers(); // Reload the list
+            } else {
+                const errorText = await res.text();
+                console.error('Server error:', errorText);
+                showNotification('Lỗi khi cập nhật công nhân: ' + res.status, 'error');
+            }
         } else {
             // Create new worker - call backend
             const res = await fetch(`${API_BASE_URL}/workers`, {

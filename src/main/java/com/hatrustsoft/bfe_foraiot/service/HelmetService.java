@@ -195,8 +195,11 @@ public class HelmetService {
         Helmet helmet = helmetRepository.findById(helmetId)
                 .orElseThrow(() -> new RuntimeException("Helmet not found"));
         
-        // TODO: Fetch worker from WorkerRepository and assign
-        // For now, just return the helmet
-        return helmetRepository.save(helmet);
+        // ❌ Cannot inject WorkerRepository here due to circular dependency
+        // ✅ Worker assignment is now handled in WorkerController.createWorker()
+        // This method is deprecated but kept for API compatibility
+        throw new UnsupportedOperationException(
+            "Use WorkerController to assign helmets. This prevents circular dependency issues."
+        );
     }
 }

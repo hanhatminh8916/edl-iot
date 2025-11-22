@@ -8,7 +8,9 @@ import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -70,6 +72,66 @@ public class WorkerController {
         // return the newly created worker structure similar to GET
         return ResponseEntity.created(URI.create("/api/workers/" + saved.getId()))
                 .body(Map.of("id", saved.getId(), "name", saved.getFullName(), "employeeId", saved.getEmployeeId()));
+    }
+    
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateWorker(
+            @PathVariable Long id, 
+            @RequestBody Map<String, Object> payload) {
+        
+        return workerRepository.findById(id)
+            .map(worker -> {
+                // Update basic fields if provided
+                if (payload.containsKey("name")) {
+                    worker.setFullName((String) payload.get("name"));
+                }
+                if (payload.containsKey("phone")) {
+                    worker.setPhoneNumber((String) payload.get("phone"));
+                }
+                if (payload.containsKey("position")) {
+                    worker.setPosition((String) payload.get("position"));
+                }
+                if (payload.containsKey("location")) {
+                    worker.setLocation((String) payload.get("location"));
+                }
+                if (payload.containsKey("department")) {
+                    worker.setDepartment((String) payload.get("department"));
+                }
+                
+                worker.setUpdatedAt(LocalDateTime.now());
+                Worker updated = workerRepository.save(worker);
+                
+                // Handle helmet assignment/reassignment
+                if (payload.containsKey("helmetId")) {
+                    try {
+                        Long newHelmetId = Long.valueOf(payload.get("helmetId").toString());
+                        
+                        // Remove worker from old helmet (if any)
+                        helmetRepository.findByWorker(worker).ifPresent(oldHelmet -> {
+                            oldHelmet.setWorker(null);
+                            oldHelmet.setUpdatedAt(LocalDateTime.now());
+                            helmetRepository.save(oldHelmet);
+                        });
+                        
+                        // Assign worker to new helmet
+                        helmetRepository.findById(newHelmetId).ifPresent(newHelmet -> {
+                            newHelmet.setWorker(updated);
+                            newHelmet.setUpdatedAt(LocalDateTime.now());
+                            helmetRepository.save(newHelmet);
+                        });
+                    } catch (NumberFormatException e) {
+                        // Invalid helmetId, ignore
+                    }
+                }
+                
+                return ResponseEntity.ok(Map.of(
+                    "id", updated.getId(),
+                    "name", updated.getFullName(),
+                    "employeeId", updated.getEmployeeId(),
+                    "message", "Worker updated successfully"
+                ));
+            })
+            .orElseGet(() -> ResponseEntity.notFound().build());
     }
     
     // Generate next employee ID in format REV01, REV02, ..., REVn
