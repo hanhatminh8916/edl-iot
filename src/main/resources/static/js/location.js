@@ -1,4 +1,15 @@
 ﻿console.log("location.js loaded");
+
+// ✅ Auto-reload nếu quay lại từ positioning-2d.html để refresh event handlers
+if (document.referrer.includes('positioning-2d.html') && !sessionStorage.getItem('mapReloaded')) {
+    console.log('🔄 Refreshing from 2D view...');
+    sessionStorage.setItem('mapReloaded', 'true');
+    setTimeout(() => {
+        sessionStorage.removeItem('mapReloaded');
+    }, 1000);
+    window.location.reload();
+}
+
 var map, markers = [], workersData = [], drawnItems = null, activePolygon = null;
 var anchorMarkers = []; // Store anchor markers
 var anchorLayer = null; // Separate layer for anchors
@@ -1090,7 +1101,7 @@ async function loadWorkZonesFromDatabase() {
             polygon.zoneName = zone.name;
             polygon.bindPopup(`<b>${zone.name}</b><br><small>Double-click để xem chi tiết sơ đồ 2D</small>`);
             
-            // Double-click to view 2D diagram
+            // Double-click to view 2D diagram - use once() để tránh duplicate handlers
             polygon.on('dblclick', function(e) {
                 L.DomEvent.stopPropagation(e);
                 L.DomEvent.preventDefault(e);
