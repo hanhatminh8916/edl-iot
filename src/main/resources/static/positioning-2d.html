@@ -6,10 +6,10 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Sơ Đồ 2D Positioning - EDL SafeWork v178</title>
+    <title>Sơ Đồ 2D Positioning - EDL SafeWork v186</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=178">
-    <link rel="stylesheet" href="css/location.css?v=178">
+    <link rel="stylesheet" href="css/style.css?v=186">
+    <link rel="stylesheet" href="css/location.css?v=186">
     <style>
         .main-content {
             padding: 20px;
@@ -892,6 +892,179 @@
             window.location.href = 'login.html';
         }
 
+        // ==========================================
+        // WEBSOCKET REALTIME UPDATES
+        // ==========================================
+        
+        let stompClient = null;
+        let helmetPositions = {}; // Store helmet positions by MAC
+        
+        /**
+         * Thuật toán Trilateration - Tính tọa độ 2D từ 3 anchor
+         */
+        function trilateration(a1, a2, a3, d1, d2, d3) {
+            // a1, a2, a3: {x, y} tọa độ anchor
+            // d1, d2, d3: khoảng cách từ tag đến anchor
+            
+            const x1 = a1.x, y1 = a1.y;
+            const x2 = a2.x, y2 = a2.y;
+            const x3 = a3.x, y3 = a3.y;
+            
+            const A = 2*x2 - 2*x1;
+            const B = 2*y2 - 2*y1;
+            const C = d1*d1 - d2*d2 - x1*x1 + x2*x2 - y1*y1 + y2*y2;
+            const D = 2*x3 - 2*x2;
+            const E = 2*y3 - 2*y2;
+            const F = d2*d2 - d3*d3 - x2*x2 + x3*x3 - y2*y2 + y3*y3;
+            
+            const x = (C*E - F*B) / (E*A - B*D);
+            const y = (C*D - A*F) / (B*D - A*E);
+            
+            // Kiểm tra kết quả hợp lệ
+            if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) {
+                console.warn('⚠️ Trilateration failed, invalid result');
+                return null;
+            }
+            
+            // Giới hạn trong khu vực
+            const clampedX = Math.max(0, Math.min(areaSize, x));
+            const clampedY = Math.max(0, Math.min(areaSize, y));
+            
+            return { x: clampedX, y: clampedY };
+        }
+        
+        /**
+         * Tính tọa độ tag từ UWB data
+         */
+        function calculatePositionFromUWB(uwb, mac) {
+            // Tìm anchors từ danh sách
+            const a0 = anchors.find(a => a.id === 'A0');
+            const a1 = anchors.find(a => a.id === 'A1');
+            const a2 = anchors.find(a => a.id === 'A2');
+            
+            if (!a0 || !a1 || !a2) {
+                console.warn('⚠️ Not enough anchors (need A0, A1, A2)');
+                return null;
+            }
+            
+            // Khoảng cách từ UWB (convert từ raw value sang meters nếu cần)
+            const d0 = Math.abs(uwb.A0 || 0);
+            const d1 = Math.abs(uwb.A1 || 0);
+            const d2 = Math.abs(uwb.A2 || 0);
+            
+            // Bỏ qua nếu khoảng cách = 0 hoặc -1 (không có tín hiệu)
+            if (d0 <= 0 || d1 <= 0 || d2 <= 0) {
+                console.log('⚠️ Invalid UWB distances:', {d0, d1, d2});
+                return null;
+            }
+            
+            console.log(`📏 UWB distances for ${mac}:`, {
+                A0: d0.toFixed(2) + 'm',
+                A1: d1.toFixed(2) + 'm',
+                A2: d2.toFixed(2) + 'm'
+            });
+            
+            // Tính tọa độ bằng trilateration
+            const pos = trilateration(a0, a1, a2, d0, d1, d2);
+            
+            if (pos) {
+                console.log(`✅ Calculated position for ${mac}:`, 
+                    `(${pos.x.toFixed(2)}m, ${pos.y.toFixed(2)}m)`);
+            }
+            
+            return pos;
+        }
+        
+        /**
+         * Xử lý helmet data từ WebSocket
+         */
+        function handleHelmetData(data) {
+            console.log('📡 Received helmet data:', data.mac);
+            
+            // Kiểm tra có UWB data không
+            if (!data.uwb || data.uwb.ready !== 1) {
+                console.log('⚠️ UWB not ready for', data.mac);
+                return;
+            }
+            
+            // Tính tọa độ từ UWB
+            const position = calculatePositionFromUWB(data.uwb, data.mac);
+            
+            if (!position) {
+                return;
+            }
+            
+            // Cập nhật hoặc tạo tag mới
+            let tag = tags.find(t => t.helmet === data.mac);
+            
+            if (tag) {
+                // Cập nhật vị trí
+                tag.x = position.x;
+                tag.y = position.y;
+                tag.status = 'online';
+                console.log(`🔄 Updated tag ${tag.id} position`);
+            } else {
+                // Tạo tag mới
+                const newTag = {
+                    id: 'T' + (tags.length + 1),
+                    name: data.employeeName || data.mac,
+                    x: position.x,
+                    y: position.y,
+                    vx: 0,
+                    vy: 0,
+                    status: 'online',
+                    helmet: data.mac
+                };
+                tags.push(newTag);
+                console.log(`➕ Created new tag ${newTag.id} for ${data.mac}`);
+            }
+            
+            // Lưu vào cache
+            helmetPositions[data.mac] = {
+                position: position,
+                timestamp: Date.now(),
+                battery: data.battery,
+                uwb: data.uwb
+            };
+        }
+        
+        /**
+         * Kết nối WebSocket
+         */
+        function connectWebSocket() {
+            console.log('🔌 Connecting to WebSocket...');
+            
+            const socket = new SockJS('/ws');
+            stompClient = Stomp.over(socket);
+            
+            stompClient.connect({}, function(frame) {
+                console.log('✅ WebSocket connected:', frame);
+                
+                // Subscribe to helmet data updates
+                stompClient.subscribe('/topic/helmet/data', function(message) {
+                    try {
+                        const data = JSON.parse(message.body);
+                        handleHelmetData(data);
+                    } catch (e) {
+                        console.error('❌ Error parsing helmet data:', e);
+                    }
+                });
+                
+            }, function(error) {
+                console.error('❌ WebSocket error:', error);
+                
+                // Reconnect sau 5s
+                setTimeout(() => {
+                    console.log('🔄 Reconnecting WebSocket...');
+                    connectWebSocket();
+                }, 5000);
+            });
+        }
+        
+        // ==========================================
+        // END WEBSOCKET
+        // ==========================================
+        
         // Auto-refresh anchors every 10 seconds
         function startAnchorSync() {
             console.log('🔄 Starting anchor sync...');
@@ -917,6 +1090,7 @@
             
             loadSafeZones(); // Load safe zones for color detection
             startAnchorSync(); // Load anchors from DB
+            connectWebSocket(); // Connect WebSocket for realtime UWB data
             animate();
         });
     </script>
