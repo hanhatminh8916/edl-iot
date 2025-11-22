@@ -52,6 +52,15 @@ public class LocationController {
         // ✅ Lấy tất cả helmet từ database
         List<Helmet> allHelmets = helmetRepository.findAll();
         
+        // ✅ Lấy tất cả employees một lần (tránh N+1 query)
+        List<Employee> allEmployees = employeeRepository.findAll();
+        Map<String, Employee> employeeMap = new HashMap<>();
+        for (Employee emp : allEmployees) {
+            if (emp.getMacAddress() != null) {
+                employeeMap.put(emp.getMacAddress(), emp);
+            }
+        }
+        
         // ✅ Lấy data realtime từ Redis
         List<HelmetData> realtimeData = redisCacheService.getAllActiveHelmets();
         Map<String, HelmetData> realtimeMap = new HashMap<>();
@@ -59,7 +68,8 @@ public class LocationController {
             realtimeMap.put(data.getMac(), data);
         }
         
-        log.info("📡 Total helmets in DB: {}, Realtime in Redis: {}", allHelmets.size(), realtimeData.size());
+        log.info("📡 Total helmets in DB: {}, Employees: {}, Realtime in Redis: {}", 
+            allHelmets.size(), allEmployees.size(), realtimeData.size());
 
         // Map với employee data - ƯU TIÊN helmets từ database
         for (Helmet helmet : allHelmets) {
@@ -69,7 +79,7 @@ public class LocationController {
             // Lấy data realtime từ Redis (nếu có)
             HelmetData data = realtimeMap.get(mac);
             
-            Employee emp = employeeRepository.findByMacAddress(mac).orElse(null);
+            Employee emp = employeeMap.get(mac);
             
             WorkerMapData workerData = new WorkerMapData();
             if (emp != null) {
