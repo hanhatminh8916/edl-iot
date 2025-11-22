@@ -147,9 +147,14 @@ function initializeMap() {
                 
                 showNotification(`✅ Đã xóa khu vực ${layer.zoneName} và các anchors`, 'success');
             } else {
-                // ✅ Đây là safe zone
+                // ✅ Đây là safe zone → xóa khỏi database
                 activePolygon = null;
-                console.log("🗑️ Safe zone deleted");
+                console.log("🗑️ Deleting safe zone from database");
+                
+                // Xóa safe zone từ database
+                await deleteSafeZoneFromDatabase();
+                
+                showNotification('✅ Đã xóa vùng an toàn', 'success');
             }
         });
     });
@@ -463,6 +468,36 @@ async function loadSafeZoneFromDatabase() {
         
     } catch (error) {
         console.error("❌ Error loading safe zone:", error);
+    }
+}
+
+/**
+ * ✅ Xóa Safe Zone từ database
+ */
+async function deleteSafeZoneFromDatabase() {
+    try {
+        console.log("🗑️ Deleting safe zone from database...");
+        
+        const response = await fetch('/api/safe-zones/active', {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            console.log("✅ Safe zone deleted from database");
+            // Clear from map
+            drawnItems.clearLayers();
+            activePolygon = null;
+            return true;
+        } else {
+            console.error("❌ Failed to delete safe zone");
+            showNotification("❌ Lỗi khi xóa khu vực an toàn", "error");
+            return false;
+        }
+        
+    } catch (error) {
+        console.error("❌ Error deleting safe zone:", error);
+        showNotification("❌ Lỗi kết nối server!", "error");
+        return false;
     }
 }
 
