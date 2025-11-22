@@ -55,14 +55,23 @@ function initializeMap() {
                 layer.bindPopup(`<b>${zoneName}</b><br><small>Double-click để xem chi tiết sơ đồ 2D</small>`).openPopup();
                 layer.zoneName = zoneName;
                 
-                // ✅ Double-click vào zone để xem sơ đồ 2D (tránh conflict với edit mode)
-                layer.on('dblclick', function(e) {
-                    L.DomEvent.stopPropagation(e);
-                    window.location.href = `positioning-2d.html?zone=${layer.zoneId || ''}`;
-                });
-                
                 // ✅ LƯU WORK ZONE VÀO DATABASE trước
                 saveWorkZoneToDatabase(layer.getLatLngs(), layer, zoneName).then(async zoneId => {
+                    if (!zoneId) {
+                        console.error('❌ Failed to save zone, cannot create anchors');
+                        return;
+                    }
+                    
+                    // ✅ Gán zoneId ngay sau khi lưu thành công
+                    layer.zoneId = zoneId;
+                    
+                    // ✅ Double-click vào zone để xem sơ đồ 2D (đặt sau khi có zoneId)
+                    layer.on('dblclick', function(e) {
+                        L.DomEvent.stopPropagation(e);
+                        console.log('🖱️ Double-click on zone:', layer.zoneName, 'ID:', layer.zoneId);
+                        window.location.href = `positioning-2d.html?zone=${layer.zoneId}`;
+                    });
+                    
                     // ✅ Lấy số anchor hiện tại để tạo ID tuần tự
                     const currentMaxId = await getMaxAnchorId();
                     
