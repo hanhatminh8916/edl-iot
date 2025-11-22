@@ -117,6 +117,15 @@ function displayWorkers(workers) {
         const batteryLevel = helmet?.batteryLevel || 0;
         const batteryClass = batteryLevel > 50 ? 'good' : batteryLevel > 20 ? 'medium' : 'low';
         
+        // ⭐ Safe extraction of employee info - handle both 'name' and 'fullName' properties
+        const workerName = worker.name || worker.fullName || 'N/A';
+        const workerPhone = worker.phone || worker.phoneNumber || 'N/A';
+        const workerPosition = worker.position || 'N/A';
+        const workerEmployeeId = worker.employeeId || 'N/A';
+        
+        // ⭐ Escape single quotes in name for onclick handler
+        const escapedName = workerName.replace(/'/g, "\\'");
+        
         return `
             <div class="employee-card" data-worker-id="${worker.id}" data-status="${statusClass}">
                 <div class="employee-header">
@@ -127,33 +136,33 @@ function displayWorkers(workers) {
                         <button class="btn-icon edit" onclick="openEmployeeModal('edit', ${worker.id})" title="Chỉnh sửa">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn-icon delete" onclick="deleteEmployee(${worker.id}, '${worker.name}')" title="Xóa">
+                        <button class="btn-icon delete" onclick="deleteEmployee(${worker.id}, '${escapedName}')" title="Xóa">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
                 </div>
                 <div class="employee-info">
-                    <h3>${worker.name || worker.fullName || 'N/A'}</h3>
+                    <h3>${workerName}</h3>
                     <div class="employee-meta">
                         <span class="meta-item">
                             <i class="fas fa-phone"></i>
-                            ${worker.phone || worker.phoneNumber || 'N/A'}
+                            ${workerPhone}
                         </span>
                         <span class="meta-item">
                             <i class="fas fa-map-marker-alt"></i>
-                            ${worker.position || 'N/A'}
+                            ${workerPosition}
                         </span>
                     </div>
                 </div>
                 <div class="employee-details">
                     <div class="detail-item">
                         <span>Mã CN:</span>
-                        <strong>${worker.employeeId || 'N/A'}</strong>
+                        <strong>${workerEmployeeId}</strong>
                     </div>
-                        <div class="detail-item">
-                            <span>Mũ:</span>
-                            <strong>${helmet?.helmetId || (helmet && helmet.helmetId) || 'Chưa gán'}</strong>
-                        </div>
+                    <div class="detail-item">
+                        <span>Mũ:</span>
+                        <strong>${helmet?.helmetId || 'Chưa gán'}</strong>
+                    </div>
                     <div class="detail-item">
                         <span>Pin:</span>
                         <div class="battery-indicator ${batteryClass}">
@@ -464,12 +473,18 @@ function filterEmployees() {
     const statusFilter = document.getElementById('filterEmployeeStatus')?.value || 'all';
     
     let filtered = allWorkers.filter(worker => {
+        // ⭐ Support both 'name' and 'fullName' properties
+        const workerName = (worker.name || worker.fullName || '').toLowerCase();
+        const workerPhone = (worker.phone || worker.phoneNumber || '').toLowerCase();
+        const workerEmployeeId = (worker.employeeId || '').toLowerCase();
+        const workerPosition = (worker.position || '').toLowerCase();
+        
         // Search filter
         const matchesSearch = !searchTerm ||
-            worker.name?.toLowerCase().includes(searchTerm) ||
-            worker.phone?.toLowerCase().includes(searchTerm) ||
-            worker.employeeId?.toLowerCase().includes(searchTerm) ||
-            worker.position?.toLowerCase().includes(searchTerm);
+            workerName.includes(searchTerm) ||
+            workerPhone.includes(searchTerm) ||
+            workerEmployeeId.includes(searchTerm) ||
+            workerPosition.includes(searchTerm);
         
         // Status filter
         const workerStatus = worker.helmet?.status || 'INACTIVE';
