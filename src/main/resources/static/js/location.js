@@ -116,9 +116,19 @@ function initializeMap() {
 
     // ✅ Khi xóa polygon
     map.on(L.Draw.Event.DELETED, function (e) {
-        activePolygon = null;
-        console.log("🗑️ Polygon deleted");
-        // TODO: Có thể gọi API xóa zone nếu cần
+        const layers = e.layers;
+        layers.eachLayer(function (layer) {
+            // Kiểm tra nếu là work zone (có zoneId)
+            if (layer.zoneId) {
+                console.log("🗑️ Deleting work zone:", layer.zoneName, "ID:", layer.zoneId);
+                deleteWorkZoneAndAnchors(layer.zoneId);
+            } else {
+                // Safe zone
+                activePolygon = null;
+                console.log("🗑️ Safe zone deleted");
+                // Có thể gọi API xóa safe zone nếu cần
+            }
+        });
     });
 
     // ✅ LOAD POLYGON TỪ DATABASE khi khởi động
@@ -905,6 +915,49 @@ async function saveWorkZoneToDatabase(latlngs, layer, zoneName) {
         console.error('Error saving work zone:', error);
         showNotification('❌ Lỗi khi lưu khu vực', 'error');
         return null;
+    }
+}
+
+// ✅ XÓA WORK ZONE VÀ TẤT CẢ ANCHORS BÊN TRONG
+async function deleteWorkZoneAndAnchors(zoneId) {
+    try {
+        // 1. Lấy tất cả anchors thuộc zone này
+        const response = await fetch('/api/anchors');
+        const allAnchors = await response.json();
+        const zoneAnchors = allAnchors.filter(a => a.zoneId === zoneId);
+        
+        console.log(`🗑️ Deleting ${zoneAnchors.length} anchors in zone ${zoneId}`);
+        
+        // 2. Xóa tất cả anchors
+        const deletePromises = zoneAnchors.map(anchor => 
+            fetch(`/api/anchors/${anchor.id}`, { method: 'DELETE' })
+                .then(() => {
+                    // Xóa marker khỏi bản đồ
+                    const markerIndex = anchorMarkers.findIndex(am => am.anchor.id === anchor.id);
+                    if (markerIndex >= 0) {
+                        anchorLayer.removeLayer(anchorMarkers[markerIndex].marker);
+                        anchorMarkers.splice(markerIndex, 1);
+                    }
+                    console.log(`✅ Deleted anchor ${anchor.anchorId}`);
+                })
+        );
+        
+        await Promise.all(deletePromises);
+        
+        // 3. Xóa zone
+        const zoneResponse = await fetch(`/api/zones/${zoneId}`, { method: 'DELETE' });
+        
+        if (zoneResponse.ok) {
+            console.log('✅ Zone and anchors deleted successfully');
+            showNotification(`✅ Đã xóa khu vực và ${zoneAnchors.length} anchors`, 'success');
+        } else {
+            console.error('Failed to delete zone');
+            showNotification('❌ Lỗi khi xóa khu vực', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error deleting work zone and anchors:', error);
+        showNotification('❌ Lỗi khi xóa', 'error');
     }
 }
 
