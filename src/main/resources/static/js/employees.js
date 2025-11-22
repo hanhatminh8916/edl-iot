@@ -202,7 +202,8 @@ function openEmployeeModal(mode, workerId = null) {
         if (worker) {
             document.getElementById('employeeName').value = worker.name || worker.fullName || '';
             document.getElementById('employeePhone').value = worker.phone || worker.phoneNumber || '';
-            document.getElementById('employeeLocation').value = worker.position || '';
+            document.getElementById('employeePosition').value = worker.position || '';
+            document.getElementById('employeeLocation').value = worker.location || '';
             
             form.dataset.workerId = workerId;
             
@@ -259,7 +260,8 @@ async function saveEmployee() {
     const workerData = {
         name: formData.get('employeeName'),
         phone: formData.get('employeePhone'),
-        position: formData.get('employeeLocation') || ''
+        position: formData.get('employeePosition') || '',
+        location: formData.get('employeeLocation') || ''
     };
     
     // Get selected helmet ID (optional)
@@ -269,7 +271,7 @@ async function saveEmployee() {
     }
     
     // Validate
-    if (!workerData.name || !workerData.phone) {
+    if (!workerData.name || !workerData.phone || !workerData.position) {
         showNotification('Vui lòng điền đầy đủ thông tin bắt buộc!', 'error');
         return;
     }

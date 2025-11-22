@@ -17,7 +17,9 @@ public class Worker {
 
     private String employeeId;
     
-    private String position;
+    private String position;  // Job title: Công nhân, Kỹ sư, etc.
+    
+    private String location;  // Work location/area: Khu đông, Bắc, etc.
     
     private String department;
     

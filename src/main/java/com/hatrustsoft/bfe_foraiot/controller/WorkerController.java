@@ -44,6 +44,7 @@ public class WorkerController {
         w.setFullName((String) payload.getOrDefault("name", payload.getOrDefault("fullName", "")));
         w.setEmployeeId(employeeId);
         w.setPosition((String) payload.getOrDefault("position", ""));
+        w.setLocation((String) payload.getOrDefault("location", ""));
         w.setDepartment((String) payload.getOrDefault("department", ""));
         w.setPhoneNumber((String) payload.getOrDefault("phone", ""));
         w.setStatus(Worker.WorkerStatus.ACTIVE); // Set default status
