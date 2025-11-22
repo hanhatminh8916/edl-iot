@@ -647,11 +647,8 @@
             const x = tag.x * scale;
             const y = (areaSize - tag.y) * scale;
             
-            // Kiểm tra xem có trong safe zone không
-            const inSafeZone = isWorkerInSafeZone(tag);
-            
-            // TRONG safe zone = XANH, NGOÀI safe zone = ĐỎ
-            const markerColor = inSafeZone ? '#4CAF50' : '#f44336'; // Xanh : Đỏ
+            // ✅ MẶC ĐỊNH TẤT CẢ ĐỀU XANH (TRONG SAFE ZONE)
+            const markerColor = '#4CAF50'; // Luôn xanh
 
             // Draw circle
             ctx.beginPath();
