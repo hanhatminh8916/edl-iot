@@ -163,6 +163,30 @@
             animation: moveDiagonal 8s infinite ease-in-out;
         }
 
+        /* Distance lines for demo tags */
+        .distance-line {
+            position: absolute;
+            background: rgba(76, 175, 80, 0.3);
+            height: 2px;
+            transform-origin: left center;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .distance-label {
+            position: absolute;
+            background: white;
+            border: 1px solid #4CAF50;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #333;
+            border-radius: 3px;
+            z-index: 6;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
         .info-panel {
             background: white;
             border-radius: 8px;
@@ -1154,7 +1178,109 @@
             startAnchorSync(); // Load anchors from DB
             connectWebSocket(); // Connect WebSocket for realtime UWB data
             animate();
+            
+            // Start updating demo tag distances
+            updateDemoTagDistances();
         });
+
+        // ==========================================
+        // DEMO TAG DISTANCE LINES
+        // ==========================================
+        function updateDemoTagDistances() {
+            const canvasWrapper = document.querySelector('canvas').parentElement;
+            
+            // Create distance lines container if not exists
+            let linesContainer = document.getElementById('demoDistanceLines');
+            if (!linesContainer) {
+                linesContainer = document.createElement('div');
+                linesContainer.id = 'demoDistanceLines';
+                linesContainer.style.position = 'absolute';
+                linesContainer.style.top = '0';
+                linesContainer.style.left = '0';
+                linesContainer.style.width = '100%';
+                linesContainer.style.height = '100%';
+                linesContainer.style.pointerEvents = 'none';
+                canvasWrapper.appendChild(linesContainer);
+            }
+            
+            // Update every 100ms for smooth animation
+            setInterval(() => {
+                if (!isAnimating) return;
+                
+                // Get demo tag positions
+                const tag1 = document.querySelector('.demo-tag-1');
+                const tag2 = document.querySelector('.demo-tag-2');
+                const tag3 = document.querySelector('.demo-tag-3');
+                
+                if (!tag1 || !tag2 || !tag3) return;
+                
+                // Get anchor positions from canvas (A1, A2, A3)
+                const anchorPositions = [
+                    { id: 'A1', x: 2 * scale + 40, y: canvas.height - (20 * scale + 40) },  // A1 (2, 20)
+                    { id: 'A2', x: 5 * scale + 40, y: canvas.height - (2 * scale + 40) },   // A2 (5, 2)
+                    { id: 'A3', x: 20 * scale + 40, y: canvas.height - (17 * scale + 40) }  // A3 (20, 17)
+                ];
+                
+                const demoTags = [
+                    { element: tag1, name: 'TAG1' },
+                    { element: tag2, name: 'TAG2' },
+                    { element: tag3, name: 'TAG3' }
+                ];
+                
+                // Clear previous lines
+                linesContainer.innerHTML = '';
+                
+                // Draw lines from each tag to nearest anchor
+                demoTags.forEach(tag => {
+                    const rect = tag.element.getBoundingClientRect();
+                    const canvasRect = canvas.getBoundingClientRect();
+                    
+                    const tagX = rect.left - canvasRect.left + rect.width / 2;
+                    const tagY = rect.top - canvasRect.top + rect.height / 2;
+                    
+                    // Find nearest anchor
+                    let nearestAnchor = null;
+                    let minDistance = Infinity;
+                    
+                    anchorPositions.forEach(anchor => {
+                        const dx = tagX - anchor.x;
+                        const dy = tagY - anchor.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            nearestAnchor = anchor;
+                        }
+                    });
+                    
+                    if (!nearestAnchor) return;
+                    
+                    // Draw line
+                    const dx = nearestAnchor.x - tagX;
+                    const dy = nearestAnchor.y - tagY;
+                    const length = Math.sqrt(dx * dx + dy * dy);
+                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                    
+                    const line = document.createElement('div');
+                    line.className = 'distance-line';
+                    line.style.left = tagX + 'px';
+                    line.style.top = tagY + 'px';
+                    line.style.width = length + 'px';
+                    line.style.transform = `rotate(${angle}deg)`;
+                    linesContainer.appendChild(line);
+                    
+                    // Draw distance label
+                    const distanceInMeters = (minDistance / scale).toFixed(1);
+                    const label = document.createElement('div');
+                    label.className = 'distance-label';
+                    label.textContent = distanceInMeters + 'm → ' + nearestAnchor.id;
+                    label.style.left = (tagX + dx / 2 - 30) + 'px';
+                    label.style.top = (tagY + dy / 2 - 10) + 'px';
+                    linesContainer.appendChild(label);
+                });
+                
+            }, 100);
+        }
     </script>
 </body>
 </html>
