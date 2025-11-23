@@ -95,4 +95,21 @@ public class RedisCacheService {
             log.error("❌ Error removing helmet data from cache: {}", e.getMessage(), e);
         }
     }
+
+    /**
+     * 🗑️ Xóa TOÀN BỘ cache helmet
+     */
+    public void clearAllCache() {
+        try {
+            Set<String> keys = redisTemplate.keys(HELMET_CACHE_PREFIX + "*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+                log.info("🗑️ Cleared {} helmet caches", keys.size());
+            } else {
+                log.info("ℹ️ No helmet cache to clear");
+            }
+        } catch (Exception e) {
+            log.error("❌ Error clearing all cache: {}", e.getMessage(), e);
+        }
+    }
 }

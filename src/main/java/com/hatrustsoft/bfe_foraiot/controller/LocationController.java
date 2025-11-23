@@ -7,7 +7,9 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -206,6 +208,26 @@ public class LocationController {
         }
 
         return "ACTIVE";
+    }
+
+    /**
+     * 🗑️ API xóa cache Redis cho một helmet cụ thể
+     */
+    @DeleteMapping("/cache/{mac}")
+    public ResponseEntity<?> clearHelmetCache(@PathVariable String mac) {
+        log.info("🗑️ Clearing cache for helmet: {}", mac);
+        redisCacheService.removeHelmetData(mac);
+        return ResponseEntity.ok("✅ Cache cleared for " + mac);
+    }
+
+    /**
+     * 🗑️ API xóa TOÀN BỘ cache Redis
+     */
+    @DeleteMapping("/cache")
+    public ResponseEntity<?> clearAllCache() {
+        log.info("🗑️ Clearing ALL helmet cache");
+        redisCacheService.clearAllCache();
+        return ResponseEntity.ok("✅ All cache cleared");
     }
 
     // DTO Classes
