@@ -442,16 +442,6 @@
         const areaSize = 20; // 20m × 20m
         let isAnimating = false; // ✅ Tắt animation demo, chỉ dùng UWB realtime
 
-        // ✅ Pan & Zoom state
-        let offsetX = 0;
-        let offsetY = 0;
-        let zoomLevel = 1.0;
-        let isDragging = false;
-        let dragStartX = 0;
-        let dragStartY = 0;
-        let lastMouseX = 0;
-        let lastMouseY = 0;
-
         // Zone filtering
         let currentZoneId = null;
         let currentZone = null;
@@ -876,10 +866,8 @@
             // Save context
             ctx.save();
             
-            // ✅ Apply zoom and pan transformations FIRST
-            ctx.translate(40, 40); // Base padding
-            ctx.translate(offsetX, offsetY); // Pan offset
-            ctx.scale(zoomLevel, zoomLevel); // Zoom level
+            // Add padding
+            ctx.translate(40, 40);
 
             // Draw grid
             drawGrid();
@@ -970,11 +958,6 @@
             scale = 20;
             document.getElementById('scaleSlider').value = 20;
             document.getElementById('scaleValue').textContent = 20;
-            
-            // ✅ Reset pan & zoom
-            offsetX = 0;
-            offsetY = 0;
-            zoomLevel = 1.0;
             
             // ✅ Không reset tags nữa, giữ nguyên tags từ UWB
             // Tags sẽ được cập nhật tự động từ WebSocket
@@ -1178,56 +1161,6 @@
             }, 10000); // Refresh every 10s
         }
         
-        // ✅ Mouse event handlers for pan & zoom
-        canvas.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            dragStartX = e.offsetX - offsetX;
-            dragStartY = e.offsetY - offsetY;
-            canvas.style.cursor = 'grabbing';
-        });
-
-        canvas.addEventListener('mousemove', (e) => {
-            lastMouseX = e.offsetX;
-            lastMouseY = e.offsetY;
-            
-            if (isDragging) {
-                offsetX = e.offsetX - dragStartX;
-                offsetY = e.offsetY - dragStartY;
-                draw(); // Redraw with new offset
-            }
-        });
-
-        canvas.addEventListener('mouseup', () => {
-            isDragging = false;
-            canvas.style.cursor = 'crosshair';
-        });
-
-        canvas.addEventListener('mouseleave', () => {
-            isDragging = false;
-            canvas.style.cursor = 'crosshair';
-        });
-
-        // ✅ Mouse wheel zoom
-        canvas.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            
-            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-            const newZoom = zoomLevel * zoomFactor;
-            
-            // Limit zoom range
-            if (newZoom < 0.5 || newZoom > 3.0) return;
-            
-            // Zoom towards mouse position
-            const mouseX = e.offsetX - 40;
-            const mouseY = e.offsetY - 40;
-            
-            offsetX = mouseX - (mouseX - offsetX) * zoomFactor;
-            offsetY = mouseY - (mouseY - offsetY) * zoomFactor;
-            zoomLevel = newZoom;
-            
-            draw();
-        }, { passive: false });
-
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             console.log('📍 Page loaded, initializing...');
