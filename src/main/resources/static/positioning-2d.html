@@ -380,7 +380,7 @@
             </div>
             
             <!-- Canvas wrapper with demo tags -->
-            <div style="position: relative; display: inline-block;">
+            <div id="canvasWrapper" style="position: relative; display: inline-block;">
                 <canvas id="canvas2d" width="800" height="800"></canvas>
                 
                 <!-- Demo animated tags -->
@@ -1187,7 +1187,15 @@
         // DEMO TAG DISTANCE LINES
         // ==========================================
         function updateDemoTagDistances() {
-            const canvasWrapper = document.querySelector('canvas').parentElement;
+            const canvasWrapper = document.getElementById('canvasWrapper');
+            const canvas = document.getElementById('canvas2d');
+            
+            if (!canvasWrapper || !canvas) {
+                console.error('❌ Canvas wrapper or canvas not found');
+                return;
+            }
+            
+            console.log('✅ Starting demo tag distance updates');
             
             // Create distance lines container if not exists
             let linesContainer = document.getElementById('demoDistanceLines');
@@ -1200,25 +1208,34 @@
                 linesContainer.style.width = '100%';
                 linesContainer.style.height = '100%';
                 linesContainer.style.pointerEvents = 'none';
+                linesContainer.style.zIndex = '15';
                 canvasWrapper.appendChild(linesContainer);
+                console.log('✅ Created distance lines container');
             }
             
             // Update every 100ms for smooth animation
             setInterval(() => {
-                if (!isAnimating) return;
+                if (!isAnimating) {
+                    linesContainer.innerHTML = '';
+                    return;
+                }
                 
                 // Get demo tag positions
                 const tag1 = document.querySelector('.demo-tag-1');
                 const tag2 = document.querySelector('.demo-tag-2');
                 const tag3 = document.querySelector('.demo-tag-3');
                 
-                if (!tag1 || !tag2 || !tag3) return;
+                if (!tag1 || !tag2 || !tag3) {
+                    console.warn('⚠️ Demo tags not found');
+                    return;
+                }
                 
                 // Get anchor positions from canvas (A1, A2, A3)
+                // A1 (2, 20), A2 (5, 2), A3 (20, 17)
                 const anchorPositions = [
-                    { id: 'A1', x: 2 * scale + 40, y: canvas.height - (20 * scale + 40) },  // A1 (2, 20)
-                    { id: 'A2', x: 5 * scale + 40, y: canvas.height - (2 * scale + 40) },   // A2 (5, 2)
-                    { id: 'A3', x: 20 * scale + 40, y: canvas.height - (17 * scale + 40) }  // A3 (20, 17)
+                    { id: 'A1', x: 2, y: 20 },
+                    { id: 'A2', x: 5, y: 2 },
+                    { id: 'A3', x: 20, y: 17 }
                 ];
                 
                 const demoTags = [
@@ -1232,19 +1249,24 @@
                 
                 // Draw lines from each tag to nearest anchor
                 demoTags.forEach(tag => {
-                    const rect = tag.element.getBoundingClientRect();
-                    const canvasRect = canvas.getBoundingClientRect();
+                    const wrapperRect = canvasWrapper.getBoundingClientRect();
+                    const tagRect = tag.element.getBoundingClientRect();
                     
-                    const tagX = rect.left - canvasRect.left + rect.width / 2;
-                    const tagY = rect.top - canvasRect.top + rect.height / 2;
+                    // Tag position relative to wrapper
+                    const tagX = tagRect.left - wrapperRect.left + tagRect.width / 2;
+                    const tagY = tagRect.top - wrapperRect.top + tagRect.height / 2;
+                    
+                    // Convert tag pixel position to meters
+                    const tagMeterX = (tagX - 40) / scale;
+                    const tagMeterY = (canvas.height - tagY - 40) / scale;
                     
                     // Find nearest anchor
                     let nearestAnchor = null;
                     let minDistance = Infinity;
                     
                     anchorPositions.forEach(anchor => {
-                        const dx = tagX - anchor.x;
-                        const dy = tagY - anchor.y;
+                        const dx = tagMeterX - anchor.x;
+                        const dy = tagMeterY - anchor.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
                         
                         if (distance < minDistance) {
@@ -1255,9 +1277,13 @@
                     
                     if (!nearestAnchor) return;
                     
+                    // Convert anchor meter position to pixels
+                    const anchorX = nearestAnchor.x * scale + 40;
+                    const anchorY = canvas.height - (nearestAnchor.y * scale + 40);
+                    
                     // Draw line
-                    const dx = nearestAnchor.x - tagX;
-                    const dy = nearestAnchor.y - tagY;
+                    const dx = anchorX - tagX;
+                    const dy = anchorY - tagY;
                     const length = Math.sqrt(dx * dx + dy * dy);
                     const angle = Math.atan2(dy, dx) * 180 / Math.PI;
                     
@@ -1270,11 +1296,10 @@
                     linesContainer.appendChild(line);
                     
                     // Draw distance label
-                    const distanceInMeters = (minDistance / scale).toFixed(1);
                     const label = document.createElement('div');
                     label.className = 'distance-label';
-                    label.textContent = distanceInMeters + 'm → ' + nearestAnchor.id;
-                    label.style.left = (tagX + dx / 2 - 30) + 'px';
+                    label.textContent = minDistance.toFixed(1) + 'm → ' + nearestAnchor.id;
+                    label.style.left = (tagX + dx / 2 - 35) + 'px';
                     label.style.top = (tagY + dy / 2 - 10) + 'px';
                     linesContainer.appendChild(label);
                 });
