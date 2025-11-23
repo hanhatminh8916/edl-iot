@@ -101,6 +101,68 @@
             background: #f44336;
         }
 
+        /* ===== DEMO ANIMATION TAGS ===== */
+        @keyframes moveCircle {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(100px, 0); }
+            50% { transform: translate(100px, 100px); }
+            75% { transform: translate(0, 100px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        @keyframes moveSquare {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(150px, 0); }
+            50% { transform: translate(150px, -100px); }
+            75% { transform: translate(0, -100px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        @keyframes moveDiagonal {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(200px, -150px); }
+        }
+
+        .demo-tag {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f44336;
+            border: 2px solid #333;
+            z-index: 10;
+        }
+
+        .demo-tag::after {
+            content: attr(data-label);
+            position: absolute;
+            top: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+            color: #333;
+        }
+
+        .demo-tag-1 {
+            left: 300px;
+            top: 200px;
+            animation: moveCircle 10s infinite linear;
+        }
+
+        .demo-tag-2 {
+            left: 200px;
+            top: 300px;
+            animation: moveSquare 12s infinite linear;
+        }
+
+        .demo-tag-3 {
+            left: 150px;
+            top: 400px;
+            animation: moveDiagonal 8s infinite ease-in-out;
+        }
+
         .info-panel {
             background: white;
             border-radius: 8px;
@@ -292,7 +354,17 @@
                     </button>
                 </div>
             </div>
-            <canvas id="canvas2d" width="800" height="800"></canvas>
+            
+            <!-- Canvas wrapper with demo tags -->
+            <div style="position: relative; display: inline-block;">
+                <canvas id="canvas2d" width="800" height="800"></canvas>
+                
+                <!-- Demo animated tags -->
+                <div class="demo-tag demo-tag-1" data-label="TAG1"></div>
+                <div class="demo-tag demo-tag-2" data-label="TAG2"></div>
+                <div class="demo-tag demo-tag-3" data-label="TAG3"></div>
+            </div>
+            
             <div class="legend">
                 <div class="legend-item">
                     <div class="legend-color anchor"></div>
