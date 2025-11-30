@@ -1,5 +1,7 @@
 package com.hatrustsoft.bfe_foraiot.config;
 
+import java.net.URI;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,14 +21,20 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.hatrustsoft.bfe_foraiot.entity.HelmetData;
 import com.hatrustsoft.bfe_foraiot.service.RedisMessageSubscriber;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Redis Configuration
  * - Pub/Sub cho real-time communication
  * - Cache cho helmet data
- * - Hỗ trợ SSL cho Heroku Redis
+ * - Hỗ trợ SSL cho Heroku Redis (parse REDIS_URL)
  */
 @Configuration
+@Slf4j
 public class RedisConfig {
+
+    @Value("${REDIS_URL:#{null}}")
+    private String redisUrl;
 
     @Value("${spring.data.redis.host:localhost}")
     private String redisHost;
@@ -44,21 +52,52 @@ public class RedisConfig {
 
     /**
      * Redis Connection Factory với SSL support cho Heroku
+     * Parse REDIS_URL nếu có (Heroku format: rediss://:password@host:port)
      */
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
-        redisConfig.setHostName(redisHost);
-        redisConfig.setPort(redisPort);
+        boolean useSsl = redisSslEnabled;
         
-        if (!redisPassword.isEmpty()) {
-            redisConfig.setPassword(redisPassword);
+        // Parse REDIS_URL từ Heroku nếu có
+        if (redisUrl != null && !redisUrl.isEmpty()) {
+            try {
+                log.info("🔗 Parsing REDIS_URL from environment...");
+                URI uri = new URI(redisUrl);
+                
+                redisConfig.setHostName(uri.getHost());
+                redisConfig.setPort(uri.getPort());
+                
+                // Password from userInfo (format: :password)
+                String userInfo = uri.getUserInfo();
+                if (userInfo != null && userInfo.contains(":")) {
+                    String password = userInfo.split(":", 2)[1];
+                    redisConfig.setPassword(password);
+                }
+                
+                // SSL if rediss://
+                useSsl = redisUrl.startsWith("rediss://");
+                log.info("✅ Redis config: host={}, port={}, ssl={}", 
+                    uri.getHost(), uri.getPort(), useSsl);
+            } catch (Exception e) {
+                log.error("❌ Failed to parse REDIS_URL: {}", e.getMessage());
+            }
+        } else {
+            // Fallback to individual properties
+            log.info("🔗 Using individual Redis properties: host={}, port={}", redisHost, redisPort);
+            redisConfig.setHostName(redisHost);
+            redisConfig.setPort(redisPort);
+            
+            if (!redisPassword.isEmpty()) {
+                redisConfig.setPassword(redisPassword);
+            }
         }
 
         LettuceClientConfiguration.LettuceClientConfigurationBuilder clientConfig = 
             LettuceClientConfiguration.builder();
 
-        if (redisSslEnabled) {
+        if (useSsl) {
+            log.info("🔒 Enabling SSL for Redis connection");
             // Disable SSL certificate validation cho Heroku Redis self-signed cert
             clientConfig.useSsl()
                 .disablePeerVerification(); // Bỏ qua certificate validation
