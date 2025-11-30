@@ -76,6 +76,9 @@ public class PositioningService {
         if (uwbNode.has("baseline_A1")) uwb.put("baseline_A1", uwbNode.get("baseline_A1").asDouble());
         if (uwbNode.has("baseline_A2")) uwb.put("baseline_A2", uwbNode.get("baseline_A2").asDouble());
         
+        // 🎯 Parse ready flag để frontend biết UWB sẵn sàng
+        if (uwbNode.has("ready")) uwb.put("ready", uwbNode.get("ready").asDouble());
+        
         return uwb;
     }
     

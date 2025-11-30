@@ -1041,23 +1041,31 @@
         }
         
         /**
+         * 🎯 CỐ ĐỊNH VỊ TRÍ ANCHOR CHO UWB POSITIONING
+         * Các anchor này được đặt cố định trong không gian 20m x 20m
+         * A0 (A1 trên màn hình) - góc trên trái
+         * A1 (A2 trên màn hình) - góc dưới trái  
+         * A2 (A3 trên màn hình) - góc dưới phải
+         */
+        const UWB_ANCHORS = {
+            A0: { x: 1, y: 9 },    // Anchor A1 trên màn hình (tọa độ thực tế)
+            A1: { x: 1, y: 3 },    // Anchor A2 trên màn hình
+            A2: { x: 18, y: 1 }    // Anchor A3 trên màn hình
+        };
+        
+        /**
          * Tính tọa độ tag từ UWB data
          */
         function calculatePositionFromUWB(uwb, mac) {
-            // Tìm anchors từ danh sách
-            const a0 = anchors.find(a => a.id === 'A0');
-            const a1 = anchors.find(a => a.id === 'A1');
-            const a2 = anchors.find(a => a.id === 'A2');
+            // Sử dụng anchor positions cố định cho UWB
+            const a0 = UWB_ANCHORS.A0;
+            const a1 = UWB_ANCHORS.A1;
+            const a2 = UWB_ANCHORS.A2;
             
-            if (!a0 || !a1 || !a2) {
-                console.warn('⚠️ Not enough anchors (need A0, A1, A2)');
-                return null;
-            }
-            
-            // Khoảng cách từ UWB (convert từ raw value sang meters nếu cần)
-            const d0 = Math.abs(uwb.A0 || 0);
-            const d1 = Math.abs(uwb.A1 || 0);
-            const d2 = Math.abs(uwb.A2 || 0);
+            // Khoảng cách từ UWB (meters)
+            const d0 = uwb.A0 !== undefined ? Math.abs(uwb.A0) : -1;
+            const d1 = uwb.A1 !== undefined ? Math.abs(uwb.A1) : -1;
+            const d2 = uwb.A2 !== undefined ? Math.abs(uwb.A2) : -1;
             
             // Bỏ qua nếu khoảng cách = 0 hoặc -1 (không có tín hiệu)
             if (d0 <= 0 || d1 <= 0 || d2 <= 0) {
@@ -1188,7 +1196,7 @@
          * 🎯 Xử lý realtime position với UWB data
          */
         function handleRealtimePosition(data) {
-            console.log('📍 Realtime position:', data.mac, 'UWB:', data.uwb, 'Ready:', data.uwbReady);
+            console.log('📍 Realtime position received:', data);
             
             // Kiểm tra status offline (tag chuyển màu xám)
             if (data.status === 'offline') {
@@ -1202,15 +1210,27 @@
             }
             
             // Kiểm tra có UWB data không
-            if (!data.uwb || !data.uwbReady) {
-                console.log('⚠️ UWB not ready for', data.mac);
+            // Support cả 2 format: {uwb: {...}, uwbReady: true} hoặc {uwb: {ready: 1, ...}}
+            const uwbData = data.uwb;
+            const isReady = data.uwbReady === true || (uwbData && uwbData.ready === 1);
+            
+            if (!uwbData) {
+                console.log('⚠️ No UWB data for', data.mac);
                 return;
             }
             
+            if (!isReady) {
+                console.log('⚠️ UWB not ready for', data.mac, 'ready=', uwbData?.ready);
+                return;
+            }
+            
+            console.log('📡 UWB Data:', uwbData);
+            
             // Tính tọa độ từ UWB
-            const position = calculatePositionFromUWB(data.uwb, data.mac);
+            const position = calculatePositionFromUWB(uwbData, data.mac);
             
             if (!position) {
+                console.log('⚠️ Could not calculate position');
                 return;
             }
             
@@ -1224,7 +1244,8 @@
                 tag.y = tag.y + (position.y - tag.y) * smoothFactor;
                 tag.status = 'online';
                 tag.battery = data.battery;
-                tag.uwb = data.uwb;
+                tag.uwb = uwbData;
+                console.log(`🔄 Updated tag ${tag.id} to (${tag.x.toFixed(2)}, ${tag.y.toFixed(2)})`);
             } else {
                 // Tạo tag mới
                 const newTag = {
@@ -1237,10 +1258,10 @@
                     status: 'online',
                     helmet: data.mac,
                     battery: data.battery,
-                    uwb: data.uwb
+                    uwb: uwbData
                 };
                 tags.push(newTag);
-                console.log(`➕ Created new tag ${newTag.id} for ${data.mac}`);
+                console.log(`➕ Created new tag ${newTag.id} for ${data.mac} at (${position.x.toFixed(2)}, ${position.y.toFixed(2)})`);
             }
             
             // Lưu vào cache (for display purposes only)
@@ -1248,7 +1269,7 @@
                 position: position,
                 timestamp: Date.now(),
                 battery: data.battery,
-                uwb: data.uwb
+                uwb: uwbData
             };
             
             // Trigger redraw
