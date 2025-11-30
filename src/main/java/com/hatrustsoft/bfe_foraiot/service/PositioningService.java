@@ -86,11 +86,16 @@ public class PositioningService {
         tagPos.setLastSeen(lastSeen);
         tagPos.setBattery(dto.getBattery());
         
-        // Lưu UWB distances nếu có
+        // Lưu UWB distances nếu có (chỉ lưu giá trị dương hợp lệ)
         if (uwb != null) {
-            tagPos.setDistanceA0(uwb.get("A0"));
-            tagPos.setDistanceA1(uwb.get("A1"));
-            tagPos.setDistanceA2(uwb.get("A2"));
+            Double d0 = uwb.get("A0");
+            Double d1 = uwb.get("A1");
+            Double d2 = uwb.get("A2");
+            
+            // Chỉ lưu distances hợp lệ (> 0 và < 100m - realistic range)
+            if (d0 != null && d0 > 0 && d0 < 100) tagPos.setDistanceA0(d0);
+            if (d1 != null && d1 > 0 && d1 < 100) tagPos.setDistanceA1(d1);
+            if (d2 != null && d2 > 0 && d2 < 100) tagPos.setDistanceA2(d2);
             
             // Tính toán vị trí từ UWB (weighted centroid)
             Double[] position = calculatePosition(uwb);
