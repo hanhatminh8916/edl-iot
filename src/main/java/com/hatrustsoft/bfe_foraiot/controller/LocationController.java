@@ -27,6 +27,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class LocationController {
 
+    // ⏰ Đồng bộ với positioning-2d.html: 30 giây không nhận data → offline
+    private static final long OFFLINE_THRESHOLD_SECONDS = 30;
+
     @Autowired
     private EmployeeRepository employeeRepository;
 
@@ -85,7 +88,7 @@ public class LocationController {
                 
                 log.info("⏱️ Helmet {} - Time difference: {} seconds", data.getMac(), secondsAgo);
                 
-                if (secondsAgo > 30) {
+                if (secondsAgo > OFFLINE_THRESHOLD_SECONDS) {
                     // Sau 30s không nhận data → INACTIVE (màu xám)
                     log.info("🕐 Helmet {} offline for {} seconds -> INACTIVE", data.getMac(), secondsAgo);
                     status = "INACTIVE";
