@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Sơ Đồ 2D Positioning - EDL SafeWork v187</title>
+    <title>Sơ Đồ 2D Positioning - EDL SafeWork v188 (Realtime UWB)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css?v=187">
     <link rel="stylesheet" href="css/location.css?v=187">
@@ -100,67 +100,14 @@
         .legend-color.tag {
             background: #f44336;
         }
-
-        /* ===== DEMO ANIMATION TAGS ===== */
-        @keyframes moveCircle {
-            0% { transform: translate(0, 0); }
-            25% { transform: translate(100px, 0); }
-            50% { transform: translate(100px, 100px); }
-            75% { transform: translate(0, 100px); }
-            100% { transform: translate(0, 0); }
+        
+        .legend-color.tag-offline {
+            background: #9E9E9E;
         }
 
-        @keyframes moveSquare {
-            0% { transform: translate(0, 0); }
-            25% { transform: translate(150px, 0); }
-            50% { transform: translate(150px, -100px); }
-            75% { transform: translate(0, -100px); }
-            100% { transform: translate(0, 0); }
-        }
-
-        @keyframes moveDiagonal {
-            0%, 100% { transform: translate(0, 0); }
-            50% { transform: translate(200px, -150px); }
-        }
-
+        /* ===== HIDE DEMO TAGS - NOW USING REALTIME UWB ===== */
         .demo-tag {
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #f44336;
-            border: 2px solid #333;
-            z-index: 10;
-        }
-
-        .demo-tag::after {
-            content: attr(data-label);
-            position: absolute;
-            top: 25px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 12px;
-            font-weight: bold;
-            white-space: nowrap;
-            color: #333;
-        }
-
-        .demo-tag-1 {
-            left: 300px;
-            top: 200px;
-            animation: moveCircle 10s infinite linear;
-        }
-
-        .demo-tag-2 {
-            left: 200px;
-            top: 300px;
-            animation: moveSquare 12s infinite linear;
-        }
-
-        .demo-tag-3 {
-            left: 150px;
-            top: 400px;
-            animation: moveDiagonal 8s infinite ease-in-out;
+            display: none !important; /* ✅ Ẩn demo tags */
         }
 
         /* Distance lines for demo tags */
@@ -385,21 +332,23 @@
                 
                 <!-- Demo animated tags -->
                 <div class="demo-tag demo-tag-1" data-label="TAG1"></div>
-                <div class="demo-tag demo-tag-2" data-label="TAG2"></div>
-                <div class="demo-tag demo-tag-3" data-label="TAG3"></div>
             </div>
             
             <div class="legend">
                 <div class="legend-item">
                     <div class="legend-color anchor"></div>
-                    <span><strong>Anchor</strong> - Thiết bị định vị cố định</span>
+                    <span><strong>Anchor</strong> - Thiết bị định vị cố định (UWB)</span>
                 </div>
                 <div class="legend-item">
                     <div class="legend-color tag"></div>
-                    <span><strong>Tag</strong> - Thiết bị gắn trên mũ bảo hiểm</span>
+                    <span><strong>Tag Online</strong> - Đang hoạt động</span>
                 </div>
                 <div class="legend-item">
-                    <span>📏 Đường nối hiển thị khoảng cách (meter)</span>
+                    <div class="legend-color tag-offline"></div>
+                    <span><strong>Tag Offline</strong> - Mất kết nối (vị trí cuối)</span>
+                </div>
+                <div class="legend-item">
+                    <span>📏 Đường cam: Khoảng cách UWB realtime (meter)</span>
                 </div>
             </div>
         </div>
@@ -736,36 +685,98 @@
             ctx.fillText(anchor.id, x, y - 15);
         }
 
-        // Draw tag với màu theo vị trí safe zone
+        // Draw tag với màu theo status (online=xanh, offline=xám)
         function drawTag(tag) {
             const x = tag.x * scale;
             const y = (areaSize - tag.y) * scale;
             
-            // ✅ MẶC ĐỊNH TẤT CẢ ĐỀU XANH (TRONG SAFE ZONE)
-            const markerColor = '#4CAF50'; // Luôn xanh
-            
-            // DEBUG: Log màu đang dùng
-            if (tag.id === 'T1') {
-                console.log('🎨 Drawing tag', tag.id, 'with color:', markerColor, '(GREEN)');
+            // 🎨 Màu sắc theo status
+            let markerColor;
+            if (tag.status === 'offline') {
+                markerColor = '#9E9E9E'; // ⚪ XÁM khi offline
+            } else if (tag.status === 'warning') {
+                markerColor = '#FF9800'; // 🟠 CAM khi cảnh báo
+            } else {
+                markerColor = '#f44336'; // 🔴 ĐỎ khi online (dễ nhìn hơn xanh)
             }
 
-            // Draw circle
+            // Draw circle with glow effect for online tags
+            if (tag.status === 'online') {
+                ctx.beginPath();
+                ctx.arc(x, y, 14, 0, 2 * Math.PI);
+                ctx.fillStyle = 'rgba(244, 67, 54, 0.3)';
+                ctx.fill();
+            }
+            
+            // Draw main circle
             ctx.beginPath();
             ctx.arc(x, y, 10, 0, 2 * Math.PI);
-            ctx.fillStyle = tag.status === 'online' ? markerColor : '#999';
+            ctx.fillStyle = markerColor;
             ctx.fill();
             ctx.strokeStyle = '#333';
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // Draw label
+            // Draw label with name
             ctx.fillStyle = '#333';
             ctx.font = 'bold 12px Arial';
             ctx.textAlign = 'center';
             ctx.fillText(tag.id, x, y + 25);
+            
+            // Draw battery indicator if available
+            if (tag.battery !== undefined) {
+                const batteryText = `${Math.round(tag.battery)}%`;
+                ctx.font = '10px Arial';
+                ctx.fillStyle = tag.battery < 20 ? '#f44336' : '#666';
+                ctx.fillText(batteryText, x, y + 38);
+            }
         }
 
-        // Draw distance line
+        // Draw distance lines from tag to ALL anchors with UWB data
+        function drawTagDistanceLines(tag) {
+            if (!tag.uwb) return;
+            
+            const x1 = tag.x * scale;
+            const y1 = (areaSize - tag.y) * scale;
+            
+            // Draw line to each anchor
+            anchors.forEach(anchor => {
+                const anchorKey = anchor.id; // A0, A1, A2
+                const distance = tag.uwb[anchorKey];
+                
+                if (distance && distance > 0) {
+                    const x2 = anchor.x * scale;
+                    const y2 = (areaSize - anchor.y) * scale;
+                    
+                    // Draw dashed line
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.strokeStyle = 'rgba(255, 152, 0, 0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 3]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    // Draw distance label at midpoint
+                    const midX = (x1 + x2) / 2;
+                    const midY = (y1 + y2) / 2;
+                    
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.fillRect(midX - 18, midY - 8, 36, 16);
+                    ctx.strokeStyle = '#FF9800';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(midX - 18, midY - 8, 36, 16);
+                    
+                    ctx.fillStyle = '#333';
+                    ctx.font = 'bold 9px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(distance.toFixed(2) + 'm', midX, midY + 3);
+                }
+            });
+        }
+
+        // Draw distance line (legacy - for nearest anchor only)
         function drawDistanceLine(tag, anchor, distance) {
             const x1 = tag.x * scale;
             const y1 = (areaSize - tag.y) * scale;
@@ -875,18 +886,20 @@
             // Draw safe zones FIRST (as background)
             safeZones.forEach(zone => drawSafeZone(zone));
 
-            // Draw distance lines first (so they appear behind)
+            // 🎯 Draw UWB distance lines from tags to anchors (with real distances)
             tags.forEach(tag => {
-                const { anchor, distance } = findNearestAnchor(tag);
-                if (anchor) {
-                    drawDistanceLine(tag, anchor, distance);
+                if (tag.uwb && tag.status === 'online') {
+                    drawTagDistanceLines(tag);
+                } else {
+                    // Fallback: Draw line to nearest anchor only
+                    const { anchor, distance } = findNearestAnchor(tag);
+                    if (anchor) {
+                        drawDistanceLine(tag, anchor, distance);
+                    }
                 }
             });
 
-            // Draw anchors - DEBUG LOG
-            if (anchors.length > 0) {
-                console.log('🎨 Drawing', anchors.length, 'anchors:', anchors);
-            }
+            // Draw anchors
             anchors.forEach(anchor => drawAnchor(anchor));
 
             // Draw tags
@@ -911,17 +924,24 @@
                 </li>
             `).join('');
 
-            // Update tag list
+            // Update tag list with UWB info
             const tagList = document.getElementById('tagList');
             tagList.innerHTML = tags.map(tag => {
                 const { anchor, distance } = findNearestAnchor(tag);
+                const uwbInfo = tag.uwb ? 
+                    `A0: ${tag.uwb.A0?.toFixed(2) || '-'}m, A1: ${tag.uwb.A1?.toFixed(2) || '-'}m, A2: ${tag.uwb.A2?.toFixed(2) || '-'}m` : 
+                    'No UWB data';
+                const statusClass = tag.status === 'offline' ? 'offline' : 'online';
+                const statusIcon = tag.status === 'offline' ? '⚪' : '🔴';
+                const batteryInfo = tag.battery !== undefined ? `🔋 ${Math.round(tag.battery)}%` : '';
                 return `
-                    <li class="device-item tag">
-                        <span class="status-indicator ${tag.status}"></span>
-                        <strong>${tag.id}</strong> - ${tag.name}
+                    <li class="device-item tag" style="border-left-color: ${tag.status === 'offline' ? '#9E9E9E' : '#f44336'}">
+                        <span class="status-indicator ${statusClass}"></span>
+                        ${statusIcon} <strong>${tag.id}</strong> - ${tag.name} ${batteryInfo}
                         <div class="distance-info">
-                            Vị trí: (${tag.x.toFixed(1)}m, ${tag.y.toFixed(1)}m) | 
-                            Gần nhất: ${anchor ? anchor.id : 'N/A'} (${distance.toFixed(2)}m)
+                            📍 Vị trí: (${tag.x.toFixed(2)}m, ${tag.y.toFixed(2)}m)<br>
+                            📏 UWB: ${uwbInfo}<br>
+                            🎯 Gần nhất: ${anchor ? anchor.id : 'N/A'} (${distance.toFixed(2)}m)
                         </div>
                     </li>
                 `;
@@ -932,10 +952,11 @@
             document.getElementById('totalTags').textContent = tags.length;
             document.getElementById('activeTags').textContent = tags.filter(t => t.status === 'online').length;
             
-            const avgDist = tags.reduce((sum, tag) => {
+            const onlineTags = tags.filter(t => t.status === 'online');
+            const avgDist = onlineTags.length > 0 ? onlineTags.reduce((sum, tag) => {
                 const { distance } = findNearestAnchor(tag);
                 return sum + distance;
-            }, 0) / tags.length;
+            }, 0) / onlineTags.length : 0;
             document.getElementById('avgDistance').textContent = avgDist.toFixed(2);
         }
 
@@ -1123,14 +1144,30 @@
             const socket = new SockJS('/ws');
             stompClient = Stomp.over(socket);
             
+            // Disable debug logs
+            stompClient.debug = null;
+            
             stompClient.connect({}, function(frame) {
                 console.log('✅ WebSocket connected:', frame);
                 
-                // Subscribe to helmet data updates
+                // 🎯 Subscribe to REALTIME POSITION updates (with UWB data)
+                stompClient.subscribe('/topic/helmet/position', function(message) {
+                    try {
+                        const data = JSON.parse(message.body);
+                        handleRealtimePosition(data);
+                    } catch (e) {
+                        console.error('❌ Error parsing position data:', e);
+                    }
+                });
+                
+                // Also subscribe to legacy helmet data (for backward compatibility)
                 stompClient.subscribe('/topic/helmet/data', function(message) {
                     try {
                         const data = JSON.parse(message.body);
-                        handleHelmetData(data);
+                        // Only use if no UWB data in position topic
+                        if (!data.uwb) {
+                            handleHelmetData(data);
+                        }
                     } catch (e) {
                         console.error('❌ Error parsing helmet data:', e);
                     }
@@ -1145,6 +1182,77 @@
                     connectWebSocket();
                 }, 5000);
             });
+        }
+        
+        /**
+         * 🎯 Xử lý realtime position với UWB data
+         */
+        function handleRealtimePosition(data) {
+            console.log('📍 Realtime position:', data.mac, 'UWB:', data.uwb, 'Ready:', data.uwbReady);
+            
+            // Kiểm tra status offline (tag chuyển màu xám)
+            if (data.status === 'offline') {
+                let tag = tags.find(t => t.helmet === data.mac);
+                if (tag) {
+                    tag.status = 'offline';
+                    console.log(`⚪ Tag ${tag.id} is now OFFLINE (grey)`);
+                }
+                draw();
+                return;
+            }
+            
+            // Kiểm tra có UWB data không
+            if (!data.uwb || !data.uwbReady) {
+                console.log('⚠️ UWB not ready for', data.mac);
+                return;
+            }
+            
+            // Tính tọa độ từ UWB
+            const position = calculatePositionFromUWB(data.uwb, data.mac);
+            
+            if (!position) {
+                return;
+            }
+            
+            // Cập nhật hoặc tạo tag mới
+            let tag = tags.find(t => t.helmet === data.mac);
+            
+            if (tag) {
+                // Smooth movement - interpolate to new position
+                const smoothFactor = 0.3; // 0 = no change, 1 = instant jump
+                tag.x = tag.x + (position.x - tag.x) * smoothFactor;
+                tag.y = tag.y + (position.y - tag.y) * smoothFactor;
+                tag.status = 'online';
+                tag.battery = data.battery;
+                tag.uwb = data.uwb;
+            } else {
+                // Tạo tag mới
+                const newTag = {
+                    id: 'TAG' + (tags.length + 1),
+                    name: data.employeeName || data.mac.slice(-4),
+                    x: position.x,
+                    y: position.y,
+                    vx: 0,
+                    vy: 0,
+                    status: 'online',
+                    helmet: data.mac,
+                    battery: data.battery,
+                    uwb: data.uwb
+                };
+                tags.push(newTag);
+                console.log(`➕ Created new tag ${newTag.id} for ${data.mac}`);
+            }
+            
+            // Lưu vào cache (for display purposes only)
+            helmetPositions[data.mac] = {
+                position: position,
+                timestamp: Date.now(),
+                battery: data.battery,
+                uwb: data.uwb
+            };
+            
+            // Trigger redraw
+            draw();
         }
         
         // ==========================================

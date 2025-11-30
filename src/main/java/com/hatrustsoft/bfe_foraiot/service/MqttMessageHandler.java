@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hatrustsoft.bfe_foraiot.dto.HelmetRealtimeDTO;
 import com.hatrustsoft.bfe_foraiot.entity.HelmetData;
 import com.hatrustsoft.bfe_foraiot.model.Alert;
 import com.hatrustsoft.bfe_foraiot.model.AlertSeverity;
@@ -51,6 +52,9 @@ public class MqttMessageHandler implements MessageHandler {
     
     @Autowired
     private HelmetService helmetService; // ⭐ Thêm HelmetService để auto-create helmet
+    
+    @Autowired
+    private PositioningService positioningService; // 🎯 Realtime UWB positioning
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -189,6 +193,42 @@ public class MqttMessageHandler implements MessageHandler {
             
             // ✅ LUÔN PUBLISH QUA REDIS → WEBSOCKET (cho realtime positioning)
             redisPublisher.publishHelmetData(data);
+            
+            // 🎯 PUBLISH UWB DATA QUA WEBSOCKET CHO 2D POSITIONING (KHÔNG LƯU DB)
+            JsonNode uwbNode = jsonNode.has("uwb") ? jsonNode.get("uwb") : null;
+            if (uwbNode != null) {
+                Map<String, Double> uwbData = positioningService.parseUwbData(uwbNode);
+                boolean uwbReady = positioningService.isUwbReady(uwbNode);
+                
+                HelmetRealtimeDTO realtimeDTO = HelmetRealtimeDTO.builder()
+                    .mac(macAddress)
+                    .employeeId(data.getEmployeeId())
+                    .employeeName(data.getEmployeeName())
+                    .battery(data.getBattery())
+                    .voltage(data.getVoltage())
+                    .current(data.getCurrent())
+                    .temp(temp)
+                    .heartRate(heartRate)
+                    .spo2(spo2)
+                    .lat(data.getLat())
+                    .lon(data.getLon())
+                    .uwb(uwbData)
+                    .uwbReady(uwbReady)
+                    .fallDetected(fallDetected == 1)
+                    .helpRequest(helpRequest == 1)
+                    .status("online")
+                    .timestamp(data.getTimestamp())
+                    .receivedAt(LocalDateTime.now())
+                    .build();
+                
+                // 📡 Stream realtime (không lưu vào DB/Redis)
+                positioningService.publishRealtimePosition(realtimeDTO);
+                
+                log.info("📍 UWB Realtime: MAC={}, A0={}, A1={}, A2={}, Ready={}", 
+                    macAddress, 
+                    uwbData.get("A0"), uwbData.get("A1"), uwbData.get("A2"),
+                    uwbReady);
+            }
             
             log.info("📡 Realtime: MAC={}, Battery={}%, Loc=({},{}), Mode={}", 
                      macAddress, data.getBattery(), data.getLat(), data.getLon(), mode);
