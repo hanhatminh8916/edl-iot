@@ -1,42 +1,179 @@
 package com.hatrustsoft.bfe_foraiot.service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
+import com.hatrustsoft.bfe_foraiot.entity.Employee;
+import com.hatrustsoft.bfe_foraiot.entity.HelmetData;
 import com.hatrustsoft.bfe_foraiot.model.Alert;
 import com.hatrustsoft.bfe_foraiot.model.AlertStatus;
 import com.hatrustsoft.bfe_foraiot.model.Helmet;
 import com.hatrustsoft.bfe_foraiot.model.HelmetStatus;
 import com.hatrustsoft.bfe_foraiot.model.Worker;
 import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
+import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetRepository;
 import com.hatrustsoft.bfe_foraiot.repository.WorkerRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DashboardService {
 
     private final HelmetRepository helmetRepository;
     private final AlertRepository alertRepository;
     private final WorkerRepository workerRepository;
+    private final EmployeeRepository employeeRepository;
+    private final RedisCacheService redisCacheService;
+    
+    // Timeout để coi là offline (đồng bộ với các trang khác)
+    private static final long OFFLINE_THRESHOLD_SECONDS = 30;
 
+    /**
+     * 📊 Lấy thống kê tổng quan từ dữ liệu THỰC
+     */
     public Map<String, Object> getOverviewStats() {
-        List<Helmet> allHelmets = helmetRepository.findAll();
-        List<Alert> pendingAlerts = alertRepository.findByStatus(AlertStatus.PENDING);
+        // Lấy tổng số công nhân từ bảng Employee
+        long totalEmployees = employeeRepository.count();
+        
+        // Lấy số công nhân đang hoạt động từ Redis (online trong 30s)
+        List<HelmetData> activeHelmets = redisCacheService.getAllActiveHelmets();
+        LocalDateTime now = LocalDateTime.now();
+        
+        long activeWorkers = activeHelmets.stream()
+            .filter(h -> h.getReceivedAt() != null)
+            .filter(h -> ChronoUnit.SECONDS.between(h.getReceivedAt(), now) <= OFFLINE_THRESHOLD_SECONDS)
+            .count();
+        
+        // Lấy cảnh báo hôm nay
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        List<Alert> todayAlerts = alertRepository.findByTriggeredAtAfter(startOfDay);
+        long pendingAlerts = todayAlerts.size();
+        
+        // Tính hiệu suất: % công nhân đang hoạt động / tổng số
+        double efficiency = totalEmployees > 0 
+            ? Math.round((double) activeWorkers / totalEmployees * 100) 
+            : 0;
 
         Map<String, Object> stats = new HashMap<>();
-        stats.put("totalWorkers", allHelmets.size());
-        stats.put("activeWorkers", allHelmets.stream().filter(h -> h.getStatus() == HelmetStatus.ACTIVE).count());
-        stats.put("pendingAlerts", pendingAlerts.size());
-        stats.put("criticalAlerts", pendingAlerts.stream().filter(a -> a.getSeverity().name().equals("CRITICAL")).count());
+        stats.put("totalWorkers", totalEmployees);
+        stats.put("activeWorkers", activeWorkers);
+        stats.put("pendingAlerts", pendingAlerts);
+        stats.put("efficiency", efficiency);
+        
+        log.info("📊 Dashboard stats: total={}, active={}, alerts={}, efficiency={}%", 
+            totalEmployees, activeWorkers, pendingAlerts, efficiency);
 
         return stats;
+    }
+    
+    /**
+     * 🔴 Lấy danh sách cảnh báo gần đây (hôm nay)
+     */
+    public List<Map<String, Object>> getRecentAlerts() {
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        List<Alert> todayAlerts = alertRepository.findByTriggeredAtAfter(startOfDay);
+        
+        return todayAlerts.stream()
+            .filter(a -> a.getTriggeredAt() != null)
+            .sorted((a, b) -> b.getTriggeredAt().compareTo(a.getTriggeredAt())) // Mới nhất trước
+            .limit(5)
+            .map(alert -> {
+                Map<String, Object> alertData = new HashMap<>();
+                alertData.put("id", alert.getId());
+                alertData.put("type", alert.getAlertType() != null ? alert.getAlertType().name() : "UNKNOWN");
+                alertData.put("severity", alert.getSeverity() != null ? alert.getSeverity().name() : "LOW");
+                alertData.put("message", alert.getMessage());
+                alertData.put("timestamp", alert.getTriggeredAt().toString());
+                alertData.put("time", alert.getTriggeredAt().toLocalTime().toString().substring(0, 5));
+                
+                // Lấy thông tin nhân viên
+                if (alert.getHelmet() != null && alert.getHelmet().getWorker() != null) {
+                    alertData.put("employeeName", alert.getHelmet().getWorker().getFullName());
+                } else {
+                    alertData.put("employeeName", "Không xác định");
+                }
+                
+                return alertData;
+            })
+            .toList();
+    }
+    
+    /**
+     * 🔋 Lấy trạng thái pin từ Redis (dữ liệu thực)
+     */
+    public List<Map<String, Object>> getBatteryStatus() {
+        List<HelmetData> helmets = redisCacheService.getAllActiveHelmets();
+        List<Map<String, Object>> batteryList = new ArrayList<>();
+        
+        for (HelmetData helmet : helmets) {
+            Map<String, Object> batteryData = new HashMap<>();
+            
+            // Tìm thông tin nhân viên
+            Employee emp = employeeRepository.findByMacAddress(helmet.getMac()).orElse(null);
+            
+            if (emp != null) {
+                batteryData.put("employeeName", emp.getName());
+                batteryData.put("employeeId", emp.getEmployeeId());
+                batteryData.put("initials", getInitials(emp.getName()));
+            } else {
+                batteryData.put("employeeName", "Helmet " + helmet.getMac().substring(Math.max(0, helmet.getMac().length() - 4)));
+                batteryData.put("employeeId", helmet.getMac());
+                batteryData.put("initials", "??");
+            }
+            
+            batteryData.put("mac", helmet.getMac());
+            batteryData.put("battery", helmet.getBattery() != null ? helmet.getBattery() : 0);
+            batteryData.put("voltage", helmet.getVoltage() != null ? helmet.getVoltage() : 0);
+            batteryData.put("current", helmet.getCurrent() != null ? Math.abs(helmet.getCurrent()) : 0);
+            
+            // Xác định trạng thái pin
+            Double battery = helmet.getBattery();
+            String batteryStatus;
+            if (battery == null || battery <= 20) {
+                batteryStatus = "low";
+            } else if (battery <= 50) {
+                batteryStatus = "medium";
+            } else if (battery <= 80) {
+                batteryStatus = "good";
+            } else {
+                batteryStatus = "excellent";
+            }
+            batteryData.put("batteryStatus", batteryStatus);
+            
+            batteryList.add(batteryData);
+        }
+        
+        // Sắp xếp theo pin thấp nhất trước
+        batteryList.sort((a, b) -> {
+            Double ba = (Double) a.get("battery");
+            Double bb = (Double) b.get("battery");
+            return Double.compare(ba != null ? ba : 0, bb != null ? bb : 0);
+        });
+        
+        return batteryList;
+    }
+    
+    /**
+     * Lấy chữ cái đầu của tên
+     */
+    private String getInitials(String name) {
+        if (name == null || name.isEmpty()) return "??";
+        String[] parts = name.split(" ");
+        if (parts.length >= 2) {
+            return ("" + parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+        }
+        return name.substring(0, Math.min(2, name.length())).toUpperCase();
     }
 
     public Map<String, Object> getRealtimeData() {

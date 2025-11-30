@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -18,6 +19,22 @@ public class DashboardController {
     @GetMapping("/overview")
     public ResponseEntity<Map<String, Object>> getOverview() {
         return ResponseEntity.ok(dashboardService.getOverviewStats());
+    }
+    
+    /**
+     * 🔴 API lấy cảnh báo gần đây (hôm nay)
+     */
+    @GetMapping("/alerts/recent")
+    public ResponseEntity<List<Map<String, Object>>> getRecentAlerts() {
+        return ResponseEntity.ok(dashboardService.getRecentAlerts());
+    }
+    
+    /**
+     * 🔋 API lấy trạng thái pin từ dữ liệu thực
+     */
+    @GetMapping("/battery-status")
+    public ResponseEntity<List<Map<String, Object>>> getBatteryStatus() {
+        return ResponseEntity.ok(dashboardService.getBatteryStatus());
     }
 
     @GetMapping("/realtime")

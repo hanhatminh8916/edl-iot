@@ -1,4 +1,4 @@
-// Dashboard JavaScript
+// Dashboard JavaScript - REAL DATA
 const API_BASE_URL = '/api';
 
 // Navigation handling
@@ -9,192 +9,235 @@ document.addEventListener('DOMContentLoaded', function() {
     // Connect WebSocket for realtime updates
     connectWebSocket();
     
-    // Handle navigation items - remove preventDefault to allow links to work
+    // Handle navigation items
     const navItems = document.querySelectorAll('.nav-item');
     navItems.forEach(item => {
         item.addEventListener('click', function(e) {
-            // Don't prevent default - let the link navigate
-            // Only prevent for items with href="#"
             if (this.getAttribute('href') === '#') {
                 e.preventDefault();
                 alert('Chức năng đang được phát triển');
             }
-            // The active class will be set by each page's own HTML
         });
     });
-
-    // Handle notification icon
-    const notificationIcon = document.querySelector('.notification-icon');
-    if (notificationIcon) {
-        notificationIcon.addEventListener('click', function() {
-            alert('Bạn có 3 thông báo mới!');
-        });
-    }
-
-    // Handle admin profile
-    const adminProfile = document.querySelector('.admin-profile');
-    if (adminProfile) {
-        adminProfile.addEventListener('click', function() {
-            alert('Chức năng quản lý tài khoản');
-        });
-    }
 
     // Handle export button
     const btnExport = document.querySelector('.btn-export');
     if (btnExport) {
         btnExport.addEventListener('click', function() {
-            alert('Chuyển sang chế độ xem trực tiếp');
+            window.location.href = 'location.html';
         });
     }
 
-    // Handle alert items
-    const alertItems = document.querySelectorAll('.alert-item');
-    alertItems.forEach(item => {
-        item.addEventListener('click', function() {
-            const employeeName = this.querySelector('h4').textContent;
-            const alertType = this.querySelector('p').textContent;
-            alert(`Chi tiết cảnh báo:\nNhân viên: ${employeeName}\nLoại cảnh báo: ${alertType}`);
-        });
-    });
-
-    // Handle action items
-    const actionItems = document.querySelectorAll('.action-item');
-    actionItems.forEach(item => {
-        item.addEventListener('click', function() {
-            const actionTitle = this.querySelector('h4').textContent;
-            alert(`Thực hiện: ${actionTitle}`);
-        });
-    });
-
-    // Handle view all alerts button
-    const btnViewAlerts = document.querySelector('.btn-link');
-    if (btnViewAlerts) {
-        btnViewAlerts.addEventListener('click', function() {
-            window.location.href = '/alerts.html';
-        });
-    }
-
-    // Update time periodically (simulate real-time updates)
-    setInterval(loadDashboardData, 30000); // Update every 30 seconds
+    // Update every 30 seconds
+    setInterval(loadDashboardData, 30000);
 });
 
-// Function to load dashboard data from API
+/**
+ * 📊 Load tất cả dữ liệu dashboard từ API
+ */
 async function loadDashboardData() {
     try {
-        // Fetch overview stats
-        const statsResponse = await fetch(`${API_BASE_URL}/dashboard/overview`);
-        const stats = await statsResponse.json();
+        // Load overview stats
+        await loadOverviewStats();
         
-        // Update statistics
-        updateStatistics(stats);
+        // Load recent alerts
+        await loadRecentAlerts();
         
-        // Fetch pending alerts
-        const alertsResponse = await fetch(`${API_BASE_URL}/alerts/pending`);
-        const alerts = await alertsResponse.json();
+        // Load battery status
+        await loadBatteryStatus();
         
-        // Update alerts display
-        updateCriticalAlerts(alerts);
-        
-        // Fetch active helmets for battery monitoring
-        const helmetsResponse = await fetch(`${API_BASE_URL}/helmet/active`);
-        const helmets = await helmetsResponse.json();
-        
-        // Update battery status
-        updateBatteryStatus(helmets);
-        
-        console.log('Dashboard updated at:', new Date().toLocaleTimeString('vi-VN'));
+        console.log('✅ Dashboard updated at:', new Date().toLocaleTimeString('vi-VN'));
     } catch (error) {
-        console.error('Error loading dashboard data:', error);
-        showNotification('Không thể tải dữ liệu dashboard', 'error');
+        console.error('❌ Error loading dashboard data:', error);
     }
 }
 
-// Function to update statistics
-function updateStatistics(stats) {
-    const statElements = {
-        totalWorkers: document.querySelector('.stat-card:nth-child(1) .stat-value'),
-        activeWorkers: document.querySelector('.stat-card:nth-child(2) .stat-value'),
-        pendingAlerts: document.querySelector('.stat-card:nth-child(3) .stat-value'),
-        criticalAlerts: document.querySelector('.stat-card:nth-child(4) .stat-value')
-    };
-    
-    if (statElements.totalWorkers) statElements.totalWorkers.textContent = stats.totalWorkers || 0;
-    if (statElements.activeWorkers) statElements.activeWorkers.textContent = stats.activeWorkers || 0;
-    if (statElements.pendingAlerts) statElements.pendingAlerts.textContent = stats.pendingAlerts || 0;
-    
-    // Calculate efficiency
-    const efficiency = stats.totalWorkers > 0 
-        ? Math.round((stats.activeWorkers / stats.totalWorkers) * 100) 
-        : 0;
-    if (statElements.criticalAlerts) {
-        statElements.criticalAlerts.textContent = efficiency + '%';
+/**
+ * 📈 Load thống kê tổng quan
+ */
+async function loadOverviewStats() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/dashboard/overview`);
+        if (!response.ok) throw new Error('API error');
+        
+        const stats = await response.json();
+        
+        // Update UI
+        document.getElementById('stat-total-workers').textContent = stats.totalWorkers || 0;
+        document.getElementById('stat-active-workers').textContent = stats.activeWorkers || 0;
+        document.getElementById('stat-alerts').textContent = stats.pendingAlerts || 0;
+        document.getElementById('stat-efficiency').textContent = (stats.efficiency || 0) + '%';
+        
+    } catch (error) {
+        console.error('Error loading overview stats:', error);
     }
 }
 
-// Function to update critical alerts
-function updateCriticalAlerts(alerts) {
-    const alertsContainer = document.querySelector('.critical-alerts .alerts-list');
-    if (!alertsContainer) return;
+/**
+ * 🔔 Load cảnh báo gần đây
+ */
+async function loadRecentAlerts() {
+    const container = document.getElementById('recent-alerts-list');
+    if (!container) return;
     
-    // Filter for critical alerts only
-    const criticalAlerts = alerts.filter(alert => 
-        alert.severity === 'CRITICAL' || alert.alertType === 'FALL'
-    ).slice(0, 5); // Show max 5 alerts
+    try {
+        const response = await fetch(`${API_BASE_URL}/dashboard/alerts/recent`);
+        if (!response.ok) throw new Error('API error');
+        
+        const alerts = await response.json();
+        
+        if (alerts.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #22c55e;">
+                    <i class="fas fa-check-circle" style="font-size: 24px;"></i>
+                    <p style="margin-top: 10px;">Không có cảnh báo hôm nay</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = alerts.map(alert => {
+            const isDanger = alert.severity === 'CRITICAL' || alert.severity === 'HIGH';
+            return `
+                <div class="alert-item">
+                    <div class="alert-dot ${isDanger ? 'danger' : ''}"></div>
+                    <div class="alert-content">
+                        <h4>${alert.employeeName || 'Không xác định'}</h4>
+                        <p>${alert.message || alert.type}</p>
+                    </div>
+                    <span class="alert-time ${isDanger ? 'danger-badge' : ''}">${alert.time}</span>
+                </div>
+            `;
+        }).join('');
+        
+        // Update critical alerts section
+        const criticalAlerts = alerts.filter(a => a.severity === 'CRITICAL');
+        updateCriticalAlerts(criticalAlerts);
+        
+    } catch (error) {
+        console.error('Error loading recent alerts:', error);
+        container.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #6b7280;">
+                <p>Không thể tải cảnh báo</p>
+            </div>
+        `;
+    }
+}
+
+/**
+ * 🔴 Cập nhật cảnh báo nguy hiểm
+ */
+function updateCriticalAlerts(criticalAlerts) {
+    const countEl = document.getElementById('critical-count');
+    const listEl = document.getElementById('critical-alerts-list');
+    
+    if (!countEl || !listEl) return;
+    
+    countEl.textContent = `${criticalAlerts.length} cảnh báo`;
     
     if (criticalAlerts.length === 0) {
-        alertsContainer.innerHTML = '<p style="text-align: center; color: #64748b;">Không có cảnh báo nguy hiểm</p>';
+        listEl.innerHTML = `
+            <div style="text-align: center; padding: 30px; color: #22c55e;">
+                <i class="fas fa-check-circle" style="font-size: 24px;"></i>
+                <p style="margin-top: 10px;">Không có cảnh báo nguy hiểm</p>
+            </div>
+        `;
         return;
     }
     
-    alertsContainer.innerHTML = criticalAlerts.map(alert => `
-        <div class="alert-item">
-            <div class="alert-icon">
-                <i class="fas fa-exclamation-triangle"></i>
+    listEl.innerHTML = criticalAlerts.map(alert => `
+        <div class="critical-item">
+            <div class="critical-avatar">
+                <i class="fas fa-user"></i>
             </div>
-            <div class="alert-content">
-                <h4>Công nhân #${alert.helmet?.helmetId || 'N/A'}</h4>
-                <p>${alert.message}</p>
-                <div class="alert-details">
-                    <span><i class="fas fa-clock"></i> ${formatTime(alert.triggeredAt)}</span>
-                    <span><i class="fas fa-map-marker-alt"></i> ${alert.gpsLat?.toFixed(6)}, ${alert.gpsLon?.toFixed(6)}</span>
+            <div class="critical-info">
+                <div class="critical-header">
+                    <h4>${alert.employeeName}</h4>
+                    <span class="critical-level danger">Nghiêm trọng</span>
+                </div>
+                <div class="critical-details">
+                    <div class="critical-detail-item">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>${alert.message || alert.type}</span>
+                    </div>
+                    <div class="critical-detail-item">
+                        <i class="fas fa-clock"></i>
+                        <span>${alert.time}</span>
+                    </div>
                 </div>
             </div>
+            <button class="btn-critical-action" onclick="alert('Đang gọi...')">
+                <i class="fas fa-phone-alt"></i>
+                Liên hệ
+            </button>
         </div>
     `).join('');
 }
 
-// Function to update battery status
-function updateBatteryStatus(helmets) {
-    const batteryTableBody = document.querySelector('.battery-status tbody');
-    if (!batteryTableBody) return;
+/**
+ * 🔋 Load trạng thái pin
+ */
+async function loadBatteryStatus() {
+    const container = document.getElementById('battery-status-list');
+    const countEl = document.getElementById('battery-device-count');
     
-    const activeHelmets = helmets.slice(0, 5); // Show max 5 helmets
+    if (!container) return;
     
-    if (activeHelmets.length === 0) {
-        batteryTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Không có dữ liệu</td></tr>';
-        return;
-    }
-    
-    batteryTableBody.innerHTML = activeHelmets.map(helmet => {
-        const batteryClass = helmet.batteryLevel > 50 ? 'battery-good' : 
-                            helmet.batteryLevel > 20 ? 'battery-medium' : 'battery-low';
-        const voltage = (helmet.batteryLevel / 100 * 4.2).toFixed(2); // Simulate voltage
-        const current = (Math.random() * 0.5 + 0.1).toFixed(2); // Simulate current
+    try {
+        const response = await fetch(`${API_BASE_URL}/dashboard/battery-status`);
+        if (!response.ok) throw new Error('API error');
         
-        return `
-            <tr>
-                <td>Thiết bị #${helmet.helmetId}</td>
-                <td>
-                    <div class="battery-progress">
-                        <div class="battery-fill ${batteryClass}" style="width: ${helmet.batteryLevel}%"></div>
+        const batteries = await response.json();
+        
+        if (countEl) countEl.textContent = `${batteries.length} thiết bị`;
+        
+        if (batteries.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 30px; color: #6b7280;">
+                    <i class="fas fa-battery-empty" style="font-size: 24px;"></i>
+                    <p style="margin-top: 10px;">Không có thiết bị online</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = batteries.map(b => {
+            const battery = b.battery || 0;
+            const status = b.batteryStatus || 'medium';
+            const isLow = battery <= 20;
+            
+            return `
+                <div class="battery-item ${isLow ? 'warning-bg' : ''}">
+                    <div class="battery-worker">
+                        <div class="battery-avatar">${b.initials || '??'}</div>
+                        <div class="battery-worker-info">
+                            <h4>${b.employeeName}</h4>
+                            <span class="battery-device">ID: ${b.employeeId} • ESP32</span>
+                        </div>
                     </div>
-                    <span>${helmet.batteryLevel}%</span>
-                </td>
-                <td>${voltage}V</td>
-                <td>${current}A</td>
-            </tr>
+                    <div class="battery-status">
+                        <div class="battery-bar">
+                            <div class="battery-fill ${status}" style="width: ${battery}%"></div>
+                        </div>
+                        <div class="battery-info">
+                            <span class="battery-percent ${status}">
+                                ${isLow ? '<i class="fas fa-exclamation-triangle"></i> ' : ''}${Math.round(battery)}%
+                            </span>
+                            <span class="battery-voltage">${(b.voltage || 0).toFixed(1)}V / ${Math.round(b.current || 0)}mA</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Error loading battery status:', error);
+        container.innerHTML = `
+            <div style="text-align: center; padding: 30px; color: #6b7280;">
+                <p>Không thể tải trạng thái pin</p>
+            </div>
         `;
-    }).join('');
+    }
 }
 
 // Helper function to format time

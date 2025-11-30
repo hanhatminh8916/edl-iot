@@ -95,8 +95,8 @@
                     </div>
                     <div class="stat-info">
                         <h3>Tổng công nhân</h3>
-                        <div class="stat-value">45</div>
-                        <p class="stat-label">Đã hồn quả</p>
+                        <div class="stat-value" id="stat-total-workers">--</div>
+                        <p class="stat-label">Đã đăng ký</p>
                     </div>
                 </div>
 
@@ -106,8 +106,8 @@
                     </div>
                     <div class="stat-info">
                         <h3>Đang làm việc</h3>
-                        <div class="stat-value">38</div>
-                        <p class="stat-label">Trong gọi an vi tối đa: 35</p>
+                        <div class="stat-value" id="stat-active-workers">--</div>
+                        <p class="stat-label">Online trong 30s</p>
                     </div>
                 </div>
 
@@ -117,8 +117,8 @@
                     </div>
                     <div class="stat-info">
                         <h3>Cảnh báo hôm nay</h3>
-                        <div class="stat-value warning-text">3</div>
-                        <p class="stat-label">1 sự cố hồm quả</p>
+                        <div class="stat-value warning-text" id="stat-alerts">--</div>
+                        <p class="stat-label">Sự cố ghi nhận</p>
                     </div>
                 </div>
 
@@ -128,8 +128,8 @@
                     </div>
                     <div class="stat-info">
                         <h3>Hiệu suất</h3>
-                        <div class="stat-value success-text">94%</div>
-                        <p class="stat-label">Thời gian làm việc: 8.8h</p>
+                        <div class="stat-value success-text" id="stat-efficiency">--%</div>
+                        <p class="stat-label">Tỷ lệ hoạt động</p>
                     </div>
                 </div>
             </div>
@@ -147,36 +147,14 @@
                     <div class="card-body">
                         <p class="card-subtitle">Các sự cố và cảnh báo trong ngày hôm nay</p>
                         
-                        <div class="alert-list">
-                            <div class="alert-item">
-                                <div class="alert-dot danger"></div>
-                                <div class="alert-content">
-                                    <h4>Nguyễn Văn A</h4>
-                                    <p>Vượt ra ngoài phạm vi</p>
-                                </div>
-                                <span class="alert-time danger-badge">10:30</span>
-                            </div>
-
-                            <div class="alert-item">
-                                <div class="alert-dot danger"></div>
-                                <div class="alert-content">
-                                    <h4>Trần Thị B</h4>
-                                    <p>Mất cũng nguy hiểm</p>
-                                </div>
-                                <span class="alert-time danger-badge">09:15</span>
-                            </div>
-
-                            <div class="alert-item">
-                                <div class="alert-dot"></div>
-                                <div class="alert-content">
-                                    <h4>Lê Văn C</h4>
-                                    <p>Thiết bị mất tín hiệu</p>
-                                </div>
-                                <span class="alert-time">08:45</span>
+                        <div class="alert-list" id="recent-alerts-list">
+                            <div style="text-align: center; padding: 20px; color: #6b7280;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Đang tải...</p>
                             </div>
                         </div>
 
-                        <button class="btn-link">Xem tất cả cảnh báo</button>
+                        <button class="btn-link" onclick="window.location.href='alerts.html'">Xem tất cả cảnh báo</button>
                     </div>
                 </div>
 
@@ -237,70 +215,15 @@
                             <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i>
                             <h3>Cảnh báo nguy hiểm</h3>
                         </div>
-                        <span class="critical-badge">2 cảnh báo</span>
+                        <span class="critical-badge" id="critical-count">0 cảnh báo</span>
                     </div>
                     <div class="card-body">
                         <p class="card-subtitle">Công nhân cần hỗ trợ khẩn cấp</p>
                         
-                        <div class="critical-list">
-                            <div class="critical-item">
-                                <div class="critical-avatar">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                                <div class="critical-info">
-                                    <div class="critical-header">
-                                        <h4>Nguyễn Văn A</h4>
-                                        <span class="critical-level danger">Nghiêm trọng</span>
-                                    </div>
-                                    <div class="critical-details">
-                                        <div class="critical-detail-item">
-                                            <i class="fas fa-map-marker-alt"></i>
-                                            <span>Vượt ra ngoài phạm vi an toàn</span>
-                                        </div>
-                                        <div class="critical-detail-item">
-                                            <i class="fas fa-clock"></i>
-                                            <span>10:30 - 5 phút trước</span>
-                                        </div>
-                                        <div class="critical-detail-item">
-                                            <i class="fas fa-heartbeat"></i>
-                                            <span>Nhịp tim: 145 bpm (cao)</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button class="btn-critical-action">
-                                    <i class="fas fa-phone-alt"></i>
-                                    Liên hệ
-                                </button>
-                            </div>
-
-                            <div class="critical-item">
-                                <div class="critical-avatar">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                                <div class="critical-info">
-                                    <div class="critical-header">
-                                        <h4>Trần Thị B</h4>
-                                        <span class="critical-level danger">Nghiêm trọng</span>
-                                    </div>
-                                    <div class="critical-details">
-                                        <div class="critical-detail-item">
-                                            <i class="fas fa-exclamation-triangle"></i>
-                                            <span>Phát hiện té ngã - Buzzer đã kích hoạt</span>
-                                        </div>
-                                        <div class="critical-detail-item">
-                                            <i class="fas fa-clock"></i>
-                                            <span>09:15 - 26 phút trước</span>
-                                        </div>
-                                        <div class="critical-detail-item">
-                                            <i class="fas fa-shield-alt"></i>
-                                            <span>Vào khu vực nguy hiểm (UWB Alert)</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button class="btn-critical-action">
-                                    <i class="fas fa-phone-alt"></i>
-                                    Liên hệ
-                                </button>
+                        <div class="critical-list" id="critical-alerts-list">
+                            <div style="text-align: center; padding: 30px; color: #6b7280;">
+                                <i class="fas fa-check-circle" style="font-size: 24px; color: #22c55e;"></i>
+                                <p style="margin-top: 10px;">Không có cảnh báo nguy hiểm</p>
                             </div>
                         </div>
                     </div>
@@ -313,91 +236,20 @@
                             <i class="fas fa-battery-half" style="color: #f59e0b;"></i>
                             <h3>Trạng thái pin mũ bảo hộ</h3>
                         </div>
-                        <span class="battery-count">4 thiết bị</span>
+                        <span class="battery-count" id="battery-device-count">0 thiết bị</span>
                     </div>
                     <div class="card-body">
                         <p class="card-subtitle">Giám sát pin qua module INA219 DC</p>
                         
-                        <div class="battery-list">
-                            <div class="battery-item">
-                                <div class="battery-worker">
-                                    <div class="battery-avatar">NVA</div>
-                                    <div class="battery-worker-info">
-                                        <h4>Nguyễn Văn A</h4>
-                                        <span class="battery-device">ID: DEV001 • ESP32</span>
-                                    </div>
-                                </div>
-                                <div class="battery-status">
-                                    <div class="battery-bar">
-                                        <div class="battery-fill good" style="width: 78%"></div>
-                                    </div>
-                                    <div class="battery-info">
-                                        <span class="battery-percent good">78%</span>
-                                        <span class="battery-voltage">3.9V / 850mA</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="battery-item warning-bg">
-                                <div class="battery-worker">
-                                    <div class="battery-avatar">TTB</div>
-                                    <div class="battery-worker-info">
-                                        <h4>Trần Thị B</h4>
-                                        <span class="battery-device">ID: DEV002 • ESP32</span>
-                                    </div>
-                                </div>
-                                <div class="battery-status">
-                                    <div class="battery-bar">
-                                        <div class="battery-fill low" style="width: 18%"></div>
-                                    </div>
-                                    <div class="battery-info">
-                                        <span class="battery-percent low">
-                                            <i class="fas fa-exclamation-triangle"></i> 18%
-                                        </span>
-                                        <span class="battery-voltage">3.2V / 320mA</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="battery-item">
-                                <div class="battery-worker">
-                                    <div class="battery-avatar">LVC</div>
-                                    <div class="battery-worker-info">
-                                        <h4>Lê Văn Cường</h4>
-                                        <span class="battery-device">ID: DEV003 • ESP32</span>
-                                    </div>
-                                </div>
-                                <div class="battery-status">
-                                    <div class="battery-bar">
-                                        <div class="battery-fill excellent" style="width: 95%"></div>
-                                    </div>
-                                    <div class="battery-info">
-                                        <span class="battery-percent excellent">95%</span>
-                                        <span class="battery-voltage">4.1V / 920mA</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="battery-item">
-                                <div class="battery-worker">
-                                    <div class="battery-avatar">PTD</div>
-                                    <div class="battery-worker-info">
-                                        <h4>Phạm Thị Dung</h4>
-                                        <span class="battery-device">ID: DEV004 • ESP32</span>
-                                    </div>
-                                </div>
-                                <div class="battery-status">
-                                    <div class="battery-bar">
-                                        <div class="battery-fill medium" style="width: 52%"></div>
-                                    </div>
-                                    <div class="battery-info">
-                                        <span class="battery-percent medium">52%</span>
-                                        <span class="battery-voltage">3.7V / 680mA</span>
-                                    </div>
-                                </div>
+                        <div class="battery-list" id="battery-status-list">
+                            <div style="text-align: center; padding: 30px; color: #6b7280;">
+                                <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                                <p style="margin-top: 10px;">Đang tải...</p>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
                 </div>
             </div>
 
