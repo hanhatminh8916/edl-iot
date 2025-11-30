@@ -12,6 +12,9 @@ import com.hatrustsoft.bfe_foraiot.entity.HelmetData;
 @Repository
 public interface HelmetDataRepository extends JpaRepository<HelmetData, Long> {
     
+    // Tìm record duy nhất theo MAC (để upsert - 1 row per MAC)
+    Optional<HelmetData> findByMac(String mac);
+    
     // Tìm dữ liệu theo MAC address
     List<HelmetData> findByMacOrderByTimestampDesc(String mac);
     

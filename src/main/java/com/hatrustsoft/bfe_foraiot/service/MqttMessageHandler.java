@@ -157,29 +157,26 @@ public class MqttMessageHandler implements MessageHandler {
                 }
             );
 
-            // ⭐ LOGIC LƯU DỮ LIỆU - CHỈ LƯU KHI CẦN THIẾT
-            // Không lưu vào helmet_data để tiết kiệm tài nguyên
-            // Chỉ lưu vào helmets (vị trí cuối cùng) + Redis (realtime)
-            
-            boolean shouldSaveToHelmetData = false; // ✅ TẮT auto-save vào helmet_data
-            String saveReason = "⏭️ SKIP (using Redis)";
-
-            // ⚠️ Chỉ lưu vào helmet_data khi:
-            // 1. Có cảnh báo (fall, help request, danger zone)
-            // 2. Pin dưới 20%
-            // 3. Helmet offline → online (lần đầu nhận data sau khi mất kết nối)
-            if (fallDetected == 1 || helpRequest == 1 || inDangerZone) {
-                shouldSaveToHelmetData = true;
-                saveReason = "🚨 ALERT - save to DB";
-            } else if (data.getBattery() != null && data.getBattery() < 20) {
-                shouldSaveToHelmetData = true;
-                saveReason = "🔋 LOW BATTERY - save to DB";
-            }
-
-            if (shouldSaveToHelmetData) {
-                // Lưu vào helmet_data (chỉ khi có alert)
+            // ✅ LUÔN UPSERT VÀO helmet_data (1 row duy nhất mỗi MAC)
+            HelmetData existingData = helmetDataRepository.findByMac(macAddress).orElse(null);
+            if (existingData != null) {
+                // Update existing record
+                existingData.setEmployeeId(data.getEmployeeId());
+                existingData.setEmployeeName(data.getEmployeeName());
+                existingData.setVoltage(data.getVoltage());
+                existingData.setCurrent(data.getCurrent());
+                existingData.setPower(data.getPower());
+                existingData.setBattery(data.getBattery());
+                existingData.setLat(data.getLat());
+                existingData.setLon(data.getLon());
+                existingData.setCounter(data.getCounter());
+                existingData.setTimestamp(data.getTimestamp());
+                helmetDataRepository.save(existingData);
+                log.debug("📝 Updated helmet_data for MAC: {}", macAddress);
+            } else {
+                // Insert new record
                 helmetDataRepository.save(data);
-                log.info("{}: Saved to helmet_data table", saveReason);
+                log.info("➕ Inserted new helmet_data for MAC: {}", macAddress);
             }
             
             // ✅ LUÔN CẬP NHẬT VỊ TRÍ CUỐI CÙNG VÀO HELMETS TABLE

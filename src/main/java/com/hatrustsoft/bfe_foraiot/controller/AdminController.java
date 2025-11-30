@@ -218,6 +218,49 @@ public class AdminController {
         }
     }
 
+    /**
+     * 🧹 Cleanup helmet_data: giữ lại 1 row mỗi MAC (mới nhất)
+     */
+    @GetMapping("/cleanup-helmet-data")
+    public ResponseEntity<Map<String, Object>> cleanupHelmetData() {
+        List<String> logs = new ArrayList<>();
+        try {
+            // Count before
+            long countBefore = helmetDataRepository.count();
+            logs.add("Records before cleanup: " + countBefore);
+            
+            // Get unique MACs and keep only latest record for each
+            String sql = """
+                DELETE h1 FROM helmet_data h1
+                INNER JOIN helmet_data h2 
+                WHERE h1.mac = h2.mac 
+                AND h1.id < h2.id
+            """;
+            
+            int deleted = jdbcTemplate.update(sql);
+            logs.add("Deleted duplicate records: " + deleted);
+            
+            long countAfter = helmetDataRepository.count();
+            logs.add("Records after cleanup: " + countAfter);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Cleanup completed! Removed " + deleted + " duplicate records",
+                "before", countBefore,
+                "after", countAfter,
+                "deleted", deleted,
+                "logs", logs
+            ));
+        } catch (Exception e) {
+            logs.add("Error: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of(
+                "success", false,
+                "error", e.getMessage(),
+                "logs", logs
+            ));
+        }
+    }
+
     @PostMapping("/reset-data")
     public ResponseEntity<String> resetData() {
         try {
