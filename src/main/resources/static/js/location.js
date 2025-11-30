@@ -91,14 +91,14 @@ function initializeMap() {
                         window.location.href = `positioning-2d.html?zone=${layer.zoneId}`;
                     });
                     
-                    // ✅ Lấy số anchor hiện tại để tạo ID tuần tự
+                    // ✅ Lấy số anchor hiện tại để tạo ID tuần tự (bắt đầu từ A0)
                     const currentMaxId = await getMaxAnchorId();
                     
-                    // ✅ Tạo anchor cho mỗi đỉnh polygon
+                    // ✅ Tạo anchor cho mỗi đỉnh polygon (A0, A1, A2...)
                     for (let index = 0; index < vertices.length; index++) {
                         const vertex = vertices[index];
-                        const anchorNumber = currentMaxId + index + 1;
-                        const anchorName = `${zoneName}-A${index + 1}`;
+                        const anchorNumber = currentMaxId + index; // Bắt đầu từ 0
+                        const anchorName = `${zoneName}-A${index}`; // A0, A1, A2...
                         await createAnchorFromVertex(vertex, anchorName, zoneId, anchorNumber);
                     }
                     
@@ -134,12 +134,12 @@ function initializeMap() {
                 // Xóa anchors cũ
                 await deleteAnchorsByZoneId(layer.zoneId);
                 
-                // Tạo anchors mới tại các đỉnh mới
+                // Tạo anchors mới tại các đỉnh mới (A0, A1, A2...)
                 const currentMaxId = await getMaxAnchorId();
                 for (let index = 0; index < newCoords.length; index++) {
                     const vertex = newCoords[index];
-                    const anchorNumber = currentMaxId + index + 1;
-                    const anchorName = `${layer.zoneName}-A${index + 1}`;
+                    const anchorNumber = currentMaxId + index; // Bắt đầu từ 0
+                    const anchorName = `${layer.zoneName}-A${index}`; // A0, A1, A2...
                     await createAnchorFromVertex(vertex, anchorName, layer.zoneId, anchorNumber);
                 }
                 
@@ -1254,20 +1254,24 @@ async function deleteZoneFromDatabase(zoneId) {
     }
 }
 
-// ✅ LẤY SỐ ANCHOR LỚN NHẤT HIỆN TẠI
+// ✅ LẤY SỐ ANCHOR LỚN NHẤT HIỆN TẠI (hỗ trợ A0, A1, A2...)
 async function getMaxAnchorId() {
     try {
         const response = await fetch('/api/anchors');
         const anchors = await response.json();
         
-        // Tìm số lớn nhất từ anchorId dạng A1, A2, A3...
+        if (anchors.length === 0) {
+            return 0; // Bắt đầu từ A0
+        }
+        
+        // Tìm số lớn nhất từ anchorId dạng A0, A1, A2, A3...
         const maxId = anchors
             .map(a => a.anchorId)
             .filter(id => id && id.match(/^A\d+$/))
             .map(id => parseInt(id.substring(1)))
-            .reduce((max, num) => Math.max(max, num), 0);
+            .reduce((max, num) => Math.max(max, num), -1); // -1 để khi + 1 = 0
         
-        return maxId;
+        return maxId + 1; // Trả về số tiếp theo
     } catch (error) {
         console.error('Error getting max anchor ID:', error);
         return 0;
@@ -1277,11 +1281,11 @@ async function getMaxAnchorId() {
 // ✅ TẠO ANCHOR TỪ ĐỈNH POLYGON
 async function createAnchorFromVertex(vertex, anchorName, zoneId, anchorIndex) {
     try {
-        // Generate sequential anchorId: A1, A2, A3...
+        // Generate sequential anchorId: A0, A1, A2, A3...
         const anchorId = `A${anchorIndex}`;
         
         const payload = {
-            anchorId: anchorId,  // A1, A2, A3...
+            anchorId: anchorId,  // A0, A1, A2, A3...
             name: anchorName,
             latitude: vertex.lat,
             longitude: vertex.lng,
