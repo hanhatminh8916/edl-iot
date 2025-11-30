@@ -155,6 +155,44 @@ public class AdminController {
         }
     }
 
+    /**
+     * 🗑️ Drop workers table (no longer needed)
+     */
+    @GetMapping("/drop-workers-table")
+    public ResponseEntity<Map<String, Object>> dropWorkersTable() {
+        List<String> logs = new ArrayList<>();
+        try {
+            // Check if workers table exists
+            try {
+                jdbcTemplate.queryForList("SELECT 1 FROM workers LIMIT 1");
+                logs.add("Workers table exists, dropping...");
+                
+                // Drop the table
+                jdbcTemplate.execute("DROP TABLE workers");
+                logs.add("Workers table dropped successfully!");
+                
+                return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Workers table dropped successfully!",
+                    "logs", logs
+                ));
+            } catch (Exception e) {
+                logs.add("Workers table does not exist or already dropped: " + e.getMessage());
+                return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Workers table does not exist",
+                    "logs", logs
+                ));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of(
+                "success", false,
+                "error", e.getMessage(),
+                "logs", logs
+            ));
+        }
+    }
+
     @PostMapping("/reset-data")
     public ResponseEntity<String> resetData() {
         try {
