@@ -165,9 +165,34 @@ public class AdminController {
             // Check if workers table exists
             try {
                 jdbcTemplate.queryForList("SELECT 1 FROM workers LIMIT 1");
-                logs.add("Workers table exists, dropping...");
+                logs.add("Workers table exists, preparing to drop...");
                 
-                // Drop the table
+                // First, drop any foreign key constraints referencing workers
+                try {
+                    // Get all FKs from helmets table that reference workers
+                    List<Map<String, Object>> fks = jdbcTemplate.queryForList(
+                        "SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE " +
+                        "WHERE TABLE_NAME = 'helmets' AND REFERENCED_TABLE_NAME = 'workers'"
+                    );
+                    
+                    for (Map<String, Object> fk : fks) {
+                        String fkName = (String) fk.get("CONSTRAINT_NAME");
+                        logs.add("Dropping FK: " + fkName);
+                        jdbcTemplate.execute("ALTER TABLE helmets DROP FOREIGN KEY " + fkName);
+                    }
+                    
+                    // Also drop worker_id column from helmets if exists
+                    try {
+                        jdbcTemplate.execute("ALTER TABLE helmets DROP COLUMN worker_id");
+                        logs.add("Dropped worker_id column from helmets");
+                    } catch (Exception e) {
+                        logs.add("worker_id column might not exist: " + e.getMessage());
+                    }
+                } catch (Exception e) {
+                    logs.add("Error handling FKs: " + e.getMessage());
+                }
+                
+                // Now drop the workers table
                 jdbcTemplate.execute("DROP TABLE workers");
                 logs.add("Workers table dropped successfully!");
                 
