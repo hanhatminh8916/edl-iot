@@ -1266,6 +1266,67 @@
             }, 10000); // Refresh every 10s
         }
         
+        /**
+         * 📋 Load all tags (online + offline) từ DB khi mở trang
+         * Offline tags hiển thị màu xám ở vị trí cuối cùng
+         */
+        async function loadTagPositions() {
+            console.log('📋 Loading tag positions from DB...');
+            try {
+                const response = await fetch('/api/positioning/tags');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const tagsData = await response.json();
+                console.log('📋 Loaded', tagsData.length, 'tags from DB');
+                
+                tagsData.forEach(tagData => {
+                    // Bỏ qua nếu không có vị trí
+                    if (tagData.x == null || tagData.y == null) {
+                        console.log('⚠️ Skipping tag without position:', tagData.mac);
+                        return;
+                    }
+                    
+                    // Kiểm tra tag đã tồn tại chưa
+                    let existingTag = tags.find(t => t.helmet === tagData.mac);
+                    
+                    if (existingTag) {
+                        // Update existing tag
+                        existingTag.status = tagData.isOnline ? 'online' : 'offline';
+                        existingTag.battery = tagData.battery;
+                        console.log(`🔄 Updated tag ${existingTag.id} status: ${existingTag.status}`);
+                    } else {
+                        // Create new tag
+                        const newTag = {
+                            id: 'TAG' + (tags.length + 1),
+                            name: tagData.employeeName || tagData.mac?.slice(-4) || 'Unknown',
+                            x: tagData.x,
+                            y: tagData.y,
+                            vx: 0,
+                            vy: 0,
+                            status: tagData.isOnline ? 'online' : 'offline',
+                            helmet: tagData.mac,
+                            battery: tagData.battery,
+                            uwb: {
+                                A0: tagData.distanceA0,
+                                A1: tagData.distanceA1,
+                                A2: tagData.distanceA2
+                            }
+                        };
+                        tags.push(newTag);
+                        console.log(`➕ Loaded tag ${newTag.id} (${tagData.isOnline ? 'online' : 'offline'}) at (${tagData.x?.toFixed(2)}, ${tagData.y?.toFixed(2)})`);
+                    }
+                });
+                
+                // Redraw để hiển thị tags
+                draw();
+                
+            } catch (error) {
+                console.error('❌ Error loading tag positions:', error);
+            }
+        }
+        
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             console.log('📍 Page loaded, initializing...');
@@ -1281,6 +1342,7 @@
             
             loadSafeZones(); // Load safe zones for color detection
             startAnchorSync(); // Load anchors from DB
+            loadTagPositions(); // 📋 Load all tags (online + offline) from DB
             connectWebSocket(); // Connect WebSocket for realtime UWB data
             animate();
             
