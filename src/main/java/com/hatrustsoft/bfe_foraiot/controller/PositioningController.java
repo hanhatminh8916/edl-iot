@@ -1,5 +1,7 @@
 package com.hatrustsoft.bfe_foraiot.controller;
 
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,16 +34,21 @@ public class PositioningController {
     @Autowired
     private PositioningService positioningService;
     
+    // ⏰ Đồng bộ với location.html: 30 giây không nhận data → offline
+    private static final long OFFLINE_THRESHOLD_SECONDS = 30;
+    
     /**
      * 📋 Lấy tất cả tag positions (online + offline)
      * Frontend dùng để hiển thị tags lúc load trang
+     * ⏰ isOnline được tính realtime dựa trên lastSeen (30s threshold)
      */
     @GetMapping("/tags")
     public ResponseEntity<List<TagPositionDTO>> getAllTagPositions() {
         List<TagLastPosition> tags = positioningService.getAllTagPositions();
+        LocalDateTime now = LocalDateTime.now();
         
         List<TagPositionDTO> result = tags.stream()
-            .map(this::toDTO)
+            .map(tag -> toDTO(tag, now))
             .collect(Collectors.toList());
         
         log.info("📍 Returning {} tag positions", result.size());
@@ -53,10 +60,12 @@ public class PositioningController {
      */
     @GetMapping("/tags/offline")
     public ResponseEntity<List<TagPositionDTO>> getOfflineTags() {
-        List<TagLastPosition> tags = positioningService.getOfflineTags();
+        List<TagLastPosition> tags = positioningService.getAllTagPositions();
+        LocalDateTime now = LocalDateTime.now();
         
         List<TagPositionDTO> result = tags.stream()
-            .map(this::toDTO)
+            .map(tag -> toDTO(tag, now))
+            .filter(dto -> !dto.getIsOnline()) // Chỉ lấy offline
             .collect(Collectors.toList());
         
         log.info("⚪ Returning {} offline tags", result.size());
@@ -65,8 +74,20 @@ public class PositioningController {
     
     /**
      * Convert entity to DTO
+     * ⏰ Tính isOnline realtime: lastSeen trong 30s → online, ngược lại → offline
      */
-    private TagPositionDTO toDTO(TagLastPosition entity) {
+    private TagPositionDTO toDTO(TagLastPosition entity, LocalDateTime now) {
+        // ⏰ Tính toán isOnline dựa trên lastSeen (đồng bộ với location.html)
+        boolean isOnline = false;
+        if (entity.getLastSeen() != null) {
+            long secondsAgo = ChronoUnit.SECONDS.between(entity.getLastSeen(), now);
+            isOnline = secondsAgo <= OFFLINE_THRESHOLD_SECONDS;
+            
+            if (!isOnline) {
+                log.debug("⚪ Tag {} offline: lastSeen {}s ago", entity.getMac(), secondsAgo);
+            }
+        }
+        
         return TagPositionDTO.builder()
             .mac(entity.getMac())
             .employeeId(entity.getEmployeeId())
@@ -77,7 +98,7 @@ public class PositioningController {
             .distanceA1(entity.getDistanceA1())
             .distanceA2(entity.getDistanceA2())
             .battery(entity.getBattery())
-            .isOnline(entity.getIsOnline())
+            .isOnline(isOnline) // ⏰ Tính realtime, không lấy từ DB
             .lastSeen(entity.getLastSeen() != null ? entity.getLastSeen().toString() : null)
             .build();
     }

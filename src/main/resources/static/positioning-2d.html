@@ -1385,7 +1385,38 @@
             
             // Start updating demo tag distances
             updateDemoTagDistances();
+            
+            // ⏰ Refresh tag status every 10 seconds (sync offline status from backend)
+            setInterval(refreshTagStatus, 10000);
         });
+        
+        /**
+         * ⏰ Refresh tag status từ backend
+         * Đồng bộ trạng thái online/offline với location.html
+         */
+        async function refreshTagStatus() {
+            try {
+                const response = await fetch('/api/positioning/tags');
+                if (!response.ok) return;
+                
+                const tagsData = await response.json();
+                
+                tagsData.forEach(tagData => {
+                    let tag = tags.find(t => t.helmet === tagData.mac);
+                    if (tag) {
+                        const newStatus = tagData.isOnline ? 'online' : 'offline';
+                        if (tag.status !== newStatus) {
+                            console.log(`🔄 Tag ${tag.id} status: ${tag.status} → ${newStatus}`);
+                            tag.status = newStatus;
+                        }
+                    }
+                });
+                
+                draw();
+            } catch (error) {
+                console.error('❌ Error refreshing tag status:', error);
+            }
+        }
 
         // ==========================================
         // DEMO TAG DISTANCE LINES
