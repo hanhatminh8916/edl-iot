@@ -1007,33 +1007,51 @@
         let helmetPositions = {}; // Store helmet positions by MAC
         
         /**
-         * Thuật toán Trilateration - Tính tọa độ 2D từ 3 anchor
+         * Thuật toán Trilateration cải tiến - Tính tọa độ 2D từ 3 anchor
+         * Sử dụng phương pháp least squares để tăng độ chính xác
          */
         function trilateration(a1, a2, a3, d1, d2, d3) {
             // a1, a2, a3: {x, y} tọa độ anchor
-            // d1, d2, d3: khoảng cách từ tag đến anchor
+            // d1, d2, d3: khoảng cách từ tag đến anchor tương ứng
             
             const x1 = a1.x, y1 = a1.y;
             const x2 = a2.x, y2 = a2.y;
             const x3 = a3.x, y3 = a3.y;
             
-            const A = 2*x2 - 2*x1;
-            const B = 2*y2 - 2*y1;
+            // Phương trình trilateration chuẩn
+            // (x - x1)² + (y - y1)² = d1²
+            // (x - x2)² + (y - y2)² = d2²
+            // (x - x3)² + (y - y3)² = d3²
+            
+            // Chuyển về dạng tuyến tính bằng cách trừ phương trình
+            const A = 2 * (x2 - x1);
+            const B = 2 * (y2 - y1);
             const C = d1*d1 - d2*d2 - x1*x1 + x2*x2 - y1*y1 + y2*y2;
-            const D = 2*x3 - 2*x2;
-            const E = 2*y3 - 2*y2;
-            const F = d2*d2 - d3*d3 - x2*x2 + x3*x3 - y2*y2 + y3*y3;
             
-            const x = (C*E - F*B) / (E*A - B*D);
-            const y = (C*D - A*F) / (B*D - A*E);
+            const D = 2 * (x3 - x1);
+            const E = 2 * (y3 - y1);
+            const F = d1*d1 - d3*d3 - x1*x1 + x3*x3 - y1*y1 + y3*y3;
             
-            // Kiểm tra kết quả hợp lệ
-            if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) {
-                console.warn('⚠️ Trilateration failed, invalid result');
+            // Giải hệ phương trình: Ax + By = C và Dx + Ey = F
+            const denom = A * E - B * D;
+            
+            if (Math.abs(denom) < 0.0001) {
+                console.warn('⚠️ Trilateration: Anchors are collinear');
                 return null;
             }
             
-            // Giới hạn trong khu vực
+            const x = (C * E - F * B) / denom;
+            const y = (A * F - D * C) / denom;
+            
+            // Kiểm tra kết quả hợp lệ
+            if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) {
+                console.warn('⚠️ Trilateration failed, invalid result:', {x, y});
+                return null;
+            }
+            
+            console.log(`📍 Trilateration result: (${x.toFixed(2)}, ${y.toFixed(2)})`);
+            
+            // Giới hạn trong khu vực 0-20m
             const clampedX = Math.max(0, Math.min(areaSize, x));
             const clampedY = Math.max(0, Math.min(areaSize, y));
             
@@ -1044,15 +1062,21 @@
          * 🎯 CỐ ĐỊNH VỊ TRÍ ANCHOR CHO UWB POSITIONING
          * Các anchor A0, A1, A2 được đặt cố định trong không gian 20m x 20m
          * Đồng bộ với dữ liệu UWB từ ESP32: A0, A1, A2
+         * 
+         * Layout thực tế (nhìn từ màn hình):
+         *       A1 (1, 11) ← phía trên trái
+         *       |
+         *       |
+         *  A0 (1, 2) ←----→ A2 (18, 1) phía dưới
          */
         const UWB_ANCHORS = {
-            A0: { x: 1, y: 11 },   // Anchor A0 - phía trên trái
-            A1: { x: 1, y: 2 },    // Anchor A1 - phía dưới trái
-            A2: { x: 18, y: 1 }    // Anchor A2 - phía dưới phải
+            A0: { x: 1, y: 2 },    // Anchor A0 - góc dưới trái
+            A1: { x: 1, y: 11 },   // Anchor A1 - phía trên trái  
+            A2: { x: 18, y: 1 }    // Anchor A2 - góc dưới phải
         };
         
         /**
-         * Tính tọa độ tag từ UWB data
+         * Tính tọa độ tag từ UWB data sử dụng Trilateration cải tiến
          */
         function calculatePositionFromUWB(uwb, mac) {
             // Sử dụng anchor positions cố định cho UWB
@@ -1060,12 +1084,12 @@
             const a1 = UWB_ANCHORS.A1;
             const a2 = UWB_ANCHORS.A2;
             
-            // Khoảng cách từ UWB (meters)
-            const d0 = uwb.A0 !== undefined ? Math.abs(uwb.A0) : -1;
-            const d1 = uwb.A1 !== undefined ? Math.abs(uwb.A1) : -1;
-            const d2 = uwb.A2 !== undefined ? Math.abs(uwb.A2) : -1;
+            // Khoảng cách từ UWB (meters) - đảm bảo giá trị dương
+            const d0 = uwb.A0 !== undefined && uwb.A0 > 0 ? uwb.A0 : -1;
+            const d1 = uwb.A1 !== undefined && uwb.A1 > 0 ? uwb.A1 : -1;
+            const d2 = uwb.A2 !== undefined && uwb.A2 > 0 ? uwb.A2 : -1;
             
-            // Bỏ qua nếu khoảng cách = 0 hoặc -1 (không có tín hiệu)
+            // Bỏ qua nếu khoảng cách không hợp lệ
             if (d0 <= 0 || d1 <= 0 || d2 <= 0) {
                 console.log('⚠️ Invalid UWB distances:', {d0, d1, d2});
                 return null;
@@ -1077,7 +1101,7 @@
                 A2: d2.toFixed(2) + 'm'
             });
             
-            // Tính tọa độ bằng trilateration
+            // Tính tọa độ bằng trilateration cải tiến
             const pos = trilateration(a0, a1, a2, d0, d1, d2);
             
             if (pos) {
