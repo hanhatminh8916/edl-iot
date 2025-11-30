@@ -1,7 +1,7 @@
 package com.hatrustsoft.bfe_foraiot.controller;
 
 import java.net.URI;
-import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -16,21 +16,20 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hatrustsoft.bfe_foraiot.entity.Employee;
-import com.hatrustsoft.bfe_foraiot.model.Worker;
 import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetRepository;
-import com.hatrustsoft.bfe_foraiot.repository.WorkerRepository;
 import com.hatrustsoft.bfe_foraiot.service.DashboardService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/workers")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
+@Slf4j
 public class WorkerController {
 
-    private final WorkerRepository workerRepository;
     private final HelmetRepository helmetRepository;
     private final DashboardService dashboardService;
     private final EmployeeRepository employeeRepository;
@@ -45,26 +44,14 @@ public class WorkerController {
         // Auto-generate employee ID in format REV01-REVn
         String employeeId = generateNextEmployeeId();
         
-        Worker w = new Worker();
-        w.setFullName((String) payload.getOrDefault("name", payload.getOrDefault("fullName", "")));
-        w.setEmployeeId(employeeId);
-        w.setPosition((String) payload.getOrDefault("position", ""));
-        w.setLocation((String) payload.getOrDefault("location", ""));
-        w.setDepartment((String) payload.getOrDefault("department", ""));
-        w.setPhoneNumber((String) payload.getOrDefault("phone", ""));
-        w.setStatus(Worker.WorkerStatus.ACTIVE); // Set default status
-        w.setCreatedAt(LocalDateTime.now());
-        w.setUpdatedAt(LocalDateTime.now());
-
-        Worker saved = workerRepository.save(w);
-
-        // ⭐ Sync to Employee table
         Employee employee = new Employee();
-        employee.setEmployeeId(saved.getEmployeeId());
-        employee.setName(saved.getFullName());
-        employee.setPosition(saved.getPosition());
-        employee.setDepartment(saved.getDepartment());
-        employee.setPhoneNumber(saved.getPhoneNumber());
+        employee.setEmployeeId(employeeId);
+        employee.setName((String) payload.getOrDefault("name", payload.getOrDefault("fullName", "")));
+        employee.setPosition((String) payload.getOrDefault("position", ""));
+        employee.setLocation((String) payload.getOrDefault("location", ""));
+        employee.setDepartment((String) payload.getOrDefault("department", ""));
+        employee.setPhoneNumber((String) payload.getOrDefault("phone", ""));
+        employee.setEmail((String) payload.getOrDefault("email", ""));
         employee.setStatus("ACTIVE");
         
         // Assign helmet if provided
@@ -72,26 +59,36 @@ public class WorkerController {
             try {
                 Long helmetId = Long.valueOf(payload.get("helmetId").toString());
                 helmetRepository.findById(helmetId).ifPresent(helmet -> {
-                    helmet.setWorker(saved);
-                    helmet.setUpdatedAt(LocalDateTime.now());
-                    helmetRepository.save(helmet);
-                    
-                    // ⭐ Update Employee with macAddress from helmet
+                    // Update Employee with macAddress from helmet
                     if (helmet.getMacAddress() != null) {
                         employee.setMacAddress(helmet.getMacAddress());
                     }
                 });
             } catch (NumberFormatException e) {
-                // Invalid helmetId, ignore
+                log.warn("Invalid helmetId: {}", payload.get("helmetId"));
             }
         }
         
-        // ⭐ Save Employee
-        employeeRepository.save(employee);
+        // Save Employee first
+        Employee saved = employeeRepository.save(employee);
+        
+        // Now assign helmet to employee if provided
+        if (payload.containsKey("helmetId")) {
+            try {
+                Long helmetId = Long.valueOf(payload.get("helmetId").toString());
+                helmetRepository.findById(helmetId).ifPresent(helmet -> {
+                    helmet.setEmployee(saved);
+                    helmetRepository.save(helmet);
+                });
+            } catch (NumberFormatException e) {
+                log.warn("Invalid helmetId: {}", payload.get("helmetId"));
+            }
+        }
 
-        // return the newly created worker structure similar to GET
+        log.info("✅ Created employee: {} ({})", saved.getName(), saved.getEmployeeId());
+        
         return ResponseEntity.created(URI.create("/api/workers/" + saved.getId()))
-                .body(Map.of("id", saved.getId(), "name", saved.getFullName(), "employeeId", saved.getEmployeeId()));
+                .body(Map.of("id", saved.getId(), "name", saved.getName(), "employeeId", saved.getEmployeeId()));
     }
     
     @PutMapping("/{id}")
@@ -99,77 +96,66 @@ public class WorkerController {
             @PathVariable Long id, 
             @RequestBody Map<String, Object> payload) {
         
-        return workerRepository.findById(id)
-            .map(worker -> {
+        return employeeRepository.findById(id)
+            .map(employee -> {
                 // Update basic fields if provided
                 if (payload.containsKey("name")) {
-                    worker.setFullName((String) payload.get("name"));
+                    employee.setName((String) payload.get("name"));
                 }
                 if (payload.containsKey("phone")) {
-                    worker.setPhoneNumber((String) payload.get("phone"));
+                    employee.setPhoneNumber((String) payload.get("phone"));
                 }
                 if (payload.containsKey("position")) {
-                    worker.setPosition((String) payload.get("position"));
+                    employee.setPosition((String) payload.get("position"));
                 }
                 if (payload.containsKey("location")) {
-                    worker.setLocation((String) payload.get("location"));
+                    employee.setLocation((String) payload.get("location"));
                 }
                 if (payload.containsKey("department")) {
-                    worker.setDepartment((String) payload.get("department"));
+                    employee.setDepartment((String) payload.get("department"));
                 }
-                
-                worker.setUpdatedAt(LocalDateTime.now());
-                Worker updated = workerRepository.save(worker);
-                
-                // ⭐ Sync to Employee table
-                Employee employee = employeeRepository.findById(updated.getEmployeeId())
-                    .orElse(new Employee());
-                employee.setEmployeeId(updated.getEmployeeId());
-                employee.setName(updated.getFullName());
-                employee.setPosition(updated.getPosition());
-                employee.setDepartment(updated.getDepartment());
-                employee.setPhoneNumber(updated.getPhoneNumber());
-                employee.setStatus(updated.getStatus().toString());
+                if (payload.containsKey("email")) {
+                    employee.setEmail((String) payload.get("email"));
+                }
+                if (payload.containsKey("status")) {
+                    employee.setStatus((String) payload.get("status"));
+                }
                 
                 // Handle helmet assignment/reassignment
                 if (payload.containsKey("helmetId")) {
                     try {
                         Long newHelmetId = Long.valueOf(payload.get("helmetId").toString());
                         
-                        // Remove worker from old helmet (if any)
-                        helmetRepository.findByWorker(worker).ifPresent(oldHelmet -> {
-                            oldHelmet.setWorker(null);
-                            oldHelmet.setUpdatedAt(LocalDateTime.now());
+                        // Remove employee from old helmet (if any)
+                        helmetRepository.findByEmployee(employee).ifPresent(oldHelmet -> {
+                            oldHelmet.setEmployee(null);
                             helmetRepository.save(oldHelmet);
                             
-                            // ⭐ Clear macAddress from old employee
-                            if (oldHelmet.getMacAddress() != null) {
-                                employee.setMacAddress(null);
-                            }
+                            // Clear macAddress from employee
+                            employee.setMacAddress(null);
                         });
                         
-                        // Assign worker to new helmet
+                        // Assign employee to new helmet
                         helmetRepository.findById(newHelmetId).ifPresent(newHelmet -> {
-                            newHelmet.setWorker(updated);
-                            newHelmet.setUpdatedAt(LocalDateTime.now());
+                            newHelmet.setEmployee(employee);
                             helmetRepository.save(newHelmet);
                             
-                            // ⭐ Update Employee with macAddress from new helmet
+                            // Update Employee with macAddress from new helmet
                             if (newHelmet.getMacAddress() != null) {
                                 employee.setMacAddress(newHelmet.getMacAddress());
                             }
                         });
                     } catch (NumberFormatException e) {
-                        // Invalid helmetId, ignore
+                        log.warn("Invalid helmetId: {}", payload.get("helmetId"));
                     }
                 }
                 
-                // ⭐ Save Employee
-                employeeRepository.save(employee);
+                Employee updated = employeeRepository.save(employee);
+                log.info("✅ Updated employee: {} ({})", updated.getName(), updated.getEmployeeId());
                 
                 return ResponseEntity.ok(Map.of(
                     "id", updated.getId(),
-                    "name", updated.getFullName(),
+                    "name", updated.getName(),
                     "employeeId", updated.getEmployeeId(),
                     "message", "Worker updated successfully"
                 ));
@@ -177,13 +163,45 @@ public class WorkerController {
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
     
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getWorker(@PathVariable Long id) {
+        return employeeRepository.findById(id)
+            .map(employee -> {
+                Map<String, Object> result = new HashMap<>();
+                result.put("id", employee.getId());
+                result.put("name", employee.getName());
+                result.put("employeeId", employee.getEmployeeId());
+                result.put("position", employee.getPosition());
+                result.put("department", employee.getDepartment());
+                result.put("location", employee.getLocation());
+                result.put("phone", employee.getPhoneNumber());
+                result.put("email", employee.getEmail());
+                result.put("status", employee.getStatus());
+                result.put("macAddress", employee.getMacAddress());
+                
+                // Find helmet assigned to this employee
+                helmetRepository.findByEmployee(employee).ifPresent(helmet -> {
+                    Map<String, Object> helmetData = new HashMap<>();
+                    helmetData.put("id", helmet.getId());
+                    helmetData.put("helmetId", "HELMET-" + String.format("%03d", helmet.getHelmetId()));
+                    helmetData.put("macAddress", helmet.getMacAddress());
+                    helmetData.put("batteryLevel", helmet.getBatteryLevel());
+                    helmetData.put("status", helmet.getStatus());
+                    result.put("helmet", helmetData);
+                });
+                
+                return ResponseEntity.ok(result);
+            })
+            .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+    
     // Generate next employee ID in format REV01, REV02, ..., REVn
     private String generateNextEmployeeId() {
-        List<Worker> allWorkers = workerRepository.findAll();
+        List<Employee> allEmployees = employeeRepository.findAll();
         
         // Find the highest number from existing REVxx IDs
-        int maxNumber = allWorkers.stream()
-            .map(Worker::getEmployeeId)
+        int maxNumber = allEmployees.stream()
+            .map(Employee::getEmployeeId)
             .filter(id -> id != null && id.matches("REV\\d+"))
             .map(id -> id.substring(3)) // Remove "REV" prefix
             .map(num -> {

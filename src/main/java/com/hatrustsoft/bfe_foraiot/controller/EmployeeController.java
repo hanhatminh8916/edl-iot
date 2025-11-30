@@ -39,11 +39,21 @@ public class EmployeeController {
     }
 
     /**
-     * Lấy thông tin nhân viên theo ID
+     * Lấy thông tin nhân viên theo ID (Long)
      */
-    @GetMapping("/{employeeId}")
-    public ResponseEntity<?> getEmployee(@PathVariable String employeeId) {
-        return employeeRepository.findById(employeeId)
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getEmployee(@PathVariable Long id) {
+        return employeeRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+    
+    /**
+     * Lấy thông tin nhân viên theo Employee ID (REV01, REV02, ...)
+     */
+    @GetMapping("/by-employee-id/{employeeId}")
+    public ResponseEntity<?> getEmployeeByEmployeeId(@PathVariable String employeeId) {
+        return employeeRepository.findByEmployeeId(employeeId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -74,12 +84,12 @@ public class EmployeeController {
     /**
      * Cập nhật thông tin nhân viên
      */
-    @PutMapping("/{employeeId}")
+    @PutMapping("/{id}")
     public ResponseEntity<?> updateEmployee(
-            @PathVariable String employeeId,
+            @PathVariable Long id,
             @RequestBody Employee employee) {
         try {
-            return employeeRepository.findById(employeeId)
+            return employeeRepository.findById(id)
                     .map(existing -> {
                         // Kiểm tra MAC address trùng (nếu thay đổi)
                         if (employee.getMacAddress() != null && 
@@ -92,6 +102,7 @@ public class EmployeeController {
                         existing.setName(employee.getName());
                         existing.setPosition(employee.getPosition());
                         existing.setDepartment(employee.getDepartment());
+                        existing.setLocation(employee.getLocation());
                         existing.setMacAddress(employee.getMacAddress());
                         existing.setPhoneNumber(employee.getPhoneNumber());
                         existing.setEmail(employee.getEmail());
@@ -112,12 +123,12 @@ public class EmployeeController {
     /**
      * Xóa nhân viên
      */
-    @DeleteMapping("/{employeeId}")
-    public ResponseEntity<?> deleteEmployee(@PathVariable String employeeId) {
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteEmployee(@PathVariable Long id) {
         try {
-            if (employeeRepository.existsById(employeeId)) {
-                employeeRepository.deleteById(employeeId);
-                log.info("✅ Deleted employee: {}", employeeId);
+            if (employeeRepository.existsById(id)) {
+                employeeRepository.deleteById(id);
+                log.info("✅ Deleted employee with id: {}", id);
                 return ResponseEntity.ok(Map.of("message", "Employee deleted successfully"));
             }
             return ResponseEntity.notFound().build();
@@ -131,9 +142,9 @@ public class EmployeeController {
     /**
      * Gán MAC address cho nhân viên
      */
-    @PutMapping("/{employeeId}/assign-mac")
+    @PutMapping("/{id}/assign-mac")
     public ResponseEntity<?> assignMacAddress(
-            @PathVariable String employeeId,
+            @PathVariable Long id,
             @RequestBody Map<String, String> payload) {
         try {
             String macAddress = payload.get("macAddress");
@@ -143,7 +154,7 @@ public class EmployeeController {
                     .body(Map.of("error", "MAC address is required"));
             }
 
-            return employeeRepository.findById(employeeId)
+            return employeeRepository.findById(id)
                     .map(employee -> {
                         // Kiểm tra MAC đã được gán cho người khác chưa
                         if (employeeRepository.existsByMacAddress(macAddress)) {
@@ -153,7 +164,7 @@ public class EmployeeController {
 
                         employee.setMacAddress(macAddress);
                         Employee updated = employeeRepository.save(employee);
-                        log.info("✅ Assigned MAC {} to employee {}", macAddress, employeeId);
+                        log.info("✅ Assigned MAC {} to employee {}", macAddress, employee.getEmployeeId());
                         return ResponseEntity.ok(updated);
                     })
                     .orElse(ResponseEntity.notFound().build());

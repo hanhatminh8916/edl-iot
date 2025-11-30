@@ -13,14 +13,11 @@ import org.springframework.stereotype.Service;
 import com.hatrustsoft.bfe_foraiot.entity.Employee;
 import com.hatrustsoft.bfe_foraiot.entity.HelmetData;
 import com.hatrustsoft.bfe_foraiot.model.Alert;
-import com.hatrustsoft.bfe_foraiot.model.AlertStatus;
 import com.hatrustsoft.bfe_foraiot.model.Helmet;
 import com.hatrustsoft.bfe_foraiot.model.HelmetStatus;
-import com.hatrustsoft.bfe_foraiot.model.Worker;
 import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
 import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetRepository;
-import com.hatrustsoft.bfe_foraiot.repository.WorkerRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +29,6 @@ public class DashboardService {
 
     private final HelmetRepository helmetRepository;
     private final AlertRepository alertRepository;
-    private final WorkerRepository workerRepository;
     private final EmployeeRepository employeeRepository;
     private final RedisCacheService redisCacheService;
     
@@ -97,9 +93,9 @@ public class DashboardService {
                 alertData.put("timestamp", alert.getTriggeredAt().toString());
                 alertData.put("time", alert.getTriggeredAt().toLocalTime().toString().substring(0, 5));
                 
-                // Lấy thông tin nhân viên
-                if (alert.getHelmet() != null && alert.getHelmet().getWorker() != null) {
-                    alertData.put("employeeName", alert.getHelmet().getWorker().getFullName());
+                // Lấy thông tin nhân viên từ Helmet -> Employee
+                if (alert.getHelmet() != null && alert.getHelmet().getEmployee() != null) {
+                    alertData.put("employeeName", alert.getHelmet().getEmployee().getName());
                 } else {
                     alertData.put("employeeName", "Không xác định");
                 }
@@ -188,21 +184,22 @@ public class DashboardService {
 
     public List<Map<String, Object>> getWorkersList(String status) {
         // Build a worker view list that the frontend expects
-        List<Worker> workers = workerRepository.findAll();
+        List<Employee> employees = employeeRepository.findAll();
         List<Helmet> allHelmets = helmetRepository.findAll();
 
-        return workers.stream().map(worker -> {
+        return employees.stream().map(employee -> {
             Map<String, Object> w = new HashMap<>();
-            w.put("id", worker.getId());
-            w.put("name", worker.getFullName());
-            w.put("employeeId", worker.getEmployeeId());
-            w.put("position", worker.getPosition());
-            w.put("department", worker.getDepartment());
-            w.put("phone", worker.getPhoneNumber());
+            w.put("id", employee.getId());
+            w.put("name", employee.getName());
+            w.put("employeeId", employee.getEmployeeId());
+            w.put("position", employee.getPosition());
+            w.put("department", employee.getDepartment());
+            w.put("phone", employee.getPhoneNumber());
+            w.put("location", employee.getLocation());
 
-            // find helmet assigned to this worker (if any)
+            // find helmet assigned to this employee (if any)
             Helmet helmet = allHelmets.stream()
-                    .filter(h -> h.getWorker() != null && h.getWorker().getId().equals(worker.getId()))
+                    .filter(h -> h.getEmployee() != null && h.getEmployee().getId().equals(employee.getId()))
                     .findFirst().orElse(null);
 
             if (helmet != null) {
@@ -228,20 +225,20 @@ public class DashboardService {
     }
 
     public List<Map<String, Object>> getMapPositions() {
-        // Get all helmets with their workers
+        // Get all helmets with their employees
         List<Helmet> helmets = helmetRepository.findAll();
         
         return helmets.stream()
-            .filter(helmet -> helmet.getWorker() != null) // Only helmets assigned to workers
+            .filter(helmet -> helmet.getEmployee() != null) // Only helmets assigned to employees
             .map(helmet -> {
-                Map<String, Object> workerData = new HashMap<>();
-                Worker worker = helmet.getWorker();
+                Map<String, Object> employeeData = new HashMap<>();
+                Employee employee = helmet.getEmployee();
                 
-                workerData.put("id", worker.getId());
-                workerData.put("name", worker.getFullName());
-                workerData.put("phone", worker.getPhoneNumber());
-                workerData.put("employeeId", worker.getEmployeeId());
-                workerData.put("position", worker.getPosition());
+                employeeData.put("id", employee.getId());
+                employeeData.put("name", employee.getName());
+                employeeData.put("phone", employee.getPhoneNumber());
+                employeeData.put("employeeId", employee.getEmployeeId());
+                employeeData.put("position", employee.getPosition());
                 
                 // Helmet data
                 Map<String, Object> helmetData = new HashMap<>();
@@ -257,9 +254,9 @@ public class DashboardService {
                     helmetData.put("lastLocation", location);
                 }
                 
-                workerData.put("helmet", helmetData);
+                employeeData.put("helmet", helmetData);
                 
-                return workerData;
+                return employeeData;
             })
             .toList();
     }
@@ -270,96 +267,96 @@ public class DashboardService {
         report.put("endDate", endDate);
         report.put("generatedAt", LocalDateTime.now());
 
-        // Get all workers with their helmets and statistics
-        List<Worker> workers = workerRepository.findAll();
+        // Get all employees with their helmets and statistics
+        List<Employee> employees = employeeRepository.findAll();
         List<Helmet> allHelmets = helmetRepository.findAll();
         
-        List<Map<String, Object>> workerReports = workers.stream()
-            .map(worker -> {
-                Map<String, Object> workerData = new HashMap<>();
-                workerData.put("id", worker.getId());
-                workerData.put("name", worker.getFullName());
-                workerData.put("employeeId", worker.getEmployeeId());
-                workerData.put("position", worker.getPosition());
-                workerData.put("department", worker.getDepartment());
+        List<Map<String, Object>> employeeReports = employees.stream()
+            .map(employee -> {
+                Map<String, Object> employeeData = new HashMap<>();
+                employeeData.put("id", employee.getId());
+                employeeData.put("name", employee.getName());
+                employeeData.put("employeeId", employee.getEmployeeId());
+                employeeData.put("position", employee.getPosition());
+                employeeData.put("department", employee.getDepartment());
                 
-                // Find helmet assigned to this worker
+                // Find helmet assigned to this employee
                 Helmet helmet = allHelmets.stream()
-                    .filter(h -> h.getWorker() != null && h.getWorker().getId().equals(worker.getId()))
+                    .filter(h -> h.getEmployee() != null && h.getEmployee().getId().equals(employee.getId()))
                     .findFirst()
                     .orElse(null);
                 
                 if (helmet != null) {
-                    workerData.put("helmetId", "HELMET-" + String.format("%03d", helmet.getHelmetId()));
-                    workerData.put("batteryLevel", helmet.getBatteryLevel());
-                    workerData.put("status", helmet.getStatus());
+                    employeeData.put("helmetId", "HELMET-" + String.format("%03d", helmet.getHelmetId()));
+                    employeeData.put("batteryLevel", helmet.getBatteryLevel());
+                    employeeData.put("status", helmet.getStatus());
                     
                     // Calculate working hours (mock calculation - in real system, track actual hours)
                     double workingHours = 8.0 + (Math.random() * 2.0 - 1.0); // 7-9 hours
-                    workerData.put("workingHours", Math.round(workingHours * 10) / 10.0);
+                    employeeData.put("workingHours", Math.round(workingHours * 10) / 10.0);
                     
                     // Calculate violations count from alerts
-                    List<Alert> workerAlerts = alertRepository.findAll().stream()
+                    List<Alert> employeeAlerts = alertRepository.findAll().stream()
                         .filter(a -> a.getHelmet() != null && a.getHelmet().getId().equals(helmet.getId()))
                         .toList();
-                    workerData.put("violations", workerAlerts.size());
-                    workerData.put("criticalAlerts", workerAlerts.stream()
-                        .filter(a -> a.getSeverity().name().equals("CRITICAL"))
+                    employeeData.put("violations", employeeAlerts.size());
+                    employeeData.put("criticalAlerts", employeeAlerts.stream()
+                        .filter(a -> a.getSeverity() != null && a.getSeverity().name().equals("CRITICAL"))
                         .count());
                     
                     // Calculate efficiency based on status and alerts
-                    double efficiency = 95.0 - (workerAlerts.size() * 5.0);
+                    double efficiency = 95.0 - (employeeAlerts.size() * 5.0);
                     if (efficiency < 50) efficiency = 50;
-                    workerData.put("efficiency", Math.round(efficiency * 10) / 10.0);
+                    employeeData.put("efficiency", Math.round(efficiency * 10) / 10.0);
                     
                     // Danger zone entries (mock data)
-                    workerData.put("dangerZoneEntries", (int)(Math.random() * 5));
+                    employeeData.put("dangerZoneEntries", (int)(Math.random() * 5));
                     
                     // Fatigue level (mock data)
                     String[] fatigueLevels = {"Thấp", "Trung bình", "Cao"};
-                    workerData.put("fatigueLevel", fatigueLevels[(int)(Math.random() * 3)]);
+                    employeeData.put("fatigueLevel", fatigueLevels[(int)(Math.random() * 3)]);
                 } else {
-                    workerData.put("helmetId", "Chưa gán");
-                    workerData.put("workingHours", 0.0);
-                    workerData.put("violations", 0);
-                    workerData.put("efficiency", 0.0);
-                    workerData.put("dangerZoneEntries", 0);
-                    workerData.put("fatigueLevel", "N/A");
+                    employeeData.put("helmetId", "Chưa gán");
+                    employeeData.put("workingHours", 0.0);
+                    employeeData.put("violations", 0);
+                    employeeData.put("efficiency", 0.0);
+                    employeeData.put("dangerZoneEntries", 0);
+                    employeeData.put("fatigueLevel", "N/A");
                 }
                 
-                return workerData;
+                return employeeData;
             })
             .toList();
         
-        report.put("workers", workerReports);
+        report.put("workers", employeeReports);
         
         // Summary statistics
         Map<String, Object> summary = new HashMap<>();
-        summary.put("totalWorkers", workers.size());
+        summary.put("totalWorkers", employees.size());
         
-        // Count active workers by checking helmets
-        long activeWorkers = allHelmets.stream()
-            .filter(h -> h.getWorker() != null && h.getStatus() == HelmetStatus.ACTIVE)
+        // Count active employees by checking helmets
+        long activeEmployees = allHelmets.stream()
+            .filter(h -> h.getEmployee() != null && h.getStatus() == HelmetStatus.ACTIVE)
             .count();
-        summary.put("activeWorkers", activeWorkers);
+        summary.put("activeWorkers", activeEmployees);
         
-        double totalHours = workerReports.stream()
+        double totalHours = employeeReports.stream()
             .mapToDouble(w -> (Double)w.getOrDefault("workingHours", 0.0))
             .sum();
         summary.put("totalWorkingHours", Math.round(totalHours * 10) / 10.0);
         
-        double avgEfficiency = workerReports.stream()
+        double avgEfficiency = employeeReports.stream()
             .mapToDouble(w -> (Double)w.getOrDefault("efficiency", 0.0))
             .average()
             .orElse(0.0);
         summary.put("averageEfficiency", Math.round(avgEfficiency * 10) / 10.0);
         
-        long totalViolations = workerReports.stream()
+        long totalViolations = employeeReports.stream()
             .mapToLong(w -> ((Integer)w.getOrDefault("violations", 0)).longValue())
             .sum();
         summary.put("totalViolations", totalViolations);
         
-        long totalCriticalAlerts = workerReports.stream()
+        long totalCriticalAlerts = employeeReports.stream()
             .mapToLong(w -> ((Long)w.getOrDefault("criticalAlerts", 0L)))
             .sum();
         summary.put("totalCriticalAlerts", totalCriticalAlerts);

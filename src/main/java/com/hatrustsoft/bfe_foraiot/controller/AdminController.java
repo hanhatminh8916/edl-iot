@@ -9,9 +9,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.hatrustsoft.bfe_foraiot.config.DataInitializer;
 import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
+import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetDataRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetRepository;
-import com.hatrustsoft.bfe_foraiot.repository.WorkerRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 @CrossOrigin(origins = "*")
 public class AdminController {
 
-    private final WorkerRepository workerRepository;
+    private final EmployeeRepository employeeRepository;
     private final HelmetRepository helmetRepository;
     private final AlertRepository alertRepository;
     private final HelmetDataRepository helmetDataRepository;
@@ -43,7 +43,7 @@ public class AdminController {
             helmetDataRepository.deleteAll();
             alertRepository.deleteAll();
             helmetRepository.deleteAll();
-            workerRepository.deleteAll();
+            employeeRepository.deleteAll();
             
             // Re-initialize sample data
             dataInitializer.run();

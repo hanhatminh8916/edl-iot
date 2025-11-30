@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 import com.hatrustsoft.bfe_foraiot.entity.Employee;
 
 @Repository
-public interface EmployeeRepository extends JpaRepository<Employee, String> {
+public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     
     /**
      * Tìm nhân viên theo MAC address của helmet
@@ -19,4 +19,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, String> {
      * Kiểm tra MAC address đã được gán cho nhân viên nào chưa
      */
     boolean existsByMacAddress(String macAddress);
+    
+    /**
+     * Tìm nhân viên theo Employee ID (REV01, REV02, ...)
+     */
+    Optional<Employee> findByEmployeeId(String employeeId);
 }

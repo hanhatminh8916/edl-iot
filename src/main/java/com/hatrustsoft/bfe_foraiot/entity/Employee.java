@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -20,7 +22,10 @@ import lombok.NoArgsConstructor;
 public class Employee {
 
     @Id
-    @Column(name = "employee_id", length = 50)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(name = "employee_id", length = 50, unique = true)
     private String employeeId;
 
     @Column(name = "name", nullable = false)
@@ -31,6 +36,9 @@ public class Employee {
 
     @Column(name = "department")
     private String department;
+    
+    @Column(name = "location")
+    private String location; // Work location/area: Khu đông, Bắc, etc.
 
     @Column(name = "mac_address", unique = true, length = 20)
     private String macAddress; // MAC address của helmet (VD: A48D004AEC24)

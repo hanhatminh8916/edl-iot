@@ -1,8 +1,20 @@
 package com.hatrustsoft.bfe_foraiot.model;
 
-import jakarta.persistence.*;
-import lombok.Data;
 import java.time.LocalDateTime;
+
+import com.hatrustsoft.bfe_foraiot.entity.Employee;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.Data;
 
 
 
@@ -20,8 +32,8 @@ public class Helmet {
     private String macAddress;
 
     @ManyToOne
-    @JoinColumn(name = "worker_id")
-    private Worker worker;
+    @JoinColumn(name = "employee_id")
+    private Employee employee;
 
     @Enumerated(EnumType.STRING)
     private HelmetStatus status; // ACTIVE, INACTIVE, ALERT, OFFLINE
