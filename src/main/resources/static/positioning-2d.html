@@ -612,6 +612,10 @@
 
         // Sample data - Tags (moving positions)
         let tags = []; // ✅ Bỏ dữ liệu demo, chỉ dùng dữ liệu thực từ UWB
+        
+        // 📊 Track last data timestamp for each tag (for offline detection)
+        const tagLastDataTime = {};
+        const OFFLINE_TIMEOUT_MS = 30000; // 30 seconds
 
         // Calculate distance between two points
         function calculateDistance(x1, y1, x2, y2) {
@@ -1210,6 +1214,9 @@
                 return;
             }
             
+            // 📊 Track last data time for offline detection
+            tagLastDataTime[data.mac] = Date.now();
+            
             // Cập nhật hoặc tạo tag mới
             let tag = tags.find(t => t.helmet === data.mac);
             
@@ -1251,6 +1258,36 @@
             // Trigger redraw
             draw();
         }
+        
+        /**
+         * ⏰ Check và chuyển tag thành offline nếu không nhận data trong 30s
+         * Chạy mỗi 5 giây
+         */
+        function checkTagsOfflineStatus() {
+            const now = Date.now();
+            let needRedraw = false;
+            
+            tags.forEach(tag => {
+                const lastDataTime = tagLastDataTime[tag.helmet];
+                
+                // Nếu tag đang online nhưng không nhận data trong 30s
+                if (tag.status === 'online' && lastDataTime) {
+                    const timeSinceLastData = now - lastDataTime;
+                    if (timeSinceLastData > OFFLINE_TIMEOUT_MS) {
+                        tag.status = 'offline';
+                        console.log(`⚪ Tag ${tag.id} went OFFLINE (no data for ${Math.round(timeSinceLastData/1000)}s)`);
+                        needRedraw = true;
+                    }
+                }
+            });
+            
+            if (needRedraw) {
+                draw();
+            }
+        }
+        
+        // Start offline check interval
+        setInterval(checkTagsOfflineStatus, 5000); // Check every 5 seconds
         
         // ==========================================
         // END WEBSOCKET
