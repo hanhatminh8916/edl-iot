@@ -1042,15 +1042,13 @@
         
         /**
          * 🎯 CỐ ĐỊNH VỊ TRÍ ANCHOR CHO UWB POSITIONING
-         * Các anchor này được đặt cố định trong không gian 20m x 20m
-         * A0 (A1 trên màn hình) - góc trên trái
-         * A1 (A2 trên màn hình) - góc dưới trái  
-         * A2 (A3 trên màn hình) - góc dưới phải
+         * Các anchor A0, A1, A2 được đặt cố định trong không gian 20m x 20m
+         * Đồng bộ với dữ liệu UWB từ ESP32: A0, A1, A2
          */
         const UWB_ANCHORS = {
-            A0: { x: 1, y: 9 },    // Anchor A1 trên màn hình (tọa độ thực tế)
-            A1: { x: 1, y: 3 },    // Anchor A2 trên màn hình
-            A2: { x: 18, y: 1 }    // Anchor A3 trên màn hình
+            A0: { x: 1, y: 11 },   // Anchor A0 - phía trên trái
+            A1: { x: 1, y: 2 },    // Anchor A1 - phía dưới trái
+            A2: { x: 18, y: 1 }    // Anchor A2 - phía dưới phải
         };
         
         /**
