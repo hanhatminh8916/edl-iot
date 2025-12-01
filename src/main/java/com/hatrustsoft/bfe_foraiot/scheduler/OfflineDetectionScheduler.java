@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
  * 🕐 Scheduled Job để detect helmet offline và lưu vị trí cuối cùng vào Database
  * 
  * Logic:
- * - Chạy mỗi 10 giây
+ * - Chạy mỗi 60 giây (để tránh vượt giới hạn queries của JawsDB free tier)
  * - Kiểm tra các helmet không có data trong 30 giây
  * - Lưu vị trí cuối cùng vào helmet_data table
  * - Tránh lưu trùng lặp bằng tracking MACs đã xử lý
@@ -39,9 +39,10 @@ public class OfflineDetectionScheduler {
     private Set<String> savedOfflineMacs = new HashSet<>();
     
     /**
-     * 🔄 Chạy mỗi 10 giây để kiểm tra offline helmets
+     * 🔄 Chạy mỗi 60 giây để kiểm tra offline helmets
+     * (Giảm tần suất để tránh vượt giới hạn 18000 queries/giờ của JawsDB free tier)
      */
-    @Scheduled(fixedRate = 10000) // 10 seconds
+    @Scheduled(fixedRate = 60000) // 60 seconds
     public void detectOfflineHelmets() {
         try {
             List<HelmetData> offlineHelmets = redisCacheService.getOfflineHelmets(OFFLINE_TIMEOUT_SECONDS);
