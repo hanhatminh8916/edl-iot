@@ -54,6 +54,9 @@ public class MqttMessageHandler implements MessageHandler {
     private RedisCacheService redisCacheService; // ⭐ Redis Cache Service
     
     @Autowired
+    private MemoryCacheService memoryCacheService; // 🚀 Memory Cache Service (giảm DB queries)
+    
+    @Autowired
     private HelmetService helmetService; // ⭐ Thêm HelmetService để auto-create helmet
     
     @Autowired
@@ -169,19 +172,21 @@ public class MqttMessageHandler implements MessageHandler {
                 data.setTimestamp(LocalDateTime.now());
             }
 
-            // ⭐ AUTO-CREATE HELMET if not exists
-            helmetService.findOrCreateHelmetByMac(macAddress);
+            // ⭐ AUTO-CREATE HELMET if not exists (chỉ khi cần)
+            if (memoryCacheService.shouldUpdateHelmet(macAddress)) {
+                helmetService.findOrCreateHelmetByMac(macAddress);
+            }
             
-            employeeRepository.findByMacAddress(macAddress).ifPresentOrElse(
+            // 🚀 SỬ DỤNG MEMORY CACHE thay vì query DB mỗi message
+            memoryCacheService.getEmployeeByMac(macAddress).ifPresentOrElse(
                 employee -> {
                     data.setEmployeeId(employee.getEmployeeId());
                     data.setEmployeeName(employee.getName());
-                    log.info("👤 MAC {} → Employee: {} ({})", macAddress, employee.getName(), employee.getEmployeeId());
+                    log.debug("👤 MAC {} → Employee: {} (cached)", macAddress, employee.getName());
                 },
                 () -> {
                     data.setEmployeeId(null);
                     data.setEmployeeName(null);
-                    log.warn("⚠️ No employee for MAC: {}", macAddress);
                 }
             );
 
@@ -189,14 +194,16 @@ public class MqttMessageHandler implements MessageHandler {
             // Database sẽ được cập nhật bởi scheduled job khi detect offline (30s)
             redisCacheService.cacheHelmetData(data);
             
-            // ✅ CẬP NHẬT VỊ TRÍ CUỐI CÙNG VÀO HELMETS TABLE (lightweight update)
-            helmetService.updateHelmetData(
-                macAddress, 
-                data.getBattery(), 
-                data.getLat(), 
-                data.getLon(), 
-                null // status will be determined by alerts
-            );
+            // ✅ CẬP NHẬT VỊ TRÍ CUỐI CÙNG VÀO HELMETS TABLE (CHỈ MỖI 30s)
+            if (memoryCacheService.shouldUpdateHelmet(macAddress)) {
+                helmetService.updateHelmetData(
+                    macAddress, 
+                    data.getBattery(), 
+                    data.getLat(), 
+                    data.getLon(), 
+                    null // status will be determined by alerts
+                );
+            }
             
             // ✅ LUÔN PUBLISH QUA REDIS → WEBSOCKET (cho realtime positioning)
             redisPublisher.publishHelmetData(data);
@@ -253,13 +260,17 @@ public class MqttMessageHandler implements MessageHandler {
                 createHelpRequestAlert(data);
             }
 
-            // ⭐ Kiểm tra cảnh báo khu vực nguy hiểm (từ Anchor qua Gateway)
+            // ⭐ Kiểm tra cảnh báo khu vực nguy hiểm (từ Anchor qua Gateway) - DEBOUNCE 60s
             if (inDangerZone && dangerZoneId != null && distanceToAnchor != null) {
-                checkDangerZoneAlert(data, dangerZoneId, distanceToAnchor, anchorLat, anchorLon);
+                if (memoryCacheService.shouldSendDangerAlert(macAddress)) {
+                    checkDangerZoneAlert(data, dangerZoneId, distanceToAnchor, anchorLat, anchorLon);
+                }
             }
 
-            // Kiểm tra nguy hiểm thiết bị (pin, voltage, current)
-            checkDangerAndAlert(data);
+            // Kiểm tra nguy hiểm thiết bị (pin, voltage, current) - DEBOUNCE 60s
+            if (memoryCacheService.shouldSendDangerAlert(macAddress + "_device")) {
+                checkDangerAndAlert(data);
+            }
 
         } catch (Exception e) {
             log.error("❌ Error processing MQTT message: {}", e.getMessage(), e);

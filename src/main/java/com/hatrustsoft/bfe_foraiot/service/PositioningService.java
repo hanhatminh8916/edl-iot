@@ -38,6 +38,9 @@ public class PositioningService {
     @Autowired
     private TagLastPositionRepository tagLastPositionRepository;
     
+    @Autowired
+    private MemoryCacheService memoryCacheService; // 🚀 Memory Cache Service
+    
     // Cache last position & timestamp for each helmet
     private final Map<String, HelmetRealtimeDTO> helmetCache = new ConcurrentHashMap<>();
     private final Map<String, LocalDateTime> lastSeenTime = new ConcurrentHashMap<>();
@@ -61,8 +64,11 @@ public class PositioningService {
         // 📤 Push qua WebSocket cho realtime display
         messagingTemplate.convertAndSend("/topic/helmet/position", dto);
         
-        // 💾 Lưu vị trí cuối vào DB (upsert)
-        saveLastPosition(dto, now);
+        // 💾 Lưu vị trí cuối vào DB - CHỈ MỖI 30 GIÂY (throttle) 🚀
+        if (memoryCacheService.shouldSaveTagPosition(mac)) {
+            saveLastPosition(dto, now);
+            log.debug("💾 Saved tag position to DB: {}", mac);
+        }
         
         log.debug("📍 Realtime position: {} UWB={}", mac, dto.getUwb());
     }
