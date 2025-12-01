@@ -205,6 +205,190 @@
             color: #6b7280;
             margin-top: 5px;
         }
+
+        /* Modal Styles */
+        .helmet-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .helmet-modal {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 480px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .helmet-modal-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 20px 24px;
+            border-bottom: 1px solid #e5e7eb;
+            position: relative;
+        }
+
+        .helmet-modal-header h3 {
+            font-size: 1.25rem;
+            color: #111827;
+            margin: 0;
+        }
+
+        .helmet-modal-header h3 i {
+            color: #667eea;
+            margin-right: 8px;
+        }
+
+        .modal-close-btn {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            font-size: 1.25rem;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .modal-close-btn:hover {
+            background: #f3f4f6;
+            color: #111827;
+        }
+
+        .helmet-modal-body {
+            padding: 24px;
+        }
+
+        .detail-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #f9fafb;
+            border-radius: 10px;
+        }
+
+        .detail-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .detail-label i {
+            color: #667eea;
+            width: 16px;
+        }
+
+        .detail-value {
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .battery-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .battery-indicator.good {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .battery-indicator.medium {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .battery-indicator.low {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .battery-fill-mini {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            background: currentColor;
+            opacity: 0.2;
+            border-radius: 20px;
+        }
+
+        .helmet-modal-footer {
+            display: flex;
+            gap: 12px;
+            padding: 16px 24px;
+            border-top: 1px solid #e5e7eb;
+            background: #f9fafb;
+            border-radius: 0 0 16px 16px;
+        }
+
+        .btn-modal {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-modal.btn-edit {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-modal.btn-edit:hover {
+            background: #5568d3;
+        }
+
+        .btn-modal.btn-close {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-modal.btn-close:hover {
+            background: #d1d5db;
+        }
     </style>
 </head>
 <body>
