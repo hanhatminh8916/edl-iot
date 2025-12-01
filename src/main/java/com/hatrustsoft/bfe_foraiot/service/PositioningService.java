@@ -41,13 +41,15 @@ public class PositioningService {
     // Cache last position & timestamp for each helmet
     private final Map<String, HelmetRealtimeDTO> helmetCache = new ConcurrentHashMap<>();
     private final Map<String, LocalDateTime> lastSeenTime = new ConcurrentHashMap<>();
+    private final Map<String, LocalDateTime> lastDbSaveTime = new ConcurrentHashMap<>(); // ⭐ Track last DB save
     
     // Timeout để coi tag là offline (30 giây không nhận data)
     private static final long OFFLINE_TIMEOUT_SECONDS = 30;
+    private static final long DB_SAVE_INTERVAL_SECONDS = 30; // ⭐ Chỉ save DB mỗi 30 giây
     
     /**
      * 📡 Publish realtime UWB data qua WebSocket
-     * Đồng thời lưu vị trí cuối vào DB để hiển thị offline
+     * ⭐ OPTIMIZED: Chỉ lưu DB mỗi 30 giây thay vì mỗi message
      */
     @Transactional
     public void publishRealtimePosition(HelmetRealtimeDTO dto) {
@@ -58,11 +60,16 @@ public class PositioningService {
         helmetCache.put(mac, dto);
         lastSeenTime.put(mac, now);
         
-        // 📤 Push qua WebSocket cho realtime display
+        // 📤 Push qua WebSocket cho realtime display (LUÔN)
         messagingTemplate.convertAndSend("/topic/helmet/position", dto);
         
-        // 💾 Lưu vị trí cuối vào DB (upsert)
-        saveLastPosition(dto, now);
+        // ⭐ CHỈ LƯU DB MỖI 30 GIÂY để giảm queries
+        LocalDateTime lastSave = lastDbSaveTime.get(mac);
+        if (lastSave == null || java.time.Duration.between(lastSave, now).getSeconds() >= DB_SAVE_INTERVAL_SECONDS) {
+            saveLastPosition(dto, now);
+            lastDbSaveTime.put(mac, now);
+            log.debug("💾 DB saved for {}", mac);
+        }
         
         log.debug("📍 Realtime position: {} UWB={}", mac, dto.getUwb());
     }
