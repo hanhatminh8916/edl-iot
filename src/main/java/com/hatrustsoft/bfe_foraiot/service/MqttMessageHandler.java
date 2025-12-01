@@ -301,58 +301,34 @@ public class MqttMessageHandler implements MessageHandler {
      */
     /**
      * ⭐ Cảnh báo khi vào khu vực nguy hiểm (từ Anchor qua Gateway)
+     * ⚠️ KHÔNG gửi Messenger - chỉ log (Messenger chỉ cho FALL/HELP_REQUEST)
      */
     private void checkDangerZoneAlert(HelmetData data, String dangerZoneId, 
                                       double distance, Double anchorLat, Double anchorLon) {
         String mac = data.getMac();
         LocalDateTime now = VietnamTimeUtils.now();
         
-        // Debounce: Chỉ cảnh báo mỗi 30s để tránh spam
+        // Debounce: Chỉ log mỗi 30s để tránh spam
         LocalDateTime lastAlert = lastDangerZoneAlert.get(mac);
         if (lastAlert != null && Duration.between(lastAlert, now).getSeconds() < 30) {
             log.debug("⏭️ Skip danger zone alert (debounce): MAC={}", mac);
             return;
         }
 
-        // ⭐ BỎ CHECK DISTANCE - Phát hiện Anchor = đã nguy hiểm rồi!
-        // Anchor chỉ đặt ở khu nguy hiểm, nên không cần check distance
-        // distance chỉ để tham khảo mức độ nguy hiểm
-
-        // Tạo message cảnh báo
         String employeeInfo = data.getEmployeeName() != null 
             ? data.getEmployeeName() + " (" + data.getEmployeeId() + ")"
             : "MAC: " + mac;
 
-        StringBuilder alertMsg = new StringBuilder();
-        alertMsg.append("🚨 CẢNH BÁO KHU VỰC NGUY HIỂM!\n");
-        alertMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━\n");
-        alertMsg.append(String.format("👤 Nhân viên: %s\n", employeeInfo));
-        alertMsg.append(String.format("⚓ Khu vực: %s\n", dangerZoneId));
-        alertMsg.append(String.format("📏 Khoảng cách đến anchor: %.2fm\n", distance)); // ⭐ Chỉ hiển thị khoảng cách
-        
-        double battery = Objects.requireNonNullElse(data.getBattery(), 0.0);
-        double voltage = Objects.requireNonNullElse(data.getVoltage(), 0.0);
-        alertMsg.append(String.format("🔋 Pin: %.1f%%\n", battery));
-        alertMsg.append(String.format("⚡ Điện áp: %.2fV\n", voltage));
-        
-        // Vị trí mũ
-        double helmetLat = Objects.requireNonNullElse(data.getLat(), 0.0);
-        double helmetLon = Objects.requireNonNullElse(data.getLon(), 0.0);
-        alertMsg.append(String.format("📍 Vị trí mũ: %.6f, %.6f\n", helmetLat, helmetLon));
-        
-        // Vị trí anchor (nếu có)
-        if (anchorLat != null && anchorLon != null) {
-            alertMsg.append(String.format("⚓ Vị trí anchor: %.6f, %.6f\n", anchorLat, anchorLon));
-        }
-
-        String location = String.format("%.6f, %.6f", helmetLat, helmetLon);
-
-        messengerService.broadcastDangerAlert(employeeInfo, alertMsg.toString(), location);
+        // ⚠️ CHỈ LOG - KHÔNG GỬI MESSENGER
+        log.warn("🚨 DANGER ZONE: {} entered {} at {}m", employeeInfo, dangerZoneId, distance);
         lastDangerZoneAlert.put(mac, now);
-        
-        log.warn("🚨 DANGER ZONE ALERT: {} in {} at {}m", employeeInfo, dangerZoneId, distance);
     }
 
+    /**
+     * Kiểm tra các điều kiện nguy hiểm (pin, điện áp, dòng điện)
+     * ⚠️ KHÔNG gửi Messenger - chỉ log cảnh báo
+     * Messenger chỉ gửi cho FALL và HELP_REQUEST
+     */
     private void checkDangerAndAlert(HelmetData data) {
         StringBuilder alertMessage = new StringBuilder();
         boolean isDangerous = false;
@@ -375,21 +351,9 @@ public class MqttMessageHandler implements MessageHandler {
             isDangerous = true;
         }
 
-        // Gửi cảnh báo qua Messenger nếu phát hiện nguy hiểm
+        // ⚠️ CHỈ LOG - KHÔNG GỬI MESSENGER (Messenger chỉ cho FALL/HELP_REQUEST)
         if (isDangerous) {
-            String employeeInfo = data.getEmployeeName() != null 
-                ? data.getEmployeeName() + " (" + data.getEmployeeId() + ")"
-                : "MAC: " + data.getMac();
-
-            String alertType = alertMessage.toString().trim();
-            
-            double lat = Objects.requireNonNullElse(data.getLat(), 0.0);
-            double lon = Objects.requireNonNullElse(data.getLon(), 0.0);
-            String location = String.format("%.6f, %.6f", lat, lon);
-
-            // Broadcast cảnh báo qua Messenger
-            messengerService.broadcastDangerAlert(employeeInfo, alertType, location);
-            log.warn("🚨 Danger alert broadcasted for MAC: {}", data.getMac());
+            log.warn("⚠️ Danger conditions detected for MAC {}: {}", data.getMac(), alertMessage.toString().trim());
         }
     }
     
