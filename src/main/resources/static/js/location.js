@@ -500,14 +500,16 @@ function updateMapMarkers(workers) {
         // 🚨 Tạo icon với hiệu ứng radar wave nếu có cảnh báo
         var markerHtml;
         if (hasAlert) {
-            // ✅ Marker với hiệu ứng radar wave + chớp nháy
+            // ✅ Marker với hiệu ứng radar wave phát sóng từ tâm ra ngoài
+            var waveClass = alertType === 'HELP_REQUEST' ? 'radar-wave help-radar-wave' : 'radar-wave';
             markerHtml = `
                 <div class="radar-container">
-                    <div class="radar-wave"></div>
-                    <div class="radar-wave" style="animation-delay: 0.5s;"></div>
-                    <div class="radar-wave" style="animation-delay: 1s;"></div>
-                    <div class="fall-alert-marker" style="background:${color};width:40px;height:40px;border-radius:50%;border:4px solid white;box-shadow:0 0 20px ${color};display:flex;align-items:center;justify-content:center;position:relative;z-index:1000;">
-                        <span style="color:white;font-weight:bold;font-size:16px;">!</span>
+                    <div class="${waveClass}"></div>
+                    <div class="${waveClass}" style="animation-delay: 0.4s;"></div>
+                    <div class="${waveClass}" style="animation-delay: 0.8s;"></div>
+                    <div class="${waveClass}" style="animation-delay: 1.2s;"></div>
+                    <div class="fall-alert-marker" style="background:${color};width:44px;height:44px;border-radius:50%;border:4px solid white;display:flex;align-items:center;justify-content:center;position:relative;z-index:1000;">
+                        <span style="color:white;font-weight:bold;font-size:18px;text-shadow: 0 0 10px rgba(0,0,0,0.5);">!</span>
                     </div>
                 </div>
             `;
@@ -525,8 +527,8 @@ function updateMapMarkers(workers) {
         var icon = L.divIcon({
             className: hasAlert ? 'alert-marker-icon' : 'custom-marker-with-label',
             html: markerHtml,
-            iconSize: hasAlert ? [80, 80] : [32, 32], 
-            iconAnchor: hasAlert ? [40, 40] : [16, 16]
+            iconSize: hasAlert ? [120, 120] : [32, 32], 
+            iconAnchor: hasAlert ? [60, 60] : [16, 16]
         });
         
         var m = L.marker([lat, lon], {icon: icon}).addTo(map);
