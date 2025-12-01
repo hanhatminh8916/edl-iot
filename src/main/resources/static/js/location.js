@@ -10,6 +10,10 @@ var drawingMode = 'safezone'; // 'safezone' (green) or 'workzone' (yellow)
 var safeZoneCenter = [15.97331, 108.25183];
 var safeZoneRadius = 200; // Bán kính 200 mét (chỉ để tham khảo, giờ dùng polygon vẽ tay)
 
+// 🚨 FALL ALERT - Radar pulse effect
+var fallAlertMarkers = {}; // Track active fall alert effects by MAC
+var fallAlertIntervals = {}; // Track intervals for cleanup
+
 function initializeMap() {
     console.log("Init map with Geo-Fencing");
     map = L.map("map").setView(safeZoneCenter, 15);
@@ -665,12 +669,278 @@ function connectWebSocket() {
             }
         });
         
+        // 🚨 Subscribe to FALL ALERTS - Hiệu ứng radar sóng nước
+        stompClient.subscribe('/topic/alerts/new', function(message) {
+            try {
+                const alert = JSON.parse(message.body);
+                console.log('🚨 Received alert on map:', alert);
+                
+                // Chỉ xử lý FALL alerts
+                if (alert.alertType === 'FALL') {
+                    handleFallAlertOnMap(alert);
+                }
+                
+            } catch (e) {
+                console.error('❌ Error parsing alert message:', e);
+            }
+        });
+        
     }, function(error) {
         console.error('❌ WebSocket connection error:', error);
         // Retry after 5 seconds
         setTimeout(connectWebSocket, 5000);
     });
 }
+
+// ==========================================
+// 🚨 FALL ALERT - RADAR PULSE EFFECT
+// ==========================================
+
+/**
+ * Xử lý FALL alert - Hiển thị hiệu ứng radar sóng nước trên bản đồ
+ */
+function handleFallAlertOnMap(alert) {
+    console.log('🚨 Processing FALL alert on map:', alert);
+    
+    // Tìm vị trí của helmet từ workersData hoặc alert data
+    let lat, lon, mac, workerName;
+    
+    // Thử lấy từ alert.helmet
+    if (alert.helmet && alert.helmet.helmetId) {
+        mac = alert.helmet.helmetId;
+        const worker = workersData.find(w => w.helmet && w.helmet.helmetId === mac);
+        if (worker && worker.helmet.lastLocation) {
+            lat = worker.helmet.lastLocation.latitude;
+            lon = worker.helmet.lastLocation.longitude;
+            workerName = worker.name;
+        }
+    }
+    
+    // Thử parse từ message nếu có tọa độ
+    if (!lat || !lon) {
+        // Fallback: dùng marker đang có
+        const existingMarker = markers.find(m => {
+            const popup = m.getPopup();
+            if (popup) {
+                const content = popup.getContent();
+                return content && content.includes(mac);
+            }
+            return false;
+        });
+        
+        if (existingMarker) {
+            const latlng = existingMarker.getLatLng();
+            lat = latlng.lat;
+            lon = latlng.lng;
+        }
+    }
+    
+    if (!lat || !lon) {
+        console.warn('⚠️ Cannot find location for FALL alert, MAC:', mac);
+        return;
+    }
+    
+    console.log('🚨 Creating radar effect at:', lat, lon, 'for', workerName || mac);
+    
+    // Tạo hiệu ứng radar sóng nước
+    createRadarPulseEffect(lat, lon, mac, workerName);
+    
+    // Zoom đến vị trí cảnh báo
+    map.flyTo([lat, lon], 18, {
+        duration: 1.5
+    });
+}
+
+/**
+ * Tạo hiệu ứng radar sóng nước + chớp tắt đỏ xanh
+ */
+function createRadarPulseEffect(lat, lon, mac, workerName) {
+    // Xóa hiệu ứng cũ nếu có
+    if (fallAlertMarkers[mac]) {
+        clearFallAlertEffect(mac);
+    }
+    
+    const effectLayers = [];
+    
+    // ✅ Tạo 3 vòng sóng radar (ripple effect)
+    for (let i = 0; i < 3; i++) {
+        const pulseCircle = L.circle([lat, lon], {
+            radius: 5,
+            color: '#ff0000',
+            fillColor: '#ff0000',
+            fillOpacity: 0.6 - (i * 0.15),
+            weight: 3,
+            className: `radar-pulse pulse-${i}`
+        }).addTo(map);
+        
+        effectLayers.push(pulseCircle);
+    }
+    
+    // ✅ Marker trung tâm chớp tắt đỏ-xanh
+    const alertIcon = L.divIcon({
+        className: 'fall-alert-marker',
+        html: `
+            <div class="fall-alert-container">
+                <div class="fall-alert-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="fall-alert-label">${workerName || mac}</div>
+            </div>
+        `,
+        iconSize: [80, 80],
+        iconAnchor: [40, 40]
+    });
+    
+    const alertMarker = L.marker([lat, lon], { icon: alertIcon, zIndexOffset: 1000 }).addTo(map);
+    effectLayers.push(alertMarker);
+    
+    // Lưu layers
+    fallAlertMarkers[mac] = effectLayers;
+    
+    // ✅ Animation: Sóng radar lan ra
+    let pulseStep = 0;
+    const maxRadius = 50; // meters
+    const pulseSpeed = 100; // ms
+    
+    fallAlertIntervals[mac] = setInterval(() => {
+        pulseStep = (pulseStep + 1) % 30;
+        
+        effectLayers.forEach((layer, index) => {
+            if (layer instanceof L.Circle) {
+                // Tính radius dựa trên step và index (mỗi vòng lệch phase)
+                const phase = (pulseStep + index * 10) % 30;
+                const radius = 5 + (phase / 30) * maxRadius;
+                const opacity = 0.6 - (phase / 30) * 0.5;
+                
+                layer.setRadius(radius);
+                layer.setStyle({
+                    fillOpacity: Math.max(0.1, opacity),
+                    opacity: Math.max(0.2, opacity)
+                });
+            }
+        });
+    }, pulseSpeed);
+    
+    // ✅ Inject CSS animation styles nếu chưa có
+    injectFallAlertStyles();
+    
+    // ✅ Auto-clear sau 60 giây
+    setTimeout(() => {
+        clearFallAlertEffect(mac);
+    }, 60000);
+}
+
+/**
+ * Xóa hiệu ứng FALL alert
+ */
+function clearFallAlertEffect(mac) {
+    if (fallAlertMarkers[mac]) {
+        fallAlertMarkers[mac].forEach(layer => {
+            if (map.hasLayer(layer)) {
+                map.removeLayer(layer);
+            }
+        });
+        delete fallAlertMarkers[mac];
+    }
+    
+    if (fallAlertIntervals[mac]) {
+        clearInterval(fallAlertIntervals[mac]);
+        delete fallAlertIntervals[mac];
+    }
+    
+    console.log('🧹 Cleared FALL alert effect for:', mac);
+}
+
+/**
+ * Inject CSS styles cho FALL alert animation
+ */
+function injectFallAlertStyles() {
+    if (document.getElementById('fall-alert-styles')) return;
+    
+    const style = document.createElement('style');
+    style.id = 'fall-alert-styles';
+    style.textContent = `
+        /* 🚨 FALL ALERT - Radar Pulse Effect */
+        .fall-alert-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: alertFlash 0.5s ease-in-out infinite alternate;
+        }
+        
+        .fall-alert-icon {
+            width: 50px;
+            height: 50px;
+            background: #ff0000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000, 0 0 60px #ff0000;
+            animation: iconPulse 0.3s ease-in-out infinite alternate;
+        }
+        
+        .fall-alert-icon i {
+            color: white;
+            font-size: 24px;
+            animation: iconShake 0.1s ease-in-out infinite;
+        }
+        
+        .fall-alert-label {
+            margin-top: 5px;
+            padding: 4px 10px;
+            background: rgba(255, 0, 0, 0.9);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 4px;
+            white-space: nowrap;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        /* 🔴🔵 Chớp tắt đỏ-xanh */
+        @keyframes alertFlash {
+            0% {
+                filter: hue-rotate(0deg);
+            }
+            100% {
+                filter: hue-rotate(200deg);
+            }
+        }
+        
+        @keyframes iconPulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000;
+            }
+            100% {
+                transform: scale(1.2);
+                box-shadow: 0 0 30px #0066ff, 0 0 60px #0066ff, 0 0 80px #0066ff;
+                background: #0066ff;
+            }
+        }
+        
+        @keyframes iconShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            75% { transform: translateX(2px); }
+        }
+        
+        /* Radar circles */
+        .radar-pulse {
+            animation: radarExpand 2s ease-out infinite;
+        }
+        
+        .pulse-0 { animation-delay: 0s; }
+        .pulse-1 { animation-delay: 0.5s; }
+        .pulse-2 { animation-delay: 1s; }
+    `;
+    document.head.appendChild(style);
+}
+
+// ==========================================
+// END FALL ALERT EFFECT
+// ==========================================
 
 function updateMarkerRealtime(data) {
     if (!data.lat || !data.lon) {
