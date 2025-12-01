@@ -88,13 +88,41 @@ public class MqttMessageHandler implements MessageHandler {
 
             // ===== Parse basic helmet data =====
             HelmetData data = new HelmetData();
-            data.setMac(jsonNode.get("mac").asText());
+            String macAddress = jsonNode.get("mac").asText();
+            data.setMac(macAddress);
             data.setVoltage(jsonNode.has("voltage") ? jsonNode.get("voltage").asDouble() : null);
             data.setCurrent(jsonNode.has("current") ? jsonNode.get("current").asDouble() : null);
             data.setPower(jsonNode.has("power") ? jsonNode.get("power").asDouble() : null);
             data.setBattery(jsonNode.has("battery") ? jsonNode.get("battery").asDouble() : null);
-            data.setLat(jsonNode.has("lat") ? jsonNode.get("lat").asDouble() : null);
-            data.setLon(jsonNode.has("lon") ? jsonNode.get("lon").asDouble() : null);
+            
+            // ✅ GPS HANDLING: Nếu lat/lon = 0 (mất GPS), giữ vị trí cũ từ Redis cache
+            Double newLat = jsonNode.has("lat") ? jsonNode.get("lat").asDouble() : null;
+            Double newLon = jsonNode.has("lon") ? jsonNode.get("lon").asDouble() : null;
+            
+            // Kiểm tra GPS có hợp lệ không (lat=0, lon=0 là mất GPS)
+            boolean isGpsValid = newLat != null && newLon != null && 
+                                 !(newLat == 0.0 && newLon == 0.0) &&
+                                 Math.abs(newLat) <= 90 && Math.abs(newLon) <= 180;
+            
+            if (isGpsValid) {
+                data.setLat(newLat);
+                data.setLon(newLon);
+            } else {
+                // GPS mất tín hiệu - lấy vị trí cũ từ Redis cache
+                HelmetData cachedData = redisCacheService.getHelmetData(macAddress);
+                if (cachedData != null && cachedData.getLat() != null && cachedData.getLon() != null) {
+                    data.setLat(cachedData.getLat());
+                    data.setLon(cachedData.getLon());
+                    log.warn("📍 GPS lost for MAC: {} - using cached position ({}, {})", 
+                        macAddress, cachedData.getLat(), cachedData.getLon());
+                } else {
+                    // Không có cache, sử dụng null
+                    data.setLat(null);
+                    data.setLon(null);
+                    log.warn("📍 GPS lost for MAC: {} - no cached position available", macAddress);
+                }
+            }
+            
             data.setCounter(jsonNode.has("counter") ? jsonNode.get("counter").asInt() : null);
 
             // ⭐ Parse safety data (fallDetected, helpRequest)
@@ -141,9 +169,6 @@ public class MqttMessageHandler implements MessageHandler {
                 data.setTimestamp(LocalDateTime.now());
             }
 
-            // Map MAC address -> Employee
-            String macAddress = data.getMac();
-            
             // ⭐ AUTO-CREATE HELMET if not exists
             helmetService.findOrCreateHelmetByMac(macAddress);
             
