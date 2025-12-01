@@ -51,6 +51,9 @@ public class MqttMessageHandler implements MessageHandler {
     private RedisPublisherService redisPublisher; // ⭐ Thêm Redis Publisher
     
     @Autowired
+    private RedisCacheService redisCacheService; // ⭐ Redis Cache Service
+    
+    @Autowired
     private HelmetService helmetService; // ⭐ Thêm HelmetService để auto-create helmet
     
     @Autowired
@@ -157,29 +160,11 @@ public class MqttMessageHandler implements MessageHandler {
                 }
             );
 
-            // ✅ LUÔN UPSERT VÀO helmet_data (1 row duy nhất mỗi MAC)
-            HelmetData existingData = helmetDataRepository.findByMac(macAddress).orElse(null);
-            if (existingData != null) {
-                // Update existing record
-                existingData.setEmployeeId(data.getEmployeeId());
-                existingData.setEmployeeName(data.getEmployeeName());
-                existingData.setVoltage(data.getVoltage());
-                existingData.setCurrent(data.getCurrent());
-                existingData.setPower(data.getPower());
-                existingData.setBattery(data.getBattery());
-                existingData.setLat(data.getLat());
-                existingData.setLon(data.getLon());
-                existingData.setCounter(data.getCounter());
-                existingData.setTimestamp(data.getTimestamp());
-                helmetDataRepository.save(existingData);
-                log.debug("📝 Updated helmet_data for MAC: {}", macAddress);
-            } else {
-                // Insert new record
-                helmetDataRepository.save(data);
-                log.info("➕ Inserted new helmet_data for MAC: {}", macAddress);
-            }
+            // ✅ CHỈ CACHE VÀO REDIS - KHÔNG LƯU VÀO DATABASE MỖI MESSAGE
+            // Database sẽ được cập nhật bởi scheduled job khi detect offline (30s)
+            redisCacheService.cacheHelmetData(data);
             
-            // ✅ LUÔN CẬP NHẬT VỊ TRÍ CUỐI CÙNG VÀO HELMETS TABLE
+            // ✅ CẬP NHẬT VỊ TRÍ CUỐI CÙNG VÀO HELMETS TABLE (lightweight update)
             helmetService.updateHelmetData(
                 macAddress, 
                 data.getBattery(), 

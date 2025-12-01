@@ -97,6 +97,33 @@ public class RedisCacheService {
     }
 
     /**
+     * 🔍 Lấy danh sách MAC của các helmet OFFLINE (không có data trong 30 giây)
+     * @return List các HelmetData đã offline
+     */
+    public List<HelmetData> getOfflineHelmets(int timeoutSeconds) {
+        List<HelmetData> offlineHelmets = new ArrayList<>();
+        try {
+            Set<String> keys = redisTemplate.keys(HELMET_CACHE_PREFIX + "*");
+            if (keys == null) return offlineHelmets;
+            
+            java.time.LocalDateTime threshold = java.time.LocalDateTime.now().minusSeconds(timeoutSeconds);
+            
+            for (String key : keys) {
+                HelmetData data = redisTemplate.opsForValue().get(key);
+                if (data != null && data.getReceivedAt() != null) {
+                    if (data.getReceivedAt().isBefore(threshold)) {
+                        offlineHelmets.add(data);
+                        log.debug("⏰ Helmet {} is OFFLINE (last seen: {})", data.getMac(), data.getReceivedAt());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("❌ Error checking offline helmets: {}", e.getMessage(), e);
+        }
+        return offlineHelmets;
+    }
+
+    /**
      * 🗑️ Xóa TOÀN BỘ cache helmet
      */
     public void clearAllCache() {
