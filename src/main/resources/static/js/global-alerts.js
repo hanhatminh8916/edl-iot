@@ -64,6 +64,17 @@
                     }
                 });
                 
+                // ⭐ Subscribe to alert acknowledgments from Messenger
+                stompClient.subscribe('/topic/alert-acknowledgment', function(message) {
+                    try {
+                        const ack = JSON.parse(message.body);
+                        console.log('✅ [GLOBAL] Alert acknowledgment received:', ack);
+                        showAcknowledgmentBanner(ack);
+                    } catch (e) {
+                        console.error('❌ Error parsing alert acknowledgment:', e);
+                    }
+                });
+                
             }, function(error) {
                 console.error('❌ Global Alert WebSocket error:', error);
                 isConnected = false;
@@ -164,6 +175,81 @@
         currentBanner = null;
         displayNextBanner();
     };
+    
+    // ==================== ACKNOWLEDGMENT BANNER ====================
+    /**
+     * Hiển thị thông báo khi có người xác nhận xử lý alert qua Messenger
+     */
+    function showAcknowledgmentBanner(ack) {
+        const container = document.getElementById('global-alert-container');
+        if (!container) return;
+        
+        // Tạo banner xác nhận (màu xanh lá)
+        const banner = document.createElement('div');
+        banner.className = 'global-alert-banner acknowledgment';
+        
+        // Format thời gian
+        let timeStr = '';
+        if (ack.timestamp) {
+            const date = new Date(ack.timestamp);
+            timeStr = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        }
+        
+        banner.innerHTML = `
+            <div class="alert-banner-content">
+                <span class="alert-icon">✅</span>
+                <span class="alert-text">
+                    <strong>Đã xử lý:</strong> 
+                    ${ack.handlerName || 'Người dùng Messenger'} đã xác nhận xử lý cảnh báo 
+                    <strong>${ack.alertType}</strong> cho <strong>${ack.employeeName}</strong>
+                    ${ack.message ? `<br><em style="opacity: 0.9;">Ghi chú: "${ack.message}"</em>` : ''}
+                    ${timeStr ? `<span style="margin-left: 10px; opacity: 0.7;">(${timeStr})</span>` : ''}
+                </span>
+            </div>
+            <button class="alert-close" onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        
+        // Thêm vào container
+        container.appendChild(banner);
+        
+        // Play success sound
+        playAcknowledgmentSound();
+        
+        // Auto close after 15 seconds
+        setTimeout(() => {
+            if (banner.parentElement) {
+                banner.classList.add('closing');
+                setTimeout(() => banner.remove(), 300);
+            }
+        }, 15000);
+    }
+    
+    /**
+     * Phát âm thanh khi có xác nhận xử lý
+     */
+    function playAcknowledgmentSound() {
+        try {
+            // Tạo âm thanh success nhẹ nhàng
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 880; // A5 note
+            oscillator.type = 'sine';
+            gainNode.gain.value = 0.1;
+            
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        } catch (e) {
+            // Ignore audio errors
+        }
+    }
     
     // ==================== HELPERS ====================
     function formatAlertInfo(alert) {
@@ -378,6 +464,17 @@
                 0% { transform: scale(1); }
                 50% { transform: scale(1.3); }
                 100% { transform: scale(1); }
+            }
+            
+            /* ⭐ Acknowledgment Banner - Màu xanh lá */
+            .global-alert-banner.acknowledgment {
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                color: white;
+            }
+            
+            .global-alert-banner.acknowledgment .alert-text em {
+                font-style: italic;
+                opacity: 0.9;
             }
         `;
         document.head.appendChild(style);

@@ -3,6 +3,7 @@ package com.hatrustsoft.bfe_foraiot.controller;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -13,6 +14,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.hatrustsoft.bfe_foraiot.dto.MessengerWebhookDTO;
 import com.hatrustsoft.bfe_foraiot.entity.MessengerUser;
 import com.hatrustsoft.bfe_foraiot.service.MessengerService;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,9 +33,11 @@ public class MessengerWebhookController {
     private String verifyToken;
 
     private final MessengerService messengerService;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public MessengerWebhookController(MessengerService messengerService) {
+    public MessengerWebhookController(MessengerService messengerService, SimpMessagingTemplate messagingTemplate) {
         this.messengerService = messengerService;
+        this.messagingTemplate = messagingTemplate;
     }
 
     /**
@@ -119,6 +126,28 @@ public class MessengerWebhookController {
      */
     private void handleMessage(String senderId, String messageText) {
         log.info("Message from {}: {}", senderId, messageText);
+        
+        // ⭐ Kiểm tra nếu user đang trong pending state (đang chờ nhập message xác nhận)
+        boolean handled = messengerService.handlePendingMessage(senderId, messageText, 
+            (handlerPsid, handlerName, employeeName, alertType, message) -> {
+                // Gửi thông báo lên dashboard qua WebSocket
+                Map<String, Object> notification = new HashMap<>();
+                notification.put("type", "ALERT_ACKNOWLEDGED");
+                notification.put("handlerPsid", handlerPsid);
+                notification.put("handlerName", handlerName != null ? handlerName : "Messenger User");
+                notification.put("employeeName", employeeName);
+                notification.put("alertType", alertType);
+                notification.put("message", message);
+                notification.put("timestamp", VietnamTimeUtils.now().toString());
+                
+                log.info("📢 Broadcasting alert acknowledgment to dashboard: {}", notification);
+                messagingTemplate.convertAndSend("/topic/alert-acknowledgment", notification);
+            }
+        );
+        
+        if (handled) {
+            return; // Đã xử lý, không cần xử lý tiếp
+        }
 
         String responseText;
 
@@ -218,8 +247,9 @@ public class MessengerWebhookController {
                 break;
 
             case "ALERT_HANDLED":
-                responseText = "✅ Cảm ơn bạn đã xác nhận đã xử lý cảnh báo!";
-                break;
+                // ⭐ Bắt đầu flow xác nhận xử lý - yêu cầu user nhập message
+                messengerService.startHandleAlertFlow(senderId);
+                return; // Không gửi thêm message ở đây
 
             case "CALL_EMERGENCY":
                 responseText = "📞 Đang gọi số khẩn cấp: 115\n\n" +

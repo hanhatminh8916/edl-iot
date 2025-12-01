@@ -3,6 +3,8 @@ package com.hatrustsoft.bfe_foraiot.service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -34,6 +36,24 @@ public class MessengerService {
     private List<MessengerUser> cachedSubscribedUsers = new ArrayList<>();
     private LocalDateTime lastCacheRefresh = null;
     private static final long CACHE_TTL_MINUTES = 5;
+    
+    // ⭐ Cache thông tin alert đang chờ xử lý cho mỗi user
+    private final ConcurrentHashMap<String, AlertPendingInfo> pendingAlerts = new ConcurrentHashMap<>();
+    
+    // Inner class để lưu thông tin alert đang chờ
+    public static class AlertPendingInfo {
+        public String employeeName;
+        public String alertType;
+        public String location;
+        public LocalDateTime timestamp;
+        
+        public AlertPendingInfo(String employeeName, String alertType, String location) {
+            this.employeeName = employeeName;
+            this.alertType = alertType;
+            this.location = location;
+            this.timestamp = VietnamTimeUtils.now();
+        }
+    }
 
     public MessengerService(MessengerUserRepository messengerUserRepository, WebClient.Builder webClientBuilder) {
         this.messengerUserRepository = messengerUserRepository;
@@ -61,6 +81,9 @@ public class MessengerService {
      * Gửi tin nhắn nguy hiểm với Button để mở Google Maps
      */
     public void sendDangerAlert(String recipientId, String employeeName, String alertType, String location) {
+        // Lưu thông tin alert để xử lý khi user click "Đã xử lý"
+        pendingAlerts.put(recipientId, new AlertPendingInfo(employeeName, alertType, location));
+        
         String alertMessage = String.format(
                 "🚨 CẢNH BÁO NGUY HIỂM!\n\n" +
                         "Nhân viên: %s\n" +
@@ -226,7 +249,7 @@ public class MessengerService {
                 });
     }
 
-    /**
+/**
      * Link Messenger user với Employee ID
      */
     public void linkUserToEmployee(String psid, String employeeId) {
@@ -236,5 +259,107 @@ public class MessengerService {
             log.info("Linked Messenger user {} to employee {}", psid, employeeId);
         });
     }
+    
+    /**
+     * Bắt đầu flow xác nhận xử lý alert
+     * Gửi prompt yêu cầu nhập message
+     */
+    public void startHandleAlertFlow(String psid) {
+        Optional<MessengerUser> userOpt = messengerUserRepository.findByPsid(psid);
+        if (userOpt.isEmpty()) {
+            log.warn("User not found for PSID: {}", psid);
+            sendTextMessage(psid, "❌ Không tìm thấy thông tin người dùng.");
+            return;
+        }
+        
+        // Lấy thông tin alert đang chờ
+        AlertPendingInfo alertInfo = pendingAlerts.get(psid);
+        if (alertInfo == null) {
+            sendTextMessage(psid, "✅ Cảm ơn bạn đã xác nhận xử lý cảnh báo!");
+            return;
+        }
+        
+        // Cập nhật trạng thái user đang chờ nhập message
+        MessengerUser user = userOpt.get();
+        user.setPendingState("AWAITING_HANDLE_MESSAGE");
+        user.setPendingAlertType(alertInfo.alertType);
+        user.setPendingEmployeeName(alertInfo.employeeName);
+        messengerUserRepository.save(user);
+        
+        // Gửi prompt yêu cầu nhập message
+        String promptMessage = String.format(
+            "📝 XÁC NHẬN XỬ LÝ CẢNH BÁO\n\n" +
+            "Nhân viên: %s\n" +
+            "Loại cảnh báo: %s\n\n" +
+            "Vui lòng nhập ghi chú về cách bạn đã xử lý tình huống này:\n" +
+            "(Ví dụ: Đã kiểm tra, nhân viên ổn định)",
+            alertInfo.employeeName,
+            alertInfo.alertType
+        );
+        
+        sendTextMessage(psid, promptMessage);
+        
+        // Xóa pending alert sau khi đã bắt đầu flow
+        pendingAlerts.remove(psid);
+    }
+    
+    /**
+     * Xử lý message từ user đang trong trạng thái chờ
+     * Trả về true nếu đã xử lý (user đang trong pending state)
+     */
+    public boolean handlePendingMessage(String psid, String message, WebSocketAlertCallback callback) {
+        Optional<MessengerUser> userOpt = messengerUserRepository.findByPsid(psid);
+        if (userOpt.isEmpty()) {
+            return false;
+        }
+        
+        MessengerUser user = userOpt.get();
+        String pendingState = user.getPendingState();
+        
+        if (pendingState == null) {
+            return false; // Không có pending state, xử lý như message bình thường
+        }
+        
+        if ("AWAITING_HANDLE_MESSAGE".equals(pendingState)) {
+            // User đã nhập message xác nhận
+            String alertType = user.getPendingAlertType();
+            String employeeName = user.getPendingEmployeeName();
+            
+            // Clear pending state
+            user.setPendingState(null);
+            user.setPendingAlertId(null);
+            user.setPendingAlertType(null);
+            user.setPendingEmployeeName(null);
+            messengerUserRepository.save(user);
+            
+            // Gọi callback để gửi lên dashboard
+            if (callback != null) {
+                callback.onAlertHandled(psid, user.getFirstName(), employeeName, alertType, message);
+            }
+            
+            // Gửi xác nhận cho user
+            sendTextMessage(psid, 
+                "✅ Đã ghi nhận!\n\n" +
+                "Ghi chú của bạn: \"" + message + "\"\n\n" +
+                "Thông tin đã được gửi đến dashboard.");
+            
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Interface callback để gửi thông báo lên dashboard
+     */
+    public interface WebSocketAlertCallback {
+        void onAlertHandled(String handlerPsid, String handlerName, String employeeName, String alertType, String message);
+    }
+    
+    /**
+     * Lấy thông tin pending alert cho user
+     */
+    public AlertPendingInfo getPendingAlert(String psid) {
+        return pendingAlerts.get(psid);
+    }
 }
-

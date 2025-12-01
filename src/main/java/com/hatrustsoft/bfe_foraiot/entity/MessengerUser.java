@@ -2,8 +2,6 @@ package com.hatrustsoft.bfe_foraiot.entity;
 
 import java.time.LocalDateTime;
 import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
-import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
-import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -35,6 +33,15 @@ public class MessengerUser {
     private String employeeId; // Link với Worker/Employee
     
     private Boolean subscribed = true;
+    
+    // State machine for conversation flow
+    private String pendingState; // AWAITING_HANDLE_MESSAGE, etc.
+    
+    private Long pendingAlertId; // Alert ID being handled
+    
+    private String pendingAlertType; // FALL, HELP_REQUEST, etc.
+    
+    private String pendingEmployeeName; // Employee name for the alert
     
     @Column(nullable = false)
     private LocalDateTime createdAt;
