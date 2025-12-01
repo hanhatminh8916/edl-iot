@@ -439,23 +439,9 @@ public class MqttMessageHandler implements MessageHandler {
                 double lon = Objects.requireNonNullElse(data.getLon(), 0.0);
                 String location = String.format("%.6f, %.6f", lat, lon);
                 
-                StringBuilder alertMsg = new StringBuilder();
-                alertMsg.append("🚨 CẢNH BÁO KHẨN CẤP - PHÁT HIỆN NGÃ!\n");
-                alertMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━\n");
-                alertMsg.append(String.format("👤 Nhân viên: %s\n", employeeInfo));
-                alertMsg.append(String.format("📍 Vị trí: %.6f, %.6f\n", lat, lon));
-                
-                if (data.getBattery() != null) {
-                    alertMsg.append(String.format("🔋 Pin: %.1f%%\n", data.getBattery()));
-                }
-                
-                alertMsg.append("⏰ Thời gian: ").append(now.format(
-                    java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
-                )).append("\n");
-                alertMsg.append("\n⚠️ VUI LÒNG KIỂM TRA NGAY LẬP TỨC!");
-                
-                messengerService.broadcastDangerAlert(employeeInfo, alertMsg.toString(), location);
-                log.error("🚨 FALL DETECTED (NEW): {} at ({}, {})", employeeInfo, lat, lon);
+                // 📲 Gửi thông báo qua Messenger cho tất cả người đăng ký
+                messengerService.broadcastDangerAlert(employeeInfo, "🚨 PHÁT HIỆN NGÃ", location);
+                log.error("🚨 FALL DETECTED (NEW): {} at ({}, {}) - Messenger sent!", employeeInfo, lat, lon);
             } else {
                 log.info("🔄 FALL alert UPDATED (still pending): {} - ID: {}", mac, saved.getId());
             }
@@ -519,23 +505,9 @@ public class MqttMessageHandler implements MessageHandler {
                 double lon = Objects.requireNonNullElse(data.getLon(), 0.0);
                 String location = String.format("%.6f, %.6f", lat, lon);
                 
-                StringBuilder alertMsg = new StringBuilder();
-                alertMsg.append("🆘 CẢNH BÁO KHẨN CẤP - YÊU CẦU TRỢ GIÚP!\n");
-                alertMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━\n");
-                alertMsg.append(String.format("👤 Nhân viên: %s\n", employeeInfo));
-                alertMsg.append(String.format("📍 Vị trí: %.6f, %.6f\n", lat, lon));
-                
-                if (data.getBattery() != null) {
-                    alertMsg.append(String.format("🔋 Pin: %.1f%%\n", data.getBattery()));
-                }
-                
-                alertMsg.append("⏰ Thời gian: ").append(now.format(
-                    java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
-                )).append("\n");
-                alertMsg.append("\n⚠️ NHÂN VIÊN CẦN TRỢ GIÚP NGAY!");
-                
-                messengerService.broadcastDangerAlert(employeeInfo, alertMsg.toString(), location);
-                log.error("🆘 HELP REQUEST (NEW): {} at ({}, {})", employeeInfo, lat, lon);
+                // 📲 Gửi thông báo qua Messenger cho tất cả người đăng ký
+                messengerService.broadcastDangerAlert(employeeInfo, "🆘 YÊU CẦU TRỢ GIÚP", location);
+                log.error("🆘 HELP REQUEST (NEW): {} at ({}, {}) - Messenger sent!", employeeInfo, lat, lon);
             } else {
                 log.info("🔄 HELP_REQUEST alert UPDATED (still pending): {} - ID: {}", mac, saved.getId());
             }
