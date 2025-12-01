@@ -1372,6 +1372,21 @@
                         console.log(`🔄 Updated tag ${existingTag.id} battery: ${existingTag.battery}%`);
                     } else {
                         // Create new tag
+                        // ⚠️ QUAN TRỌNG: Kiểm tra lastSeen để xác định thực sự có online hay không
+                        // Backend có thể nói isOnline=true nhưng data đã cũ
+                        let actuallyOnline = tagData.isOnline;
+                        
+                        if (tagData.lastSeen) {
+                            const lastSeenTime = new Date(tagData.lastSeen).getTime();
+                            const now = Date.now();
+                            const ageMs = now - lastSeenTime;
+                            
+                            if (ageMs > OFFLINE_TIMEOUT_MS) {
+                                actuallyOnline = false;
+                                console.log(`⚠️ Tag ${tagData.mac} marked offline (lastSeen ${Math.round(ageMs/1000)}s ago)`);
+                            }
+                        }
+                        
                         const newTag = {
                             id: 'TAG' + (tags.length + 1),
                             name: tagData.employeeName || tagData.mac?.slice(-4) || 'Unknown',
@@ -1379,7 +1394,7 @@
                             y: tagData.y,
                             vx: 0,
                             vy: 0,
-                            status: tagData.isOnline ? 'online' : 'offline',
+                            status: actuallyOnline ? 'online' : 'offline',
                             helmet: tagData.mac,
                             battery: tagData.battery,
                             uwb: {
@@ -1389,11 +1404,14 @@
                             }
                         };
                         tags.push(newTag);
-                        console.log(`➕ Loaded tag ${newTag.id} (${tagData.isOnline ? 'online' : 'offline'}) at (${tagData.x?.toFixed(2)}, ${tagData.y?.toFixed(2)})`);
+                        console.log(`➕ Loaded tag ${newTag.id} (${actuallyOnline ? 'online' : 'offline'}) at (${tagData.x?.toFixed(2)}, ${tagData.y?.toFixed(2)})`);
                     }
                     
-                    // ⏰ Set lastDataTime cho tag (nếu online thì now, nếu offline thì quá khứ)
-                    if (tagData.isOnline) {
+                    // ⏰ Set lastDataTime cho tag dựa trên lastSeen từ backend
+                    if (tagData.lastSeen) {
+                        const lastSeenTime = new Date(tagData.lastSeen).getTime();
+                        tagLastDataTime[tagData.mac] = lastSeenTime;
+                    } else if (tagData.isOnline) {
                         tagLastDataTime[tagData.mac] = Date.now();
                     } else {
                         // Set thời gian quá khứ để checkOffline không bị confused
