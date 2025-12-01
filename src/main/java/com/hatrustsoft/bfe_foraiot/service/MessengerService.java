@@ -1,16 +1,20 @@
 package com.hatrustsoft.bfe_foraiot.service;
 
-import com.hatrustsoft.bfe_foraiot.dto.MessengerMessageDTO;
-import com.hatrustsoft.bfe_foraiot.entity.MessengerUser;
-import com.hatrustsoft.bfe_foraiot.repository.MessengerUserRepository;
-import lombok.extern.slf4j.Slf4j;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
-import java.util.List;
+import com.hatrustsoft.bfe_foraiot.dto.MessengerMessageDTO;
+import com.hatrustsoft.bfe_foraiot.entity.MessengerUser;
+import com.hatrustsoft.bfe_foraiot.repository.MessengerUserRepository;
+
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @Service
 @Slf4j
@@ -24,6 +28,11 @@ public class MessengerService {
 
     private final MessengerUserRepository messengerUserRepository;
     private final WebClient webClient;
+    
+    // ⭐ CACHE subscribed users để giảm DB queries (refresh mỗi 5 phút)
+    private List<MessengerUser> cachedSubscribedUsers = new ArrayList<>();
+    private LocalDateTime lastCacheRefresh = null;
+    private static final long CACHE_TTL_MINUTES = 5;
 
     public MessengerService(MessengerUserRepository messengerUserRepository, WebClient.Builder webClientBuilder) {
         this.messengerUserRepository = messengerUserRepository;
@@ -132,13 +141,21 @@ public class MessengerService {
 
     /**
      * Gửi cảnh báo tới tất cả người dùng đã đăng ký
+     * ⭐ OPTIMIZED: Cache subscribed users để giảm DB queries
      */
     public void broadcastDangerAlert(String employeeName, String alertType, String location) {
-        List<MessengerUser> subscribedUsers = messengerUserRepository.findBySubscribedTrue();
+        // Refresh cache nếu cần
+        LocalDateTime now = LocalDateTime.now();
+        if (lastCacheRefresh == null || 
+            java.time.Duration.between(lastCacheRefresh, now).toMinutes() >= CACHE_TTL_MINUTES) {
+            cachedSubscribedUsers = messengerUserRepository.findBySubscribedTrue();
+            lastCacheRefresh = now;
+            log.debug("🔄 Refreshed subscribed users cache: {} users", cachedSubscribedUsers.size());
+        }
         
-        log.info("Broadcasting danger alert to {} subscribed users", subscribedUsers.size());
+        log.info("Broadcasting danger alert to {} subscribed users", cachedSubscribedUsers.size());
         
-        subscribedUsers.forEach(user -> {
+        cachedSubscribedUsers.forEach(user -> {
             try {
                 sendDangerAlert(user.getPsid(), employeeName, alertType, location);
                 log.info("Sent alert to user: {}", user.getPsid());
@@ -146,6 +163,14 @@ public class MessengerService {
                 log.error("Failed to send alert to user {}: {}", user.getPsid(), e.getMessage());
             }
         });
+    }
+    
+    /**
+     * Invalidate cache khi có user mới subscribe
+     */
+    public void invalidateCache() {
+        lastCacheRefresh = null;
+        cachedSubscribedUsers.clear();
     }
 
     /**

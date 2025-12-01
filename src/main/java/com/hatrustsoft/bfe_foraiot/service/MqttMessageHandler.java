@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hatrustsoft.bfe_foraiot.dto.HelmetRealtimeDTO;
+import com.hatrustsoft.bfe_foraiot.entity.Employee;
 import com.hatrustsoft.bfe_foraiot.entity.HelmetData;
 import com.hatrustsoft.bfe_foraiot.model.Alert;
 import com.hatrustsoft.bfe_foraiot.model.AlertSeverity;
@@ -70,6 +71,12 @@ public class MqttMessageHandler implements MessageHandler {
     private final Map<String, LocalDateTime> lastDangerZoneAlert = new HashMap<>();
     private final Map<String, LocalDateTime> lastFallAlert = new HashMap<>();
     private final Map<String, LocalDateTime> lastHelpRequestAlert = new HashMap<>();
+    
+    // ⭐ IN-MEMORY CACHE để giảm DB queries
+    private final Map<String, Employee> employeeCache = new HashMap<>(); // MAC → Employee
+    private final Map<String, Helmet> helmetCache = new HashMap<>(); // MAC → Helmet
+    private final Map<String, LocalDateTime> lastDbUpdate = new HashMap<>(); // MAC → last DB update time
+    private static final long DB_UPDATE_INTERVAL_SECONDS = 30; // Chỉ update DB mỗi 30 giây
     
     // Debounce time cho alerts (30 giây)
     private static final long ALERT_DEBOUNCE_SECONDS = 30;
@@ -169,37 +176,54 @@ public class MqttMessageHandler implements MessageHandler {
                 data.setTimestamp(LocalDateTime.now());
             }
 
-            // ⭐ AUTO-CREATE HELMET if not exists
-            helmetService.findOrCreateHelmetByMac(macAddress);
-            
-            employeeRepository.findByMacAddress(macAddress).ifPresentOrElse(
-                employee -> {
-                    data.setEmployeeId(employee.getEmployeeId());
-                    data.setEmployeeName(employee.getName());
-                    log.info("👤 MAC {} → Employee: {} ({})", macAddress, employee.getName(), employee.getEmployeeId());
-                },
-                () -> {
-                    data.setEmployeeId(null);
-                    data.setEmployeeName(null);
-                    log.warn("⚠️ No employee for MAC: {}", macAddress);
-                }
-            );
+            // ⭐ OPTIMIZED: Dùng cache để tránh query DB mỗi message
+            Employee cachedEmployee = employeeCache.get(macAddress);
+            if (cachedEmployee != null) {
+                data.setEmployeeId(cachedEmployee.getEmployeeId());
+                data.setEmployeeName(cachedEmployee.getName());
+            } else {
+                // Chỉ query DB khi chưa có cache
+                employeeRepository.findByMacAddress(macAddress).ifPresentOrElse(
+                    employee -> {
+                        data.setEmployeeId(employee.getEmployeeId());
+                        data.setEmployeeName(employee.getName());
+                        employeeCache.put(macAddress, employee); // Cache lại
+                        log.info("👤 MAC {} → Employee: {} (cached)", macAddress, employee.getName());
+                    },
+                    () -> {
+                        data.setEmployeeId(null);
+                        data.setEmployeeName(null);
+                    }
+                );
+            }
 
             // ✅ CHỈ CACHE VÀO REDIS - KHÔNG LƯU VÀO DATABASE MỖI MESSAGE
-            // Database sẽ được cập nhật bởi scheduled job khi detect offline (30s)
             redisCacheService.cacheHelmetData(data);
             
-            // ✅ CẬP NHẬT VỊ TRÍ CUỐI CÙNG VÀO HELMETS TABLE (lightweight update)
-            helmetService.updateHelmetData(
-                macAddress, 
-                data.getBattery(), 
-                data.getLat(), 
-                data.getLon(), 
-                null // status will be determined by alerts
-            );
+            // ⭐ OPTIMIZED: Chỉ update DB mỗi 30 giây thay vì mỗi message
+            LocalDateTime lastUpdate = lastDbUpdate.get(macAddress);
+            LocalDateTime now = LocalDateTime.now();
+            if (lastUpdate == null || Duration.between(lastUpdate, now).getSeconds() >= DB_UPDATE_INTERVAL_SECONDS) {
+                // AUTO-CREATE HELMET if not exists (chỉ khi cần update DB)
+                if (!helmetCache.containsKey(macAddress)) {
+                    Helmet helmet = helmetService.findOrCreateHelmetByMac(macAddress);
+                    helmetCache.put(macAddress, helmet);
+                }
+                
+                // CẬP NHẬT VỊ TRÍ VÀO HELMETS TABLE
+                helmetService.updateHelmetData(
+                    macAddress, 
+                    data.getBattery(), 
+                    data.getLat(), 
+                    data.getLon(), 
+                    null
+                );
+                lastDbUpdate.put(macAddress, now);
+                log.debug("💾 DB updated for MAC: {} (every 30s)", macAddress);
+            }
             
             // ✅ LUÔN PUBLISH QUA REDIS → WEBSOCKET (cho realtime positioning)
-            redisPublisher.publishHelmetData(data);
+            redisPublisher.publishHelmetData(data);;
             
             // 🎯 PUBLISH UWB DATA QUA WEBSOCKET CHO 2D POSITIONING (KHÔNG LƯU DB)
             JsonNode uwbNode = jsonNode.has("uwb") ? jsonNode.get("uwb") : null;
@@ -328,7 +352,19 @@ public class MqttMessageHandler implements MessageHandler {
         log.warn("🚨 DANGER ZONE ALERT: {} in {} at {}m", employeeInfo, dangerZoneId, distance);
     }
 
+    // ⭐ Debounce cache for danger alerts (battery, voltage, current)
+    private final Map<String, LocalDateTime> lastDangerAlert = new HashMap<>();
+    
     private void checkDangerAndAlert(HelmetData data) {
+        String mac = data.getMac();
+        LocalDateTime now = LocalDateTime.now();
+        
+        // ⭐ DEBOUNCE: Chỉ gửi cảnh báo mỗi 60 giây để giảm DB queries
+        LocalDateTime lastAlert = lastDangerAlert.get(mac);
+        if (lastAlert != null && Duration.between(lastAlert, now).getSeconds() < 60) {
+            return; // Bỏ qua nếu đã gửi gần đây
+        }
+        
         StringBuilder alertMessage = new StringBuilder();
         boolean isDangerous = false;
 
@@ -364,6 +400,7 @@ public class MqttMessageHandler implements MessageHandler {
 
             // Broadcast cảnh báo qua Messenger
             messengerService.broadcastDangerAlert(employeeInfo, alertType, location);
+            lastDangerAlert.put(mac, now); // Ghi nhận thời điểm gửi;
             log.warn("🚨 Danger alert broadcasted for MAC: {}", data.getMac());
         }
     }

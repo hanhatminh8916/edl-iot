@@ -125,7 +125,7 @@ public class OfflineDetectionScheduler {
             for (String mac : onlineMacs) {
                 if (savedOfflineMacs.remove(mac)) {
                     removed++;
-                    log.debug("🔄 Helmet {} is back ONLINE - removed from offline tracking", mac);
+                    log.debug("🔄 He lmet {} is back ONLINE -removed from offline tracking", mac);
                 }
             }
             
