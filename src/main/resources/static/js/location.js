@@ -669,14 +669,14 @@ function connectWebSocket() {
             }
         });
         
-        // 🚨 Subscribe to FALL ALERTS - Hiệu ứng radar sóng nước
+        // 🚨 Subscribe to ALERTS - Hiệu ứng radar sóng nước cho FALL và HELP_REQUEST
         stompClient.subscribe('/topic/alerts/new', function(message) {
             try {
                 const alert = JSON.parse(message.body);
                 console.log('🚨 Received alert on map:', alert);
                 
-                // Chỉ xử lý FALL alerts
-                if (alert.alertType === 'FALL') {
+                // Xử lý cả FALL và HELP_REQUEST
+                if (alert.alertType === 'FALL' || alert.alertType === 'HELP_REQUEST') {
                     handleFallAlertOnMap(alert);
                 }
                 
@@ -697,28 +697,41 @@ function connectWebSocket() {
 // ==========================================
 
 /**
- * Xử lý FALL alert - Hiển thị hiệu ứng radar sóng nước trên bản đồ
+ * Xử lý alert - Hiển thị hiệu ứng radar sóng nước trên bản đồ
+ * Hỗ trợ cả FALL và HELP_REQUEST
  */
 function handleFallAlertOnMap(alert) {
-    console.log('🚨 Processing FALL alert on map:', alert);
+    console.log('🚨 Processing alert on map:', alert);
+    
+    const alertType = alert.alertType || 'FALL';
     
     // Tìm vị trí của helmet từ workersData hoặc alert data
     let lat, lon, mac, workerName;
+    
+    // Ưu tiên lấy tọa độ từ alert (GPS lúc xảy ra sự cố)
+    if (alert.gpsLat && alert.gpsLon) {
+        lat = alert.gpsLat;
+        lon = alert.gpsLon;
+    }
     
     // Thử lấy từ alert.helmet
     if (alert.helmet && alert.helmet.helmetId) {
         mac = alert.helmet.helmetId;
         const worker = workersData.find(w => w.helmet && w.helmet.helmetId === mac);
-        if (worker && worker.helmet.lastLocation) {
-            lat = worker.helmet.lastLocation.latitude;
-            lon = worker.helmet.lastLocation.longitude;
+        if (worker) {
             workerName = worker.name;
+            // Nếu chưa có GPS từ alert, lấy từ worker
+            if (!lat || !lon) {
+                if (worker.helmet.lastLocation) {
+                    lat = worker.helmet.lastLocation.latitude;
+                    lon = worker.helmet.lastLocation.longitude;
+                }
+            }
         }
     }
     
-    // Thử parse từ message nếu có tọa độ
+    // Fallback: dùng marker đang có
     if (!lat || !lon) {
-        // Fallback: dùng marker đang có
         const existingMarker = markers.find(m => {
             const popup = m.getPopup();
             if (popup) {
@@ -736,14 +749,14 @@ function handleFallAlertOnMap(alert) {
     }
     
     if (!lat || !lon) {
-        console.warn('⚠️ Cannot find location for FALL alert, MAC:', mac);
+        console.warn('⚠️ Cannot find location for alert, MAC:', mac);
         return;
     }
     
-    console.log('🚨 Creating radar effect at:', lat, lon, 'for', workerName || mac);
+    console.log('🚨 Creating radar effect at:', lat, lon, 'for', workerName || mac, 'type:', alertType);
     
-    // Tạo hiệu ứng radar sóng nước (truyền alertId)
-    createRadarPulseEffect(lat, lon, mac, workerName, alert.id);
+    // Tạo hiệu ứng radar sóng nước
+    createRadarPulseEffect(lat, lon, mac, workerName, alert.id, alertType);
     
     // Zoom đến vị trí cảnh báo
     map.flyTo([lat, lon], 18, {
@@ -753,8 +766,9 @@ function handleFallAlertOnMap(alert) {
 
 /**
  * Tạo hiệu ứng radar sóng nước + chớp tắt đỏ xanh
+ * @param alertType - 'FALL' hoặc 'HELP_REQUEST'
  */
-function createRadarPulseEffect(lat, lon, mac, workerName, alertId) {
+function createRadarPulseEffect(lat, lon, mac, workerName, alertId, alertType = 'FALL') {
     // Xóa hiệu ứng cũ nếu có
     if (fallAlertMarkers[mac]) {
         clearFallAlertEffect(mac);
@@ -762,12 +776,17 @@ function createRadarPulseEffect(lat, lon, mac, workerName, alertId) {
     
     const effectLayers = [];
     
+    // 🎨 Màu sắc theo loại alert
+    const color = alertType === 'HELP_REQUEST' ? '#ff9800' : '#ff0000'; // Cam cho SOS, Đỏ cho FALL
+    const icon = alertType === 'HELP_REQUEST' ? 'fa-hand-paper' : 'fa-exclamation-triangle';
+    const alertTitle = alertType === 'HELP_REQUEST' ? '🆘 YÊU CẦU TRỢ GIÚP' : '🚨 PHÁT HIỆN NGÃ';
+    
     // ✅ Tạo 3 vòng sóng radar (ripple effect)
     for (let i = 0; i < 3; i++) {
         const pulseCircle = L.circle([lat, lon], {
             radius: 5,
-            color: '#ff0000',
-            fillColor: '#ff0000',
+            color: color,
+            fillColor: color,
             fillOpacity: 0.6 - (i * 0.15),
             weight: 3,
             className: `radar-pulse pulse-${i}`
@@ -776,15 +795,15 @@ function createRadarPulseEffect(lat, lon, mac, workerName, alertId) {
         effectLayers.push(pulseCircle);
     }
     
-    // ✅ Marker trung tâm chớp tắt đỏ-xanh (có thể click)
+    // ✅ Marker trung tâm chớp tắt (có thể click)
     const alertIcon = L.divIcon({
         className: 'fall-alert-marker',
         html: `
-            <div class="fall-alert-container" data-mac="${mac}" data-alert-id="${alertId || ''}">
-                <div class="fall-alert-icon">
-                    <i class="fas fa-exclamation-triangle"></i>
+            <div class="fall-alert-container ${alertType.toLowerCase()}" data-mac="${mac}" data-alert-id="${alertId || ''}">
+                <div class="fall-alert-icon" style="background: ${color};">
+                    <i class="fas ${icon}"></i>
                 </div>
-                <div class="fall-alert-label">${workerName || mac}</div>
+                <div class="fall-alert-label" style="background: ${color};">${workerName || mac}</div>
             </div>
         `,
         iconSize: [80, 80],
@@ -795,7 +814,7 @@ function createRadarPulseEffect(lat, lon, mac, workerName, alertId) {
     
     // ✅ CLICK để xác nhận và tắt hiệu ứng
     alertMarker.on('click', function() {
-        showFallAlertConfirmPopup(lat, lon, mac, workerName, alertId);
+        showFallAlertConfirmPopup(lat, lon, mac, workerName, alertId, alertType);
     });
     
     // ✅ Thêm popup hướng dẫn
@@ -811,7 +830,8 @@ function createRadarPulseEffect(lat, lon, mac, workerName, alertId) {
     fallAlertMarkers[mac] = {
         layers: effectLayers,
         alertId: alertId,
-        workerName: workerName
+        workerName: workerName,
+        alertType: alertType
     };
     
     // ✅ Animation: Sóng radar lan ra
@@ -841,20 +861,21 @@ function createRadarPulseEffect(lat, lon, mac, workerName, alertId) {
     // ✅ Inject CSS animation styles nếu chưa có
     injectFallAlertStyles();
     
-    // ✅ Auto-clear sau 5 phút (thay vì 60s để có thời gian xác nhận)
-    setTimeout(() => {
-        clearFallAlertEffect(mac);
-    }, 300000); // 5 phút
+    // ❌ KHÔNG auto-clear - chỉ tắt khi user xác nhận
+    // Alert sẽ hiển thị liên tục cho đến khi được RESOLVED
 }
 
 /**
- * Hiển thị popup xác nhận cảnh báo FALL
+ * Hiển thị popup xác nhận cảnh báo
  */
-function showFallAlertConfirmPopup(lat, lon, mac, workerName, alertId) {
+function showFallAlertConfirmPopup(lat, lon, mac, workerName, alertId, alertType = 'FALL') {
+    const title = alertType === 'HELP_REQUEST' ? '🆘 Yêu cầu trợ giúp' : '🚨 Cảnh báo té ngã';
+    const bgColor = alertType === 'HELP_REQUEST' ? '#ff9800' : '#dc2626';
+    
     // Tạo popup xác nhận
     const popupContent = `
-        <div class="fall-confirm-popup">
-            <h4>🚨 Cảnh báo té ngã</h4>
+        <div class="fall-confirm-popup" style="background: linear-gradient(135deg, ${bgColor} 0%, ${bgColor}dd 100%);">
+            <h4>${title}</h4>
             <p><strong>Công nhân:</strong> ${workerName || 'N/A'}</p>
             <p><strong>Mã thiết bị:</strong> ${mac}</p>
             <div class="fall-confirm-buttons">
@@ -882,20 +903,64 @@ function showFallAlertConfirmPopup(lat, lon, mac, workerName, alertId) {
 }
 
 /**
- * Xác nhận đã xử lý cảnh báo FALL
+ * 🚨 Load tất cả PENDING alerts khi trang load
+ * Hiển thị radar cho những alert chưa được xử lý
  */
-async function confirmFallAlert(mac, alertId) {
-    console.log('✅ Confirming FALL alert for:', mac, 'alertId:', alertId);
+async function loadPendingAlerts() {
+    console.log('🔄 Loading PENDING alerts...');
     
     try {
-        // Gọi API để acknowledge alert (nếu có alertId)
-        if (alertId) {
-            const response = await fetch(`/api/alerts/${alertId}/acknowledge?username=Admin`, {
+        const response = await fetch('/api/alerts/pending');
+        if (!response.ok) {
+            throw new Error('Failed to fetch pending alerts');
+        }
+        
+        const alerts = await response.json();
+        console.log('📋 Found', alerts.length, 'PENDING alerts');
+        
+        // Hiển thị radar cho mỗi alert PENDING
+        alerts.forEach(alert => {
+            if (alert.alertType === 'FALL' || alert.alertType === 'HELP_REQUEST') {
+                const mac = alert.helmet?.helmetId;
+                const lat = alert.gpsLat;
+                const lon = alert.gpsLon;
+                
+                if (mac && lat && lon) {
+                    // Tìm tên worker
+                    let workerName = null;
+                    const worker = workersData.find(w => w.helmet && w.helmet.helmetId === mac);
+                    if (worker) {
+                        workerName = worker.name;
+                    }
+                    
+                    console.log('🚨 Showing radar for PENDING alert:', alert.id, mac);
+                    createRadarPulseEffect(lat, lon, mac, workerName, alert.id, alert.alertType);
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error loading pending alerts:', error);
+    }
+}
+
+/**
+ * Xác nhận đã xử lý cảnh báo - Chuyển status sang RESOLVED
+ */
+async function confirmFallAlert(mac, alertId) {
+    console.log('✅ Confirming alert for:', mac, 'alertId:', alertId);
+    
+    try {
+        // 🚀 Gọi API RESOLVE (không phải acknowledge)
+        if (alertId && alertId !== 'null') {
+            const response = await fetch(`/api/alerts/${alertId}/resolve`, {
                 method: 'POST'
             });
             
             if (response.ok) {
-                console.log('✅ Alert acknowledged on server');
+                console.log('✅ Alert RESOLVED on server');
+            } else {
+                console.error('❌ Failed to resolve alert:', response.status);
             }
         }
         
@@ -906,7 +971,7 @@ async function confirmFallAlert(mac, alertId) {
         closeFallPopup();
         
         // Hiển thị thông báo thành công
-        showNotification('Đã xác nhận xử lý cảnh báo té ngã', 'success');
+        showNotification('Đã xác nhận xử lý cảnh báo', 'success');
         
         // Reload markers để hiển thị lại bình thường
         loadWorkers();
@@ -1415,6 +1480,9 @@ window.addEventListener("load", function() {
     if (typeof L !== "undefined") {
         initializeMap();
         setTimeout(loadWorkers, 500);
+        
+        // 🚨 Load PENDING alerts và hiển thị radar cho những alert chưa xử lý
+        setTimeout(loadPendingAlerts, 1000);
     }
     
     // Connect WebSocket for real-time updates

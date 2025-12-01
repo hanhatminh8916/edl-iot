@@ -380,32 +380,31 @@ public class MqttMessageHandler implements MessageHandler {
     }
     
     /**
-     * ⭐ Tạo cảnh báo khi phát hiện FALL (ngã)
-     * Debounce: Chỉ tạo alert mới nếu > 30 giây kể từ alert trước
+     * ⭐ Tạo/Cập nhật cảnh báo khi phát hiện FALL (ngã)
+     * 🚀 UPSERT: Mỗi helmet chỉ có 1 alert FALL - update nếu đã tồn tại
      */
     private void createFallDetectedAlert(HelmetData data) {
         try {
             String mac = data.getMac();
             LocalDateTime now = LocalDateTime.now();
             
-            // ⭐ DEBOUNCE: Kiểm tra alert gần đây
-            LocalDateTime lastAlert = lastFallAlert.get(mac);
-            if (lastAlert != null && Duration.between(lastAlert, now).getSeconds() < ALERT_DEBOUNCE_SECONDS) {
-                log.debug("⏭️ Skip duplicate fall alert (debounce: {}s since last)", 
-                    Duration.between(lastAlert, now).getSeconds());
-                return;
-            }
-            
             // Tìm helmet theo MAC
             Helmet helmet = helmetService.findOrCreateHelmetByMac(data.getMac());
             
-            // Tạo Alert
-            Alert alert = new Alert();
+            // 🚀 UPSERT: Tìm alert FALL đã tồn tại cho helmet này
+            Alert alert = alertRepository.findByHelmetAndAlertType(helmet, AlertType.FALL)
+                .orElse(new Alert());
+            
+            // Nếu alert đang PENDING → chỉ cập nhật thời gian, không gửi notification mới
+            boolean isNewAlert = alert.getId() == null;
+            boolean wasPending = AlertStatus.PENDING.equals(alert.getStatus());
+            
+            // Cập nhật thông tin alert
             alert.setHelmet(helmet);
             alert.setAlertType(AlertType.FALL);
             alert.setSeverity(AlertSeverity.CRITICAL);
-            alert.setStatus(AlertStatus.PENDING);
-            alert.setTriggeredAt(LocalDateTime.now());
+            alert.setStatus(AlertStatus.PENDING); // Luôn set PENDING khi có fall mới
+            alert.setTriggeredAt(now);
             alert.setGpsLat(data.getLat());
             alert.setGpsLon(data.getLon());
             
@@ -420,41 +419,41 @@ public class MqttMessageHandler implements MessageHandler {
             // ⭐ Push alert qua WebSocket để frontend nhận realtime
             alertPublisher.publishNewAlert(saved);
             
-            // Gửi thông báo qua Messenger
-            double lat = Objects.requireNonNullElse(data.getLat(), 0.0);
-            double lon = Objects.requireNonNullElse(data.getLon(), 0.0);
-            String location = String.format("%.6f, %.6f", lat, lon);
-            
-            StringBuilder alertMsg = new StringBuilder();
-            alertMsg.append("🚨 CẢNH BÁO KHẨN CẤP - PHÁT HIỆN NGÃ!\n");
-            alertMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━\n");
-            alertMsg.append(String.format("👤 Nhân viên: %s\n", employeeInfo));
-            alertMsg.append(String.format("📍 Vị trí: %.6f, %.6f\n", lat, lon));
-            
-            if (data.getBattery() != null) {
-                alertMsg.append(String.format("🔋 Pin: %.1f%%\n", data.getBattery()));
+            // 🚀 Chỉ gửi Messenger nếu là alert MỚI hoặc đã RESOLVED trước đó
+            if (isNewAlert || !wasPending) {
+                double lat = Objects.requireNonNullElse(data.getLat(), 0.0);
+                double lon = Objects.requireNonNullElse(data.getLon(), 0.0);
+                String location = String.format("%.6f, %.6f", lat, lon);
+                
+                StringBuilder alertMsg = new StringBuilder();
+                alertMsg.append("🚨 CẢNH BÁO KHẨN CẤP - PHÁT HIỆN NGÃ!\n");
+                alertMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━\n");
+                alertMsg.append(String.format("👤 Nhân viên: %s\n", employeeInfo));
+                alertMsg.append(String.format("📍 Vị trí: %.6f, %.6f\n", lat, lon));
+                
+                if (data.getBattery() != null) {
+                    alertMsg.append(String.format("🔋 Pin: %.1f%%\n", data.getBattery()));
+                }
+                
+                alertMsg.append("⏰ Thời gian: ").append(now.format(
+                    java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
+                )).append("\n");
+                alertMsg.append("\n⚠️ VUI LÒNG KIỂM TRA NGAY LẬP TỨC!");
+                
+                messengerService.broadcastDangerAlert(employeeInfo, alertMsg.toString(), location);
+                log.error("🚨 FALL DETECTED (NEW): {} at ({}, {})", employeeInfo, lat, lon);
+            } else {
+                log.info("🔄 FALL alert UPDATED (still pending): {} - ID: {}", mac, saved.getId());
             }
             
-            alertMsg.append("⏰ Thời gian: ").append(LocalDateTime.now().format(
-                java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
-            )).append("\n");
-            alertMsg.append("\n⚠️ VUI LÒNG KIỂM TRA NGAY LẬP TỨC!");
-            
-            messengerService.broadcastDangerAlert(employeeInfo, alertMsg.toString(), location);
-            
-            // ⭐ Cập nhật cache để debounce
-            lastFallAlert.put(mac, now);
-            
-            log.error("🚨 FALL DETECTED: {} at ({}, {})", employeeInfo, lat, lon);
-            
         } catch (Exception e) {
-            log.error("❌ Error creating fall alert: {}", e.getMessage(), e);
+            log.error("❌ Error creating/updating fall alert: {}", e.getMessage(), e);
         }
     }
     
     /**
-     * ⭐ Tạo cảnh báo khi nhận được SOS (helpRequest)
-     * Debounce: Chỉ tạo alert mới nếu > 30 giây kể từ alert trước
+     * ⭐ Tạo/Cập nhật cảnh báo khi nhận được SOS (helpRequest)
+     * 🚀 UPSERT: Mỗi helmet chỉ có 1 alert HELP_REQUEST - update nếu đã tồn tại
      */
     private void createHelpRequestAlert(HelmetData data) {
         try {
@@ -463,36 +462,28 @@ public class MqttMessageHandler implements MessageHandler {
             
             log.warn("🆘 createHelpRequestAlert() called for MAC: {}", mac);
             
-            // ⭐ DEBOUNCE: Kiểm tra alert gần đây
-            LocalDateTime lastAlert = lastHelpRequestAlert.get(mac);
-            if (lastAlert != null && Duration.between(lastAlert, now).getSeconds() < ALERT_DEBOUNCE_SECONDS) {
-                log.debug("⏭️ Skip duplicate help request alert (debounce: {}s since last)", 
-                    Duration.between(lastAlert, now).getSeconds());
-                return;
-            }
-            
-            log.info("✅ Creating HELP_REQUEST alert...");
-            
             // Tìm helmet theo MAC
-            log.info("🔍 Finding helmet for MAC: {}", data.getMac());
             Helmet helmet = helmetService.findOrCreateHelmetByMac(data.getMac());
-            log.info("✅ Helmet found/created - ID: {}, Helmet ID: {}", 
-                helmet != null ? helmet.getId() : "NULL",
-                helmet != null ? helmet.getHelmetId() : "NULL");
             
             if (helmet == null) {
                 log.error("❌ CRITICAL: Helmet is NULL for MAC: {}", data.getMac());
                 throw new RuntimeException("Failed to find/create helmet for MAC: " + data.getMac());
             }
             
-            // Tạo Alert
-            log.info("🏗️ Creating Alert object...");
-            Alert alert = new Alert();
+            // 🚀 UPSERT: Tìm alert HELP_REQUEST đã tồn tại cho helmet này
+            Alert alert = alertRepository.findByHelmetAndAlertType(helmet, AlertType.HELP_REQUEST)
+                .orElse(new Alert());
+            
+            // Nếu alert đang PENDING → chỉ cập nhật thời gian
+            boolean isNewAlert = alert.getId() == null;
+            boolean wasPending = AlertStatus.PENDING.equals(alert.getStatus());
+            
+            // Cập nhật thông tin alert
             alert.setHelmet(helmet);
-            alert.setAlertType(AlertType.HELP_REQUEST); // ⭐ Sử dụng HELP_REQUEST cho SOS
+            alert.setAlertType(AlertType.HELP_REQUEST);
             alert.setSeverity(AlertSeverity.CRITICAL);
             alert.setStatus(AlertStatus.PENDING);
-            alert.setTriggeredAt(LocalDateTime.now());
+            alert.setTriggeredAt(now);
             alert.setGpsLat(data.getLat());
             alert.setGpsLon(data.getLon());
             
@@ -501,61 +492,42 @@ public class MqttMessageHandler implements MessageHandler {
                 : "MAC: " + data.getMac();
             
             alert.setMessage(String.format("🆘 YÊU CẦU TRỢ GIÚP: %s", employeeInfo));
-            log.info("✅ Alert object created with message: {}", alert.getMessage());
             
-            // ⭐ LƯU VÀO DATABASE
-            log.info("💾 Saving HELP_REQUEST alert to database...");
-            Alert saved = null;
-            try {
-                saved = alertRepository.save(alert);
-                log.info("✅ HELP_REQUEST alert saved successfully - ID: {}, Type: {}, Severity: {}", 
-                    saved.getId(), saved.getAlertType(), saved.getSeverity());
-            } catch (Exception saveEx) {
-                log.error("❌ CRITICAL: Failed to save HELP_REQUEST alert to database", saveEx);
-                throw saveEx; // Re-throw để thấy lỗi
+            Alert saved = alertRepository.save(alert);
+            log.info("✅ HELP_REQUEST alert saved - ID: {}", saved.getId());
+            
+            // ⭐ Push alert qua WebSocket
+            alertPublisher.publishNewAlert(saved);
+            
+            // 🚀 Chỉ gửi Messenger nếu là alert MỚI hoặc đã RESOLVED trước đó
+            if (isNewAlert || !wasPending) {
+                double lat = Objects.requireNonNullElse(data.getLat(), 0.0);
+                double lon = Objects.requireNonNullElse(data.getLon(), 0.0);
+                String location = String.format("%.6f, %.6f", lat, lon);
+                
+                StringBuilder alertMsg = new StringBuilder();
+                alertMsg.append("🆘 CẢNH BÁO KHẨN CẤP - YÊU CẦU TRỢ GIÚP!\n");
+                alertMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━\n");
+                alertMsg.append(String.format("👤 Nhân viên: %s\n", employeeInfo));
+                alertMsg.append(String.format("📍 Vị trí: %.6f, %.6f\n", lat, lon));
+                
+                if (data.getBattery() != null) {
+                    alertMsg.append(String.format("🔋 Pin: %.1f%%\n", data.getBattery()));
+                }
+                
+                alertMsg.append("⏰ Thời gian: ").append(now.format(
+                    java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
+                )).append("\n");
+                alertMsg.append("\n⚠️ NHÂN VIÊN CẦN TRỢ GIÚP NGAY!");
+                
+                messengerService.broadcastDangerAlert(employeeInfo, alertMsg.toString(), location);
+                log.error("🆘 HELP REQUEST (NEW): {} at ({}, {})", employeeInfo, lat, lon);
+            } else {
+                log.info("🔄 HELP_REQUEST alert UPDATED (still pending): {} - ID: {}", mac, saved.getId());
             }
-            
-            // ⭐ Push alert qua WebSocket để frontend nhận realtime
-            try {
-                alertPublisher.publishNewAlert(saved);
-                log.info("📡 HELP_REQUEST alert published via WebSocket");
-            } catch (Exception wsEx) {
-                log.error("⚠️ Failed to publish HELP_REQUEST alert via WebSocket: {}", wsEx.getMessage());
-                // Không throw, vì đã lưu DB thành công
-            }
-            
-            // Gửi thông báo qua Messenger
-            double lat = Objects.requireNonNullElse(data.getLat(), 0.0);
-            double lon = Objects.requireNonNullElse(data.getLon(), 0.0);
-            String location = String.format("%.6f, %.6f", lat, lon);
-            
-            StringBuilder alertMsg = new StringBuilder();
-            alertMsg.append("🆘 CẢNH BÁO KHẨN CẤP - YÊU CẦU TRỢ GIÚP!\n");
-            alertMsg.append("━━━━━━━━━━━━━━━━━━━━━━━━\n");
-            alertMsg.append(String.format("👤 Nhân viên: %s\n", employeeInfo));
-            alertMsg.append(String.format("📍 Vị trí: %.6f, %.6f\n", lat, lon));
-            
-            if (data.getBattery() != null) {
-                alertMsg.append(String.format("🔋 Pin: %.1f%%\n", data.getBattery()));
-            }
-            
-            alertMsg.append("⏰ Thời gian: ").append(LocalDateTime.now().format(
-                java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
-            )).append("\n");
-            alertMsg.append("\n⚠️ NHÂN VIÊN CẦN TRỢ GIÚP NGAY!");
-            
-            messengerService.broadcastDangerAlert(employeeInfo, alertMsg.toString(), location);
-            
-            // ⭐ Cập nhật cache để debounce
-            lastHelpRequestAlert.put(mac, now);
-            
-            log.error("🆘 HELP REQUEST ALERT CREATED: {} at ({}, {})", employeeInfo, lat, lon);
             
         } catch (Exception e) {
-            log.error("❌❌❌ CRITICAL ERROR creating help request alert for MAC {}: {}", 
-                data.getMac(), e.getMessage(), e);
-            // In ra full stack trace để debug
-            e.printStackTrace();
+            log.error("❌ Error creating/updating help request alert: {}", e.getMessage(), e);
         }
     }
 }

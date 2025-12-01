@@ -116,7 +116,7 @@
                 <span class="alert-text">
                     <strong>Cảnh báo mới:</strong> ${alertInfo.message}
                 </span>
-                <a href="alerts.html" class="alert-link">
+                <a href="location.html" class="alert-link">
                     <i class="fas fa-cog"></i> Cài đặt
                 </a>
             </div>
