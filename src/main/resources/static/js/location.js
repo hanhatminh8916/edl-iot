@@ -404,7 +404,8 @@ function updateMapMarkers(workers) {
         alertBox.style.display = "none";
     }
     
-    if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.1));
+    // ❌ TẮT auto-zoom khi update markers - để người dùng tự điều chỉnh map
+    // if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.1));
 }
 function displayWorkersList(workers) {
     var c = document.getElementById("workers-list");
@@ -925,10 +926,10 @@ function drawPolygonFromData(safeZone) {
         
         console.log('✅ Polygon drawn:', safeZone.zoneName);
         
-        // Fit map to polygon bounds
-        if (coords && coords.length > 0) {
-            map.fitBounds(polygon.getBounds());
-        }
+        // ❌ TẮT auto-zoom khi load safe zone - để người dùng tự điều chỉnh map
+        // if (coords && coords.length > 0) {
+        //     map.fitBounds(polygon.getBounds());
+        // }
         
     } catch (e) {
         console.error('❌ Error drawing polygon:', e);
