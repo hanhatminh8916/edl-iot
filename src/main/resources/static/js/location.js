@@ -79,23 +79,60 @@ function playAlertSound() {
 }
 
 /**
- * 📢 Hiển thị thông báo cảnh báo
+ * 📢 Hiển thị thông báo cảnh báo - Giống trang alerts.html
  */
 function showAlertNotification(mac, type) {
     // Tìm worker theo MAC
     const worker = workersData.find(w => w.helmet && w.helmet.helmetId === mac);
     const workerName = worker ? worker.name : mac;
+    const workerId = worker ? worker.id : '--';
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('vi-VN');
     
-    const message = type === 'FALL_DETECTED' 
-        ? `🚨 CẢNH BÁO TÉ NGÃ: ${workerName}` 
-        : `🆘 CẦU CỨU: ${workerName}`;
+    // Tạo thông báo chi tiết giống alerts.html
+    let alertTitle, alertIcon;
+    if (type === 'FALL_DETECTED' || type === 'FALL') {
+        alertTitle = 'PHÁT HIỆN TÉ NGÃ';
+        alertIcon = '🚨';
+    } else if (type === 'HELP_REQUEST' || type === 'SOS') {
+        alertTitle = 'YÊU CẦU TRỢ GIÚP';
+        alertIcon = '🆘';
+    } else {
+        alertTitle = 'CẢNH BÁO MỚI';
+        alertIcon = '⚠️';
+    }
+    
+    const message = `
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <span style="font-size: 28px;">${alertIcon}</span>
+            <div>
+                <div style="font-size: 16px; font-weight: bold; margin-bottom: 4px;">${alertTitle}</div>
+                <div style="font-size: 14px;">Công nhân: <strong>${workerName}</strong> (ID: ${workerId})</div>
+                <div style="font-size: 12px; opacity: 0.9;">Thời gian: ${timeStr}</div>
+            </div>
+            <button onclick="dismissAlertNotification()" style="margin-left: auto; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Đóng</button>
+        </div>
+    `;
     
     // Hiển thị alert box
     const alertBox = document.getElementById('alertBox');
     if (alertBox) {
         alertBox.style.display = 'block';
-        alertBox.innerHTML = `<strong>${message}</strong>`;
-        alertBox.style.backgroundColor = type === 'FALL_DETECTED' ? '#dc3545' : '#ff6600';
+        alertBox.innerHTML = message;
+        alertBox.style.backgroundColor = (type === 'FALL_DETECTED' || type === 'FALL') ? '#dc3545' : '#ff6600';
+        alertBox.style.padding = '15px 20px';
+        alertBox.style.minWidth = '350px';
+        alertBox.style.textAlign = 'left';
+    }
+}
+
+/**
+ * Đóng thông báo cảnh báo
+ */
+function dismissAlertNotification() {
+    const alertBox = document.getElementById('alertBox');
+    if (alertBox) {
+        alertBox.style.display = 'none';
     }
 }
 
@@ -500,16 +537,14 @@ function updateMapMarkers(workers) {
         // 🚨 Tạo icon với hiệu ứng radar wave nếu có cảnh báo
         var markerHtml;
         if (hasAlert) {
-            // ✅ Marker với hiệu ứng radar wave phát sóng từ tâm ra ngoài
-            var waveClass = alertType === 'HELP_REQUEST' ? 'radar-wave help-radar-wave' : 'radar-wave';
+            // ✅ Marker với hiệu ứng radar wave + chớp nháy
             markerHtml = `
                 <div class="radar-container">
-                    <div class="${waveClass}"></div>
-                    <div class="${waveClass}" style="animation-delay: 0.4s;"></div>
-                    <div class="${waveClass}" style="animation-delay: 0.8s;"></div>
-                    <div class="${waveClass}" style="animation-delay: 1.2s;"></div>
-                    <div class="fall-alert-marker" style="background:${color};width:44px;height:44px;border-radius:50%;border:4px solid white;display:flex;align-items:center;justify-content:center;position:relative;z-index:1000;">
-                        <span style="color:white;font-weight:bold;font-size:18px;text-shadow: 0 0 10px rgba(0,0,0,0.5);">!</span>
+                    <div class="radar-wave"></div>
+                    <div class="radar-wave" style="animation-delay: 0.5s;"></div>
+                    <div class="radar-wave" style="animation-delay: 1s;"></div>
+                    <div class="fall-alert-marker" style="background:${color};width:40px;height:40px;border-radius:50%;border:4px solid white;box-shadow:0 0 20px ${color};display:flex;align-items:center;justify-content:center;position:relative;z-index:1000;">
+                        <span style="color:white;font-weight:bold;font-size:16px;">!</span>
                     </div>
                 </div>
             `;
@@ -527,8 +562,8 @@ function updateMapMarkers(workers) {
         var icon = L.divIcon({
             className: hasAlert ? 'alert-marker-icon' : 'custom-marker-with-label',
             html: markerHtml,
-            iconSize: hasAlert ? [120, 120] : [32, 32], 
-            iconAnchor: hasAlert ? [60, 60] : [16, 16]
+            iconSize: hasAlert ? [80, 80] : [32, 32], 
+            iconAnchor: hasAlert ? [40, 40] : [16, 16]
         });
         
         var m = L.marker([lat, lon], {icon: icon}).addTo(map);

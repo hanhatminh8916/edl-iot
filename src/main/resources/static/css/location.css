@@ -577,14 +577,14 @@
 /* Container cho radar effect */
 .radar-container {
     position: relative;
-    width: 120px;
-    height: 120px;
+    width: 80px;
+    height: 80px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-/* Sóng radar lan tỏa từ tâm ra ngoài */
+/* Sóng radar lan tỏa */
 .radar-wave {
     position: absolute;
     top: 50%;
@@ -593,82 +593,49 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    border: 4px solid #ff0000;
-    background: transparent;
-    animation: radar-pulse 2s ease-out infinite;
+    border: 3px solid #dc3545;
+    animation: radar-expand 1.5s ease-out infinite;
     pointer-events: none;
-    box-sizing: border-box;
 }
 
-@keyframes radar-pulse {
+@keyframes radar-expand {
     0% {
         width: 40px;
         height: 40px;
         opacity: 1;
         border-width: 4px;
-        border-color: #ff0000;
-    }
-    50% {
-        opacity: 0.6;
-        border-color: #ff4444;
     }
     100% {
-        width: 150px;
-        height: 150px;
+        width: 120px;
+        height: 120px;
         opacity: 0;
-        border-width: 2px;
-        border-color: #ff6666;
+        border-width: 1px;
     }
 }
 
 /* Marker chớp nháy khi có cảnh báo */
 .fall-alert-marker {
-    animation: fall-blink 0.6s ease-in-out infinite alternate;
+    animation: fall-blink 0.5s ease-in-out infinite alternate;
     z-index: 1000 !important;
-    box-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000 !important;
 }
 
 @keyframes fall-blink {
     0% {
-        opacity: 0.7;
-        transform: scale(0.9);
-        box-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000;
+        opacity: 0.6;
+        transform: scale(0.95);
     }
     100% {
         opacity: 1;
         transform: scale(1.1);
-        box-shadow: 0 0 30px #ff0000, 0 0 50px #ff0000;
     }
 }
 
 /* Alert marker icon cần z-index cao */
 .alert-marker-icon {
     z-index: 10000 !important;
-    overflow: visible !important;
 }
 
 /* Sóng cho cầu cứu (màu cam) */
 .help-radar-wave {
     border-color: #ff6600 !important;
-}
-
-.help-radar-wave {
-    animation: help-radar-pulse 2s ease-out infinite;
-}
-
-@keyframes help-radar-pulse {
-    0% {
-        width: 40px;
-        height: 40px;
-        opacity: 1;
-        border-width: 4px;
-        border-color: #ff6600;
-    }
-    100% {
-        width: 150px;
-        height: 150px;
-        opacity: 0;
-        border-width: 2px;
-        border-color: #ffaa00;
-    }
 }
