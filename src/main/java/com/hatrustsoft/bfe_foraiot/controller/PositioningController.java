@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.hatrustsoft.bfe_foraiot.entity.TagLastPosition;
 import com.hatrustsoft.bfe_foraiot.service.PositioningService;
-import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -46,7 +45,7 @@ public class PositioningController {
     @GetMapping("/tags")
     public ResponseEntity<List<TagPositionDTO>> getAllTagPositions() {
         List<TagLastPosition> tags = positioningService.getAllTagPositions();
-        LocalDateTime now = VietnamTimeUtils.now(); // ✅ Fix timezone
+        LocalDateTime now = LocalDateTime.now();
         
         List<TagPositionDTO> result = tags.stream()
             .map(tag -> toDTO(tag, now))
@@ -62,7 +61,7 @@ public class PositioningController {
     @GetMapping("/tags/offline")
     public ResponseEntity<List<TagPositionDTO>> getOfflineTags() {
         List<TagLastPosition> tags = positioningService.getAllTagPositions();
-        LocalDateTime now = VietnamTimeUtils.now(); // ✅ Fix timezone
+        LocalDateTime now = LocalDateTime.now();
         
         List<TagPositionDTO> result = tags.stream()
             .map(tag -> toDTO(tag, now))

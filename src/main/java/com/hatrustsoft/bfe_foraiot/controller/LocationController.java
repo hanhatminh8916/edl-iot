@@ -24,7 +24,6 @@ import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
 import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetDataRepository;
 import com.hatrustsoft.bfe_foraiot.service.MemoryCacheService;
-import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -59,8 +58,8 @@ public class LocationController {
      * 
      * Logic:
      * - Nếu nhận data trong 30s: ACTIVE (màu xanh)
-     * - Nếu 30s - 12h: INACTIVE (màu xám)
-     * - Sau 12h: Tự động xóa khỏi Redis (không hiển thị)
+     * - Nếu 30s - 24h: INACTIVE (màu xám)
+     * - Sau 24h: Tự động xóa khỏi Redis (không hiển thị)
      * 
      * 🚀 TỐI ƯU: Dùng MemoryCacheService.getEmployeeMap() thay vì N queries
      * 🚨 CHECK PENDING ALERTS: Hiển thị trạng thái FALL, HELP_REQUEST
@@ -69,7 +68,7 @@ public class LocationController {
     public ResponseEntity<List<WorkerMapData>> getMapDataRealtime() {
         List<WorkerMapData> result = new ArrayList<>();
 
-        // ✅ Lấy tất cả helmet data từ Redis (TTL 12h)
+        // ✅ Lấy tất cả helmet data từ Redis (TTL 24h)
         List<HelmetData> cachedHelmets = redisCacheService.getAllActiveHelmets();
         
         // 🚀 TỐI ƯU: Lấy toàn bộ employee map từ cache (0 queries!)
@@ -91,7 +90,7 @@ public class LocationController {
         log.info("📡 Redis: {} helmets, Employees: {}, Pending alerts: {}", 
             cachedHelmets.size(), employeeMap.size(), pendingAlerts.size());
 
-        LocalDateTime now = VietnamTimeUtils.now(); // ✅ Fix timezone issue
+        LocalDateTime now = LocalDateTime.now();
 
         // Map với employee data - KHÔNG CÓ DB QUERY trong loop!
         for (HelmetData data : cachedHelmets) {

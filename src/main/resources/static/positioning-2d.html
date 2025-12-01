@@ -381,8 +381,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
-    <script src="js/vietnam-time.js"></script>
-    <script src="js/vietnam-time.js"></script>
     <script src="js/global-alerts.js"></script>
     <script src="js/auth.js"></script>
     <script>
@@ -1186,31 +1184,10 @@
                 let tag = tags.find(t => t.helmet === data.mac);
                 if (tag) {
                     tag.status = 'offline';
-                    // Đánh dấu thời gian offline để không bị override
-                    tagLastDataTime[data.mac] = Date.now() - OFFLINE_TIMEOUT_MS - 1000;
-                    console.log(`⚪ Tag ${tag.id} is now OFFLINE (grey) - from WebSocket`);
+                    console.log(`⚪ Tag ${tag.id} is now OFFLINE (grey)`);
                 }
                 draw();
-                updateDeviceList();
                 return;
-            }
-            
-            // ⚠️ QUAN TRỌNG: Kiểm tra xem tag đã bị đánh dấu offline chưa
-            // Nếu đã offline và data này không có timestamp mới, bỏ qua
-            let existingTag = tags.find(t => t.helmet === data.mac);
-            if (existingTag && existingTag.status === 'offline') {
-                // Chỉ chấp nhận data nếu có receivedAt timestamp mới (trong vòng 30s)
-                if (data.receivedAt) {
-                    const dataTime = new Date(data.receivedAt).getTime();
-                    const now = Date.now();
-                    const ageMs = now - dataTime;
-                    
-                    if (ageMs > OFFLINE_TIMEOUT_MS) {
-                        console.log(`⚠️ Ignoring stale data for offline tag ${data.mac} (age: ${Math.round(ageMs/1000)}s)`);
-                        return;
-                    }
-                    console.log(`✅ Fresh data for offline tag ${data.mac}, bringing back online`);
-                }
             }
             
             // Kiểm tra có UWB data không
@@ -1294,28 +1271,19 @@
             tags.forEach(tag => {
                 const lastDataTime = tagLastDataTime[tag.helmet];
                 
-                // Nếu tag đang online
-                if (tag.status === 'online') {
-                    // Nếu không có lastDataTime hoặc đã quá 30s
-                    if (!lastDataTime) {
-                        // Chưa có data, giả định offline
+                // Nếu tag đang online nhưng không nhận data trong 30s
+                if (tag.status === 'online' && lastDataTime) {
+                    const timeSinceLastData = now - lastDataTime;
+                    if (timeSinceLastData > OFFLINE_TIMEOUT_MS) {
                         tag.status = 'offline';
-                        console.log(`⚪ Tag ${tag.id} went OFFLINE (no lastDataTime)`);
+                        console.log(`⚪ Tag ${tag.id} went OFFLINE (no data for ${Math.round(timeSinceLastData/1000)}s)`);
                         needRedraw = true;
-                    } else {
-                        const timeSinceLastData = now - lastDataTime;
-                        if (timeSinceLastData > OFFLINE_TIMEOUT_MS) {
-                            tag.status = 'offline';
-                            console.log(`⚪ Tag ${tag.id} went OFFLINE (no data for ${Math.round(timeSinceLastData/1000)}s)`);
-                            needRedraw = true;
-                        }
                     }
                 }
             });
             
             if (needRedraw) {
                 draw();
-                updateDeviceList(); // Cập nhật sidebar
             }
         }
         
@@ -1362,31 +1330,12 @@
                     let existingTag = tags.find(t => t.helmet === tagData.mac);
                     
                     if (existingTag) {
-                        // Update existing tag - KHÔNG ghi đè status nếu đang offline
-                        // Chỉ cập nhật status thành offline nếu backend nói offline
-                        if (!tagData.isOnline) {
-                            existingTag.status = 'offline';
-                        }
-                        // KHÔNG bật lại online từ đây - để WebSocket xử lý
+                        // Update existing tag
+                        existingTag.status = tagData.isOnline ? 'online' : 'offline';
                         existingTag.battery = tagData.battery;
-                        console.log(`🔄 Updated tag ${existingTag.id} battery: ${existingTag.battery}%`);
+                        console.log(`🔄 Updated tag ${existingTag.id} status: ${existingTag.status}`);
                     } else {
                         // Create new tag
-                        // ⚠️ QUAN TRỌNG: Kiểm tra lastSeen để xác định thực sự có online hay không
-                        // Backend có thể nói isOnline=true nhưng data đã cũ
-                        let actuallyOnline = tagData.isOnline;
-                        
-                        if (tagData.lastSeen) {
-                            const lastSeenTime = new Date(tagData.lastSeen).getTime();
-                            const now = Date.now();
-                            const ageMs = now - lastSeenTime;
-                            
-                            if (ageMs > OFFLINE_TIMEOUT_MS) {
-                                actuallyOnline = false;
-                                console.log(`⚠️ Tag ${tagData.mac} marked offline (lastSeen ${Math.round(ageMs/1000)}s ago)`);
-                            }
-                        }
-                        
                         const newTag = {
                             id: 'TAG' + (tags.length + 1),
                             name: tagData.employeeName || tagData.mac?.slice(-4) || 'Unknown',
@@ -1394,7 +1343,7 @@
                             y: tagData.y,
                             vx: 0,
                             vy: 0,
-                            status: actuallyOnline ? 'online' : 'offline',
+                            status: tagData.isOnline ? 'online' : 'offline',
                             helmet: tagData.mac,
                             battery: tagData.battery,
                             uwb: {
@@ -1404,18 +1353,7 @@
                             }
                         };
                         tags.push(newTag);
-                        console.log(`➕ Loaded tag ${newTag.id} (${actuallyOnline ? 'online' : 'offline'}) at (${tagData.x?.toFixed(2)}, ${tagData.y?.toFixed(2)})`);
-                    }
-                    
-                    // ⏰ Set lastDataTime cho tag dựa trên lastSeen từ backend
-                    if (tagData.lastSeen) {
-                        const lastSeenTime = new Date(tagData.lastSeen).getTime();
-                        tagLastDataTime[tagData.mac] = lastSeenTime;
-                    } else if (tagData.isOnline) {
-                        tagLastDataTime[tagData.mac] = Date.now();
-                    } else {
-                        // Set thời gian quá khứ để checkOffline không bị confused
-                        tagLastDataTime[tagData.mac] = Date.now() - OFFLINE_TIMEOUT_MS - 1000;
+                        console.log(`➕ Loaded tag ${newTag.id} (${tagData.isOnline ? 'online' : 'offline'}) at (${tagData.x?.toFixed(2)}, ${tagData.y?.toFixed(2)})`);
                     }
                 });
                 
@@ -1455,8 +1393,7 @@
         
         /**
          * ⏰ Refresh tag status từ backend
-         * CHỈ dùng để cập nhật battery và thông tin khác
-         * KHÔNG cập nhật status - status được quản lý bởi frontend dựa trên lastDataTime
+         * Đồng bộ trạng thái online/offline với location.html
          */
         async function refreshTagStatus() {
             try {
@@ -1464,24 +1401,15 @@
                 if (!response.ok) return;
                 
                 const tagsData = await response.json();
-                const now = Date.now();
                 
                 tagsData.forEach(tagData => {
                     let tag = tags.find(t => t.helmet === tagData.mac);
                     if (tag) {
-                        // Chỉ cập nhật battery, KHÔNG cập nhật status từ backend
-                        // Status được quản lý bởi checkTagsOfflineStatus() dựa trên lastDataTime
-                        if (tagData.battery !== undefined) {
-                            tag.battery = tagData.battery;
+                        const newStatus = tagData.isOnline ? 'online' : 'offline';
+                        if (tag.status !== newStatus) {
+                            console.log(`🔄 Tag ${tag.id} status: ${tag.status} → ${newStatus}`);
+                            tag.status = newStatus;
                         }
-                        
-                        // Nếu backend nói offline, tin tưởng (vì backend kiểm tra DB)
-                        if (!tagData.isOnline && tag.status === 'online') {
-                            tag.status = 'offline';
-                            tagLastDataTime[tagData.mac] = now - OFFLINE_TIMEOUT_MS - 1000;
-                            console.log(`⚪ Tag ${tag.id} marked OFFLINE (from backend sync)`);
-                        }
-                        // KHÔNG bật lại online từ backend - chỉ tin tưởng WebSocket realtime
                     }
                 });
                 
@@ -1617,5 +1545,3 @@
     </script>
 </body>
 </html>
-
-
