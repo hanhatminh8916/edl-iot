@@ -10,143 +10,6 @@ var drawingMode = 'safezone'; // 'safezone' (green) or 'workzone' (yellow)
 var safeZoneCenter = [15.97331, 108.25183];
 var safeZoneRadius = 200; // Bán kính 200 mét (chỉ để tham khảo, giờ dùng polygon vẽ tay)
 
-// 🚨 Track active alerts for fall/help detection
-var activeAlerts = {}; // { mac: { type: 'fall'|'help', timestamp: Date } }
-
-/**
- * 🚨 Xử lý cảnh báo té ngã/cầu cứu - tạo hiệu ứng radar wave
- */
-function handleAlertUpdate(alert) {
-    if (!alert || !alert.mac) return;
-    
-    console.log('🚨 ALERT received:', alert);
-    
-    const mac = alert.mac;
-    const alertType = alert.type || 'FALL_DETECTED';
-    
-    // ✅ Lưu trạng thái cảnh báo
-    activeAlerts[mac] = {
-        type: alertType,
-        timestamp: new Date(),
-        lat: alert.lat,
-        lon: alert.lon
-    };
-    
-    // ✅ Cập nhật lại markers để hiển thị hiệu ứng
-    updateMapMarkers(workersData);
-    
-    // ✅ Phát âm thanh cảnh báo
-    playAlertSound();
-    
-    // ✅ Hiển thị notification
-    showAlertNotification(mac, alertType);
-    
-    console.log('🚨 Active alerts:', Object.keys(activeAlerts).length);
-}
-
-/**
- * 🔊 Phát âm thanh cảnh báo
- */
-function playAlertSound() {
-    try {
-        // Tạo beep sound bằng Web Audio API
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 800; // Hz
-        oscillator.type = 'sine';
-        gainNode.gain.value = 0.3;
-        
-        oscillator.start();
-        setTimeout(() => oscillator.stop(), 300);
-        
-        // Beep 2 lần
-        setTimeout(() => {
-            const osc2 = audioContext.createOscillator();
-            osc2.connect(gainNode);
-            osc2.frequency.value = 1000;
-            osc2.type = 'sine';
-            osc2.start();
-            setTimeout(() => osc2.stop(), 300);
-        }, 400);
-    } catch(e) {
-        console.log('Audio not supported:', e);
-    }
-}
-
-/**
- * 📢 Hiển thị thông báo cảnh báo - Giống trang alerts.html
- */
-function showAlertNotification(mac, type) {
-    // Tìm worker theo MAC
-    const worker = workersData.find(w => w.helmet && w.helmet.helmetId === mac);
-    const workerName = worker ? worker.name : mac;
-    const workerId = worker ? worker.id : '--';
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('vi-VN');
-    
-    // Tạo thông báo chi tiết giống alerts.html
-    let alertTitle, alertIcon;
-    if (type === 'FALL_DETECTED' || type === 'FALL') {
-        alertTitle = 'PHÁT HIỆN TÉ NGÃ';
-        alertIcon = '🚨';
-    } else if (type === 'HELP_REQUEST' || type === 'SOS') {
-        alertTitle = 'YÊU CẦU TRỢ GIÚP';
-        alertIcon = '🆘';
-    } else {
-        alertTitle = 'CẢNH BÁO MỚI';
-        alertIcon = '⚠️';
-    }
-    
-    const message = `
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <span style="font-size: 28px;">${alertIcon}</span>
-            <div>
-                <div style="font-size: 16px; font-weight: bold; margin-bottom: 4px;">${alertTitle}</div>
-                <div style="font-size: 14px;">Công nhân: <strong>${workerName}</strong> (ID: ${workerId})</div>
-                <div style="font-size: 12px; opacity: 0.9;">Thời gian: ${timeStr}</div>
-            </div>
-            <button onclick="dismissAlertNotification()" style="margin-left: auto; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Đóng</button>
-        </div>
-    `;
-    
-    // Hiển thị alert box
-    const alertBox = document.getElementById('alertBox');
-    if (alertBox) {
-        alertBox.style.display = 'block';
-        alertBox.innerHTML = message;
-        alertBox.style.backgroundColor = (type === 'FALL_DETECTED' || type === 'FALL') ? '#dc3545' : '#ff6600';
-        alertBox.style.padding = '15px 20px';
-        alertBox.style.minWidth = '350px';
-        alertBox.style.textAlign = 'left';
-    }
-}
-
-/**
- * Đóng thông báo cảnh báo
- */
-function dismissAlertNotification() {
-    const alertBox = document.getElementById('alertBox');
-    if (alertBox) {
-        alertBox.style.display = 'none';
-    }
-}
-
-/**
- * ✅ Xóa cảnh báo khi đã xác nhận
- */
-function clearAlert(mac) {
-    if (activeAlerts[mac]) {
-        delete activeAlerts[mac];
-        console.log('✅ Alert cleared for:', mac);
-        updateMapMarkers(workersData);
-    }
-}
-
 function initializeMap() {
     console.log("Init map with Geo-Fencing");
     map = L.map("map").setView(safeZoneCenter, 15);
@@ -480,12 +343,8 @@ function updateMapMarkers(workers) {
     markers.forEach(function(m) { map.removeLayer(m); });
     markers = [];
     
-    // ✅ Xóa các radar wave cũ
-    document.querySelectorAll('.radar-container').forEach(el => el.remove());
-    
     const alertBox = document.getElementById("alertBox");
     let hasOutOfBounds = false;
-    let hasActiveAlert = false;
     
     workers.forEach(function(w) {
         console.log('🔍 Processing worker:', w.name, 'helmet:', w.helmet);
@@ -494,25 +353,11 @@ function updateMapMarkers(workers) {
         var lon = w.helmet.lastLocation.longitude;
         var battery = w.helmet.batteryLevel;
         var status = w.helmet.status; // ACTIVE, ALERT, INACTIVE
-        var mac = w.helmet.helmetId;
         
         console.log('📍 Worker location:', {name: w.name, lat, lon, status});
         
-        // 🚨 Kiểm tra xem worker này có cảnh báo không
-        var hasAlert = activeAlerts[mac] !== undefined;
-        var alertType = hasAlert ? activeAlerts[mac].type : null;
-        
-        if (hasAlert) {
-            hasActiveAlert = true;
-        }
-        
         // ✅ Xác định màu dựa trên polygon và status
         var color = getMarkerColor(lat, lon, status);
-        
-        // 🚨 Nếu có cảnh báo, đổi màu đỏ
-        if (hasAlert) {
-            color = alertType === 'FALL_DETECTED' ? '#dc3545' : '#ff6600'; // Đỏ cho té ngã, cam cho cầu cứu
-        }
         
         // ✅ Kiểm tra ra ngoài vùng an toàn
         const inside = isInsidePolygon(lat, lon, activePolygon);
@@ -522,9 +367,7 @@ function updateMapMarkers(workers) {
         
         // ✅ Tạo text mô tả trạng thái
         var statusText = "";
-        if (hasAlert) {
-            statusText = alertType === 'FALL_DETECTED' ? "🚨 TÉ NGÃ!" : "🆘 CẦU CỨU!";
-        } else if (status === "INACTIVE") {
+        if (status === "INACTIVE") {
             statusText = "Offline (vị trí cuối cùng)";
         } else if (!inside) {
             statusText = "⚠️ Ra ngoài vùng an toàn!";
@@ -534,63 +377,29 @@ function updateMapMarkers(workers) {
             statusText = "✅ An toàn";
         }
         
-        // 🚨 Tạo icon với hiệu ứng radar wave nếu có cảnh báo
-        var markerHtml;
-        if (hasAlert) {
-            // ✅ Marker với hiệu ứng radar wave + chớp nháy
-            markerHtml = `
-                <div class="radar-container">
-                    <div class="radar-wave"></div>
-                    <div class="radar-wave" style="animation-delay: 0.5s;"></div>
-                    <div class="radar-wave" style="animation-delay: 1s;"></div>
-                    <div class="fall-alert-marker" style="background:${color};width:40px;height:40px;border-radius:50%;border:4px solid white;box-shadow:0 0 20px ${color};display:flex;align-items:center;justify-content:center;position:relative;z-index:1000;">
-                        <span style="color:white;font-weight:bold;font-size:16px;">!</span>
-                    </div>
-                </div>
-            `;
-        } else {
-            // ✅ Marker bình thường
-            markerHtml = `
-                <div style="text-align:center;">
-                    <div style="background:${color};width:32px;height:32px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">
-                        <span style="color:white;font-weight:bold;font-size:10px;text-shadow:0 1px 2px rgba(0,0,0,0.5);">${battery}%</span>
-                    </div>
-                </div>
-            `;
-        }
-        
+        // ✅ Icon với % pin hiển thị
         var icon = L.divIcon({
-            className: hasAlert ? 'alert-marker-icon' : 'custom-marker-with-label',
-            html: markerHtml,
-            iconSize: hasAlert ? [80, 80] : [32, 32], 
-            iconAnchor: hasAlert ? [40, 40] : [16, 16]
+            className: 'custom-marker-with-label',
+            html: "<div style=\"text-align:center;\">" +
+                  "<div style=\"background:" + color + ";width:32px;height:32px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;\">" +
+                  "<span style=\"color:white;font-weight:bold;font-size:10px;text-shadow:0 1px 2px rgba(0,0,0,0.5);\">" + battery + "%</span>" +
+                  "</div></div>",
+            iconSize: [32,32], 
+            iconAnchor: [16,16]
         });
         
         var m = L.marker([lat, lon], {icon: icon}).addTo(map);
-        
-        // ✅ Popup với nút xác nhận cảnh báo
-        var popupContent = "<b>" + w.name + "</b><br>" + 
-                   "MAC: " + mac + "<br>" +
-                   "Pin: " + battery + "%<br>" +
-                   "<b>" + statusText + "</b>";
-        
-        if (hasAlert) {
-            popupContent += `<br><br><button onclick="clearAlert('${mac}')" style="background:#28a745;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">✓ Xác nhận đã xử lý</button>`;
-        }
-        
-        m.bindPopup(popupContent);
+        m.bindPopup("<b>" + w.name + "</b><br>" + 
+                   "MAC: " + w.helmet.helmetId + "<br>" +
+                   "Pin: " + w.helmet.batteryLevel + "%<br>" +
+                   "<b>" + statusText + "</b>");
         m.workerId = w.id;
-        m.mac = mac;
         markers.push(m);
     });
     
-    // ✅ Hiển thị/ẩn Alert Box dựa trên cảnh báo hoặc ngoài vùng an toàn
-    if (hasActiveAlert) {
-        // Đã được xử lý bởi handleAlertUpdate
-    } else if (hasOutOfBounds) {
+    // ✅ Hiển thị/ẩn Alert Box
+    if (hasOutOfBounds) {
         alertBox.style.display = "block";
-        alertBox.innerHTML = "<strong>⚠️ Có người ngoài vùng an toàn!</strong>";
-        alertBox.style.backgroundColor = '#dc3545';
     } else {
         alertBox.style.display = "none";
     }
@@ -856,35 +665,6 @@ function connectWebSocket() {
             }
         });
         
-        // 🚨 Subscribe to Alert updates (Fall, Help Request)
-        stompClient.subscribe('/topic/alerts/new', function(message) {
-            try {
-                const alert = JSON.parse(message.body);
-                console.log('🚨 Received Alert:', alert);
-                
-                // Lấy MAC từ alert.helmet.helmetId hoặc alert.mac
-                const mac = alert.helmet?.helmetId || alert.mac;
-                const alertType = alert.alertType || alert.type || 'FALL_DETECTED';
-                const lat = alert.gpsLat || alert.lat;
-                const lon = alert.gpsLon || alert.lon;
-                
-                console.log('🚨 Alert details - MAC:', mac, 'Type:', alertType);
-                
-                if (mac) {
-                    // Xử lý alert animation
-                    handleAlertUpdate({ 
-                        mac: mac, 
-                        type: alertType, 
-                        lat: lat, 
-                        lon: lon 
-                    });
-                }
-                
-            } catch (e) {
-                console.error('❌ Error parsing Alert message:', e);
-            }
-        });
-        
     }, function(error) {
         console.error('❌ WebSocket connection error:', error);
         // Retry after 5 seconds
@@ -899,14 +679,6 @@ function updateMarkerRealtime(data) {
     }
     
     console.log('🔄 Updating marker realtime for', data.mac, 'at', data.lat, data.lon);
-    
-    // 🚨 Check for fall/help alerts in realtime data
-    if (data.fallDetected) {
-        handleAlertUpdate({ mac: data.mac, type: 'FALL_DETECTED', lat: data.lat, lon: data.lon });
-    }
-    if (data.helpRequest) {
-        handleAlertUpdate({ mac: data.mac, type: 'HELP_REQUEST', lat: data.lat, lon: data.lon });
-    }
     
     // Tìm worker theo MAC và cập nhật dữ liệu
     const workerIndex = workersData.findIndex(w => w.helmet && w.helmet.helmetId === data.mac);
