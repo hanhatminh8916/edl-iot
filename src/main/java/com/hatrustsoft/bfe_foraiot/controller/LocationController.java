@@ -90,7 +90,8 @@ public class LocationController {
         log.info("📡 Redis: {} helmets, Employees: {}, Pending alerts: {}", 
             cachedHelmets.size(), employeeMap.size(), pendingAlerts.size());
 
-        LocalDateTime now = LocalDateTime.now();
+        // ⏰ Dùng VietnamTimeUtils.now() để đồng bộ timezone với receivedAt
+        LocalDateTime now = com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils.now();
 
         // Map với employee data - KHÔNG CÓ DB QUERY trong loop!
         for (HelmetData data : cachedHelmets) {
