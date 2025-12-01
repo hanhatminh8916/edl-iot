@@ -58,7 +58,7 @@ public class MessengerService {
     }
 
     /**
-     * Gửi tin nhắn nguy hiểm với Quick Replies
+     * Gửi tin nhắn nguy hiểm với Button để mở Google Maps
      */
     public void sendDangerAlert(String recipientId, String employeeName, String alertType, String location) {
         String alertMessage = String.format(
@@ -74,31 +74,39 @@ public class MessengerService {
                 com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))
         );
 
-        MessengerMessageDTO.QuickReply[] quickReplies = {
-                MessengerMessageDTO.QuickReply.builder()
-                        .contentType("text")
+        // Tạo Google Maps URL từ location (format: "lat, lon")
+        String googleMapsUrl = "https://www.google.com/maps?q=" + location.replace(" ", "");
+
+        // Buttons cho phép mở link Google Maps
+        MessengerMessageDTO.Button[] buttons = {
+                MessengerMessageDTO.Button.builder()
+                        .type("web_url")
+                        .title("📍 Xem vị trí")
+                        .url(googleMapsUrl)
+                        .build(),
+                MessengerMessageDTO.Button.builder()
+                        .type("postback")
                         .title("✅ Đã xử lý")
                         .payload("ALERT_HANDLED")
-                        .build(),
-                MessengerMessageDTO.QuickReply.builder()
-                        .contentType("text")
-                        .title("📞 Gọi khẩn cấp")
-                        .payload("CALL_EMERGENCY")
-                        .build(),
-                MessengerMessageDTO.QuickReply.builder()
-                        .contentType("text")
-                        .title("📍 Xem vị trí")
-                        .payload("VIEW_LOCATION")
                         .build()
         };
+
+        // Tạo Button Template
+        MessengerMessageDTO.Attachment attachment = MessengerMessageDTO.Attachment.builder()
+                .type("template")
+                .payload(MessengerMessageDTO.Payload.builder()
+                        .templateType("button")
+                        .text(alertMessage)
+                        .buttons(buttons)
+                        .build())
+                .build();
 
         MessengerMessageDTO message = MessengerMessageDTO.builder()
                 .recipient(MessengerMessageDTO.Recipient.builder()
                         .id(recipientId)
                         .build())
                 .message(MessengerMessageDTO.Message.builder()
-                        .text(alertMessage)
-                        .quickReplies(quickReplies)
+                        .attachment(attachment)
                         .build())
                 .messagingType("UPDATE")
                 .build();
