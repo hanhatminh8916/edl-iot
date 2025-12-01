@@ -1186,10 +1186,31 @@
                 let tag = tags.find(t => t.helmet === data.mac);
                 if (tag) {
                     tag.status = 'offline';
-                    console.log(`⚪ Tag ${tag.id} is now OFFLINE (grey)`);
+                    // Đánh dấu thời gian offline để không bị override
+                    tagLastDataTime[data.mac] = Date.now() - OFFLINE_TIMEOUT_MS - 1000;
+                    console.log(`⚪ Tag ${tag.id} is now OFFLINE (grey) - from WebSocket`);
                 }
                 draw();
+                updateDeviceList();
                 return;
+            }
+            
+            // ⚠️ QUAN TRỌNG: Kiểm tra xem tag đã bị đánh dấu offline chưa
+            // Nếu đã offline và data này không có timestamp mới, bỏ qua
+            let existingTag = tags.find(t => t.helmet === data.mac);
+            if (existingTag && existingTag.status === 'offline') {
+                // Chỉ chấp nhận data nếu có receivedAt timestamp mới (trong vòng 30s)
+                if (data.receivedAt) {
+                    const dataTime = new Date(data.receivedAt).getTime();
+                    const now = Date.now();
+                    const ageMs = now - dataTime;
+                    
+                    if (ageMs > OFFLINE_TIMEOUT_MS) {
+                        console.log(`⚠️ Ignoring stale data for offline tag ${data.mac} (age: ${Math.round(ageMs/1000)}s)`);
+                        return;
+                    }
+                    console.log(`✅ Fresh data for offline tag ${data.mac}, bringing back online`);
+                }
             }
             
             // Kiểm tra có UWB data không
