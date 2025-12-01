@@ -255,9 +255,13 @@ public class MqttMessageHandler implements MessageHandler {
             // ⭐ CRITICAL: Kiểm tra ngã và SOS TRƯỚC TIÊN!
             log.info("⚡ Alert Check - fallDetected={}, helpRequest={}", fallDetected, helpRequest);
             
+            // 🚨 FALL DETECTED: 1 = PENDING, 0 = RESOLVED
             if (fallDetected == 1) {
-                log.warn("🚨 FALL DETECTED - Creating alert...");
+                log.warn("🚨 FALL DETECTED ON - Creating/updating alert...");
                 createFallDetectedAlert(data);
+            } else {
+                // fallDetected == 0 → Resolve alert nếu đang PENDING
+                resolveFallDetectedAlert(data);
             }
             
             // 🆘 HELP REQUEST: 1 = PENDING, 0 = RESOLVED
@@ -537,6 +541,53 @@ public class MqttMessageHandler implements MessageHandler {
             
         } catch (Exception e) {
             log.error("❌ Error creating/updating help request alert: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * ⭐ Resolve FALL alert khi nhận tín hiệu fallDetected = 0 từ MQTT
+     */
+    private void resolveFallDetectedAlert(HelmetData data) {
+        try {
+            String mac = data.getMac();
+            if (mac == null || mac.isEmpty()) {
+                log.warn("⚠️ Cannot resolve fall alert - MAC is null");
+                return;
+            }
+            
+            Optional<Helmet> helmetOpt = helmetRepository.findByMacAddress(mac);
+            if (helmetOpt.isEmpty()) {
+                log.debug("No helmet found for MAC: {} - nothing to resolve", mac);
+                return;
+            }
+            
+            Helmet helmet = helmetOpt.get();
+            
+            // Tìm alert FALL đang PENDING
+            Optional<Alert> alertOpt = alertRepository.findByHelmetAndAlertType(helmet, AlertType.FALL);
+            
+            if (alertOpt.isPresent()) {
+                Alert alert = alertOpt.get();
+                if (alert.getStatus() == AlertStatus.PENDING) {
+                    // ⭐ Resolve alert
+                    alert.setStatus(AlertStatus.RESOLVED);
+                    alert.setAcknowledgedAt(LocalDateTime.now());
+                    alert.setAcknowledgedBy("MQTT_SIGNAL");
+                    Alert saved = alertRepository.save(alert);
+                    
+                    log.info("✅ FALL alert RESOLVED via MQTT signal - Helmet: {} (ID: {})", mac, saved.getId());
+                    
+                    // ⭐ Push qua WebSocket để update UI realtime
+                    alertPublisher.publishAlertUpdate(saved);
+                } else {
+                    log.debug("FALL alert already resolved for helmet: {}", mac);
+                }
+            } else {
+                log.debug("No FALL alert found for helmet: {} - nothing to resolve", mac);
+            }
+            
+        } catch (Exception e) {
+            log.error("❌ Error resolving fall alert: {}", e.getMessage(), e);
         }
     }
     
