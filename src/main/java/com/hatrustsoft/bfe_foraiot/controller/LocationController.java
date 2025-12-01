@@ -2,6 +2,7 @@ package com.hatrustsoft.bfe_foraiot.controller;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -16,6 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.hatrustsoft.bfe_foraiot.entity.Employee;
 import com.hatrustsoft.bfe_foraiot.entity.HelmetData;
+import com.hatrustsoft.bfe_foraiot.model.Alert;
+import com.hatrustsoft.bfe_foraiot.model.AlertStatus;
+import com.hatrustsoft.bfe_foraiot.model.AlertType;
+import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
 import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetDataRepository;
 import com.hatrustsoft.bfe_foraiot.service.MemoryCacheService;
@@ -43,6 +48,9 @@ public class LocationController {
     
     @Autowired
     private MemoryCacheService memoryCacheService; // 🚀 Tối ưu: dùng cache thay vì query DB
+    
+    @Autowired
+    private AlertRepository alertRepository; // 🚨 Để check pending alerts
 
     /**
      * ⭐ NEW: API lấy dữ liệu REALTIME từ Redis cache
@@ -54,6 +62,7 @@ public class LocationController {
      * - Sau 12h: Tự động xóa khỏi Redis (không hiển thị)
      * 
      * 🚀 TỐI ƯU: Dùng MemoryCacheService.getEmployeeMap() thay vì N queries
+     * 🚨 CHECK PENDING ALERTS: Hiển thị trạng thái FALL, HELP_REQUEST
      */
     @GetMapping("/map-data-realtime")
     public ResponseEntity<List<WorkerMapData>> getMapDataRealtime() {
@@ -65,8 +74,21 @@ public class LocationController {
         // 🚀 TỐI ƯU: Lấy toàn bộ employee map từ cache (0 queries!)
         Map<String, Employee> employeeMap = memoryCacheService.getEmployeeMap();
         
-        log.info("📡 Redis cache has {} helmets, Employee cache has {} entries", 
-            cachedHelmets.size(), employeeMap.size());
+        // 🚨 Lấy tất cả PENDING alerts để check trạng thái nguy hiểm
+        List<Alert> pendingAlerts = alertRepository.findByStatusOrderByTriggeredAtDesc(AlertStatus.PENDING);
+        Map<String, Alert> alertByMac = new HashMap<>();
+        for (Alert alert : pendingAlerts) {
+            if (alert.getHelmet() != null && alert.getHelmet().getMacAddress() != null) {
+                String mac = alert.getHelmet().getMacAddress();
+                // Ưu tiên FALL > HELP_REQUEST
+                if (!alertByMac.containsKey(mac) || alert.getAlertType() == AlertType.FALL) {
+                    alertByMac.put(mac, alert);
+                }
+            }
+        }
+        
+        log.info("📡 Redis: {} helmets, Employees: {}, Pending alerts: {}", 
+            cachedHelmets.size(), employeeMap.size(), pendingAlerts.size());
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -91,6 +113,7 @@ public class LocationController {
             // ⭐ Xác định status dựa trên thời gian cập nhật
             LocalDateTime lastUpdate = data.getReceivedAt();
             String status = "ACTIVE";
+            String alertType = null;
             
             if (lastUpdate != null) {
                 long secondsAgo = java.time.temporal.ChronoUnit.SECONDS.between(lastUpdate, now);
@@ -100,11 +123,20 @@ public class LocationController {
                     status = "INACTIVE";
                 }
             }
+            
+            // 🚨 Check pending alert cho helmet này
+            Alert pendingAlert = alertByMac.get(data.getMac());
+            if (pendingAlert != null) {
+                alertType = pendingAlert.getAlertType().name(); // FALL hoặc HELP_REQUEST
+                status = "DANGER"; // Override status thành DANGER
+                log.info("🚨 Worker {} has pending {}", data.getMac(), alertType);
+            }
 
             // Tạo helmet info
             HelmetInfo helmet = new HelmetInfo();
             helmet.setHelmetId(data.getMac());
-            helmet.setStatus(status); // ✅ ACTIVE hoặc INACTIVE dựa trên thời gian
+            helmet.setStatus(status); // ✅ ACTIVE, INACTIVE, hoặc DANGER
+            helmet.setAlertType(alertType); // ✅ null, FALL, hoặc HELP_REQUEST
             helmet.setBatteryLevel(data.getBattery() != null ? data.getBattery().intValue() : 100);
 
             // Location
@@ -248,7 +280,8 @@ public class LocationController {
     @Data
     public static class HelmetInfo {
         private String helmetId;
-        private String status; // ACTIVE, ALERT, INACTIVE
+        private String status; // ACTIVE, ALERT, INACTIVE, FALL, HELP_REQUEST
+        private String alertType; // null, FALL, HELP_REQUEST
         private Integer batteryLevel;
         private LocationInfo lastLocation;
     }
