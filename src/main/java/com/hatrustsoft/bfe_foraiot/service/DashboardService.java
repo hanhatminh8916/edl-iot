@@ -192,6 +192,17 @@ public class DashboardService {
         // Build a worker view list that the frontend expects
         List<Employee> employees = employeeRepository.findAll();
         List<Helmet> allHelmets = helmetRepository.findAll();
+        
+        // 🚀 Lấy dữ liệu realtime từ Redis cache
+        List<HelmetData> realtimeHelmets = redisCacheService.getAllActiveHelmets();
+        Map<String, HelmetData> realtimeByMac = new HashMap<>();
+        for (HelmetData data : realtimeHelmets) {
+            if (data.getMac() != null) {
+                realtimeByMac.put(data.getMac(), data);
+            }
+        }
+        
+        LocalDateTime now = LocalDateTime.now();
 
         return employees.stream().map(employee -> {
             Map<String, Object> w = new HashMap<>();
@@ -212,15 +223,43 @@ public class DashboardService {
                 Map<String, Object> helmetMap = new HashMap<>();
                 helmetMap.put("id", helmet.getId());
                 helmetMap.put("helmetId", "HELMET-" + String.format("%03d", helmet.getHelmetId()));
-                helmetMap.put("batteryLevel", helmet.getBatteryLevel() != null ? helmet.getBatteryLevel() : 0);
-                helmetMap.put("status", helmet.getStatus() != null ? helmet.getStatus().name() : null);
-                Map<String, Object> lastLocation = null;
-                if (helmet.getLastLat() != null && helmet.getLastLon() != null) {
-                    lastLocation = new HashMap<>();
-                    lastLocation.put("latitude", helmet.getLastLat());
-                    lastLocation.put("longitude", helmet.getLastLon());
+                
+                // 🚀 Lấy battery và status từ Redis realtime
+                HelmetData realtimeData = realtimeByMac.get(helmet.getMacAddress());
+                if (realtimeData != null) {
+                    // Có data realtime
+                    helmetMap.put("batteryLevel", realtimeData.getBattery() != null ? realtimeData.getBattery().intValue() : 0);
+                    
+                    // Xác định status dựa trên thời gian update
+                    String helmetStatus = "ACTIVE";
+                    if (realtimeData.getReceivedAt() != null) {
+                        long secondsAgo = java.time.temporal.ChronoUnit.SECONDS.between(realtimeData.getReceivedAt(), now);
+                        if (secondsAgo > 30) {
+                            helmetStatus = "INACTIVE";
+                        }
+                    }
+                    helmetMap.put("status", helmetStatus);
+                    
+                    // Location từ realtime
+                    if (realtimeData.getLat() != null && realtimeData.getLon() != null) {
+                        Map<String, Object> lastLocation = new HashMap<>();
+                        lastLocation.put("latitude", realtimeData.getLat());
+                        lastLocation.put("longitude", realtimeData.getLon());
+                        helmetMap.put("lastLocation", lastLocation);
+                    }
+                } else {
+                    // Không có data realtime → lấy từ database
+                    helmetMap.put("batteryLevel", helmet.getBatteryLevel() != null ? helmet.getBatteryLevel() : 0);
+                    helmetMap.put("status", "OFFLINE"); // Không có data realtime = OFFLINE
+                    
+                    if (helmet.getLastLat() != null && helmet.getLastLon() != null) {
+                        Map<String, Object> lastLocation = new HashMap<>();
+                        lastLocation.put("latitude", helmet.getLastLat());
+                        lastLocation.put("longitude", helmet.getLastLon());
+                        helmetMap.put("lastLocation", lastLocation);
+                    }
                 }
-                helmetMap.put("lastLocation", lastLocation);
+                
                 w.put("helmet", helmetMap);
             } else {
                 w.put("helmet", null);

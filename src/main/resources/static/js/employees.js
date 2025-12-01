@@ -1,10 +1,15 @@
 // Employees Page JavaScript
 const API_BASE_URL = '/api';
 let allWorkers = [];
+let stompClient = null;
+let reloadTimeout = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     // Load workers from API
     loadWorkers();
+    
+    // Initialize WebSocket for realtime updates
+    initWebSocket();
     
     // Handle add employee button
     const btnAddEmployee = document.querySelector('.btn-add-employee');
@@ -42,9 +47,51 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Auto refresh every 60 seconds
+    // Auto refresh every 60 seconds as fallback
     setInterval(loadWorkers, 60000);
 });
+
+// WebSocket initialization for realtime updates
+function initWebSocket() {
+    const socket = new SockJS('/ws');
+    stompClient = Stomp.over(socket);
+    stompClient.debug = null; // Disable debug logs
+    
+    stompClient.connect({}, function(frame) {
+        console.log('✅ WebSocket connected for employees page');
+        
+        // Subscribe to helmet data updates
+        stompClient.subscribe('/topic/helmet/data', function(message) {
+            console.log('📡 Helmet data received');
+            debounceReload();
+        });
+        
+        // Subscribe to alert updates
+        stompClient.subscribe('/topic/alerts/new', function(message) {
+            console.log('🚨 New alert');
+            debounceReload();
+        });
+        
+        stompClient.subscribe('/topic/alerts/update', function(message) {
+            console.log('🔄 Alert updated');
+            debounceReload();
+        });
+    }, function(error) {
+        console.error('WebSocket error:', error);
+        // Retry connection after 5 seconds
+        setTimeout(initWebSocket, 5000);
+    });
+}
+
+// Debounced reload to prevent too many refreshes
+function debounceReload() {
+    if (reloadTimeout) {
+        clearTimeout(reloadTimeout);
+    }
+    reloadTimeout = setTimeout(() => {
+        loadWorkers();
+    }, 1000); // Wait 1 second after last message
+}
 
 // Load workers from API
 async function loadWorkers() {
@@ -116,6 +163,7 @@ function displayWorkers(workers) {
         const statusClass = helmet?.status?.toLowerCase() || 'inactive';
         const batteryLevel = helmet?.batteryLevel || 0;
         const batteryClass = batteryLevel > 50 ? 'good' : batteryLevel > 20 ? 'medium' : 'low';
+        const alertType = helmet?.alertType || null;
         
         // ⭐ Safe extraction of employee info - handle both 'name' and 'fullName' properties
         const workerName = worker.name || worker.fullName || 'N/A';
@@ -126,11 +174,20 @@ function displayWorkers(workers) {
         // ⭐ Escape single quotes in name for onclick handler
         const escapedName = workerName.replace(/'/g, "\\'");
         
+        // Alert badge for FALL or HELP_REQUEST
+        let alertBadge = '';
+        if (alertType === 'FALL') {
+            alertBadge = '<span class="alert-badge fall">🚨 Té ngã</span>';
+        } else if (alertType === 'HELP_REQUEST') {
+            alertBadge = '<span class="alert-badge sos">🆘 Cầu cứu</span>';
+        }
+        
         return `
-            <div class="employee-card" data-worker-id="${worker.id}" data-status="${statusClass}">
+            <div class="employee-card ${alertType ? 'has-alert' : ''}" data-worker-id="${worker.id}" data-status="${statusClass}">
                 <div class="employee-header">
                     <div class="employee-avatar">
                         <i class="fas fa-user"></i>
+                        ${alertBadge}
                     </div>
                     <div class="employee-actions">
                         <button class="btn-icon edit" onclick="openEmployeeModal('edit', ${worker.id})" title="Chỉnh sửa">
@@ -185,8 +242,10 @@ function displayWorkers(workers) {
 function getStatusText(status) {
     const statuses = {
         'ACTIVE': 'Đang làm',
-        'INACTIVE': 'Nghỉ việc',
-        'OFFLINE': 'Ngoại tuyến'
+        'INACTIVE': 'Offline',
+        'OFFLINE': 'Ngoại tuyến',
+        'ALERT': 'Cảnh báo',
+        'DANGER': 'Nguy hiểm'
     };
     return statuses[status] || 'Không hoạt động';
 }
