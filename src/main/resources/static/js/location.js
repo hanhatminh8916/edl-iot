@@ -331,6 +331,7 @@ async function loadWorkers() {
         console.log("Loaded:", workersData.length, "workers (from Redis cache)");
         updateMapMarkers(workersData);
         displayWorkersList(workersData);
+        updateStatusCards(workersData); // ⭐ Cập nhật status cards
         
         // Cập nhật thời gian
         const now = new Date();
@@ -414,22 +415,111 @@ function updateMapMarkers(workers) {
 function displayWorkersList(workers) {
     var c = document.getElementById("workers-list");
     if (!c) return;
+    
+    if (workers.length === 0) {
+        c.innerHTML = '<div class="worker-item" style="justify-content: center; color: #888;"><i class="fas fa-info-circle"></i>&nbsp; Không có công nhân online</div>';
+        return;
+    }
+    
     var html = "";
     workers.forEach(function(w) {
         if (!w.helmet) return;
-        var initials = w.name.split(" ").map(function(n){return n[0];}).join("").substring(0,2).toUpperCase();
-        var cls = "status-safe", txt = "An toàn";
-        if (w.helmet.status === "INACTIVE") { cls = "status-offline"; txt = "Offline"; }
-        if (w.helmet.status === "ALERT") { cls = "status-warning"; txt = "Cảnh báo"; }
-        html += "<div class=\"worker-item\" onclick=\"centerMapOnWorker(" + w.id + ")\"><div class=\"worker-avatar\">" + initials + "</div><div class=\"worker-info\"><div class=\"worker-name\">" + w.name + "</div><div class=\"worker-id\">ID: " + w.id + "</div></div><div class=\"worker-status\"><span class=\"status-badge " + cls + "\">" + txt + "</span><div>Pin: " + w.helmet.batteryLevel + "%</div></div></div>";
+        
+        // Tạo initials từ tên
+        var initials = w.name ? w.name.split(" ").map(function(n){return n[0];}).join("").substring(0,3).toUpperCase() : "??";
+        
+        // Xác định status class và text
+        var cls = "safe", txt = "An toàn";
+        var avatarColor = "#10b981"; // Green default
+        
+        if (w.helmet.status === "INACTIVE") { 
+            cls = "offline"; 
+            txt = "Offline"; 
+            avatarColor = "#6b7280";
+        } else if (w.helmet.status === "ALERT") { 
+            cls = "warning"; 
+            txt = "Cảnh báo"; 
+            avatarColor = "#f97316";
+        } else if (w.helmet.status === "DANGER") {
+            cls = "danger";
+            txt = "Nguy hiểm";
+            avatarColor = "#ef4444";
+        }
+        
+        // Kiểm tra có trong safe zone không
+        if (w.helmet.lastLocation && activePolygon) {
+            var inside = isInsidePolygon(w.helmet.lastLocation.latitude, w.helmet.lastLocation.longitude, activePolygon);
+            if (!inside && w.helmet.status !== "INACTIVE") {
+                cls = "danger";
+                txt = "Ngoài vùng";
+                avatarColor = "#ef4444";
+            }
+        }
+        
+        html += '<div class="worker-item" onclick="centerMapOnWorker(\'' + w.id + '\')">' +
+                '<div class="worker-avatar" style="background-color: ' + avatarColor + ';">' + initials + '</div>' +
+                '<div class="worker-info">' +
+                '<h4>' + (w.name || 'Unknown') + ' ▼</h4>' +
+                '<p>ID: ' + (w.id || w.helmet.helmetId) + '</p>' +
+                '</div>' +
+                '<span class="worker-status ' + cls + '">' + txt + '</span>' +
+                '</div>';
     });
     c.innerHTML = html;
 }
+
+/**
+ * ⭐ Cập nhật Status Cards từ dữ liệu thực
+ */
+function updateStatusCards(workers) {
+    var total = workers.length;
+    var safe = 0, warning = 0, danger = 0, offline = 0;
+    
+    workers.forEach(function(w) {
+        if (!w.helmet) return;
+        
+        if (w.helmet.status === "INACTIVE") {
+            offline++;
+        } else if (w.helmet.status === "ALERT") {
+            warning++;
+        } else if (w.helmet.status === "DANGER") {
+            danger++;
+        } else {
+            // Kiểm tra trong safe zone
+            if (w.helmet.lastLocation && activePolygon) {
+                var inside = isInsidePolygon(w.helmet.lastLocation.latitude, w.helmet.lastLocation.longitude, activePolygon);
+                if (!inside) {
+                    danger++;
+                } else {
+                    safe++;
+                }
+            } else {
+                safe++;
+            }
+        }
+    });
+    
+    // Update DOM
+    var elTotal = document.getElementById('stat-total');
+    var elSafe = document.getElementById('stat-safe');
+    var elWarning = document.getElementById('stat-warning');
+    var elDanger = document.getElementById('stat-danger');
+    var elOffline = document.getElementById('stat-offline');
+    
+    if (elTotal) elTotal.textContent = total;
+    if (elSafe) elSafe.textContent = safe;
+    if (elWarning) elWarning.textContent = warning;
+    if (elDanger) elDanger.textContent = danger;
+    if (elOffline) elOffline.textContent = offline;
+    
+    console.log('📊 Stats updated: total=' + total + ', safe=' + safe + ', warning=' + warning + ', danger=' + danger + ', offline=' + offline);
+}
 function centerMapOnWorker(id) {
-    var w = workersData.find(function(x){return x.id === id;});
+    var w = workersData.find(function(x){ return x.id === id || x.id == id; });
     if (w && w.helmet && w.helmet.lastLocation) {
         map.setView([w.helmet.lastLocation.latitude, w.helmet.lastLocation.longitude], 18);
-        markers.find(function(m){return m.workerId === id;}).openPopup();
+        var marker = markers.find(function(m){ return m.workerId === id || m.workerId == id; });
+        if (marker) marker.openPopup();
     }
 }
 
