@@ -14,6 +14,9 @@ var safeZoneRadius = 200; // Bán kính 200 mét (chỉ để tham khảo, giờ
 var fallAlertMarkers = {}; // Track active fall alert effects by MAC
 var fallAlertIntervals = {}; // Track intervals for cleanup
 
+// ⭐ Map lưu pending alerts theo MAC address để check status
+var pendingAlertsMap = {}; // { mac: { alertType: 'FALL' | 'HELP_REQUEST', alertId: number } }
+
 function initializeMap() {
     console.log("Init map with Geo-Fencing");
     map = L.map("map").setView(safeZoneCenter, 15);
@@ -432,7 +435,22 @@ function displayWorkersList(workers) {
         var cls = "safe", txt = "An toàn";
         var avatarColor = "#10b981"; // Green default
         
-        if (w.helmet.status === "INACTIVE") { 
+        // ⭐ KIỂM TRA PENDING ALERTS TRƯỚC (ưu tiên cao nhất)
+        var mac = w.helmet.helmetId;
+        var pendingAlert = pendingAlertsMap[mac];
+        
+        if (pendingAlert) {
+            // Có alert PENDING → Nguy hiểm
+            if (pendingAlert.alertType === 'FALL') {
+                cls = "danger";
+                txt = "🚨 Ngã";
+                avatarColor = "#ef4444";
+            } else if (pendingAlert.alertType === 'HELP_REQUEST') {
+                cls = "danger";
+                txt = "🆘 SOS";
+                avatarColor = "#ef4444";
+            }
+        } else if (w.helmet.status === "INACTIVE") { 
             cls = "offline"; 
             txt = "Offline"; 
             avatarColor = "#6b7280";
@@ -444,15 +462,15 @@ function displayWorkersList(workers) {
             cls = "danger";
             txt = "Nguy hiểm";
             avatarColor = "#ef4444";
-        }
-        
-        // Kiểm tra có trong safe zone không
-        if (w.helmet.lastLocation && activePolygon) {
-            var inside = isInsidePolygon(w.helmet.lastLocation.latitude, w.helmet.lastLocation.longitude, activePolygon);
-            if (!inside && w.helmet.status !== "INACTIVE") {
-                cls = "danger";
-                txt = "Ngoài vùng";
-                avatarColor = "#ef4444";
+        } else {
+            // Kiểm tra có trong safe zone không
+            if (w.helmet.lastLocation && activePolygon) {
+                var inside = isInsidePolygon(w.helmet.lastLocation.latitude, w.helmet.lastLocation.longitude, activePolygon);
+                if (!inside) {
+                    cls = "danger";
+                    txt = "Ngoài vùng";
+                    avatarColor = "#ef4444";
+                }
             }
         }
         
@@ -478,7 +496,14 @@ function updateStatusCards(workers) {
     workers.forEach(function(w) {
         if (!w.helmet) return;
         
-        if (w.helmet.status === "INACTIVE") {
+        // ⭐ KIỂM TRA PENDING ALERTS TRƯỚC (ưu tiên cao nhất)
+        var mac = w.helmet.helmetId;
+        var pendingAlert = pendingAlertsMap[mac];
+        
+        if (pendingAlert) {
+            // Có alert PENDING (FALL hoặc HELP_REQUEST) → Đếm vào danger
+            danger++;
+        } else if (w.helmet.status === "INACTIVE") {
             offline++;
         } else if (w.helmet.status === "ALERT") {
             warning++;
@@ -1029,12 +1054,23 @@ async function loadPendingAlerts() {
         const alerts = await response.json();
         console.log('📋 Found', alerts.length, 'PENDING alerts');
         
+        // ⭐ Reset và rebuild pendingAlertsMap
+        pendingAlertsMap = {};
+        
         // Hiển thị radar cho mỗi alert PENDING
         alerts.forEach(alert => {
             if (alert.alertType === 'FALL' || alert.alertType === 'HELP_REQUEST') {
                 const mac = alert.helmet?.helmetId;
                 const lat = alert.gpsLat;
                 const lon = alert.gpsLon;
+                
+                // ⭐ Lưu vào map để check status
+                if (mac) {
+                    pendingAlertsMap[mac] = {
+                        alertType: alert.alertType,
+                        alertId: alert.id
+                    };
+                }
                 
                 if (mac && lat && lon) {
                     // Tìm tên worker
@@ -1049,6 +1085,12 @@ async function loadPendingAlerts() {
                 }
             }
         });
+        
+        // ⭐ Refresh worker list để cập nhật status
+        if (workersData.length > 0) {
+            displayWorkersList(workersData);
+            updateStatusCards(workersData);
+        }
         
     } catch (error) {
         console.error('❌ Error loading pending alerts:', error);
@@ -1129,6 +1171,18 @@ function clearFallAlertEffect(mac) {
     if (fallAlertIntervals[mac]) {
         clearInterval(fallAlertIntervals[mac]);
         delete fallAlertIntervals[mac];
+    }
+    
+    // ⭐ Xóa khỏi pendingAlertsMap và refresh UI
+    if (pendingAlertsMap[mac]) {
+        delete pendingAlertsMap[mac];
+        console.log('🗑️ Removed from pendingAlertsMap:', mac);
+        
+        // Refresh worker list và status cards
+        if (workersData.length > 0) {
+            displayWorkersList(workersData);
+            updateStatusCards(workersData);
+        }
     }
     
     console.log('🧹 Cleared FALL alert effect for:', mac);
