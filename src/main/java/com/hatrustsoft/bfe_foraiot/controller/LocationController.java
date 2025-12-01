@@ -3,6 +3,7 @@ package com.hatrustsoft.bfe_foraiot.controller;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import com.hatrustsoft.bfe_foraiot.entity.Employee;
 import com.hatrustsoft.bfe_foraiot.entity.HelmetData;
 import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetDataRepository;
+import com.hatrustsoft.bfe_foraiot.service.MemoryCacheService;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +40,9 @@ public class LocationController {
     
     @Autowired
     private com.hatrustsoft.bfe_foraiot.service.RedisCacheService redisCacheService;
+    
+    @Autowired
+    private MemoryCacheService memoryCacheService; // 🚀 Tối ưu: dùng cache thay vì query DB
 
     /**
      * ⭐ NEW: API lấy dữ liệu REALTIME từ Redis cache
@@ -47,6 +52,8 @@ public class LocationController {
      * - Nếu nhận data trong 30s: ACTIVE (màu xanh)
      * - Nếu 30s - 12h: INACTIVE (màu xám)
      * - Sau 12h: Tự động xóa khỏi Redis (không hiển thị)
+     * 
+     * 🚀 TỐI ƯU: Dùng MemoryCacheService.getEmployeeMap() thay vì N queries
      */
     @GetMapping("/map-data-realtime")
     public ResponseEntity<List<WorkerMapData>> getMapDataRealtime() {
@@ -55,13 +62,17 @@ public class LocationController {
         // ✅ Lấy tất cả helmet data từ Redis (TTL 12h)
         List<HelmetData> cachedHelmets = redisCacheService.getAllActiveHelmets();
         
-        log.info("📡 Redis cache has {} helmets", cachedHelmets.size());
+        // 🚀 TỐI ƯU: Lấy toàn bộ employee map từ cache (0 queries!)
+        Map<String, Employee> employeeMap = memoryCacheService.getEmployeeMap();
+        
+        log.info("📡 Redis cache has {} helmets, Employee cache has {} entries", 
+            cachedHelmets.size(), employeeMap.size());
 
         LocalDateTime now = LocalDateTime.now();
 
-        // Map với employee data
+        // Map với employee data - KHÔNG CÓ DB QUERY trong loop!
         for (HelmetData data : cachedHelmets) {
-            Employee emp = employeeRepository.findByMacAddress(data.getMac()).orElse(null);
+            Employee emp = employeeMap.get(data.getMac()); // 🚀 Từ cache, không query DB
             
             WorkerMapData workerData = new WorkerMapData();
             if (emp != null) {
@@ -81,22 +92,13 @@ public class LocationController {
             LocalDateTime lastUpdate = data.getReceivedAt();
             String status = "ACTIVE";
             
-            log.info("⏰ Helmet {} - receivedAt: {}, now: {}", data.getMac(), lastUpdate, now);
-            
             if (lastUpdate != null) {
                 long secondsAgo = java.time.temporal.ChronoUnit.SECONDS.between(lastUpdate, now);
                 
-                log.info("⏱️ Helmet {} - Time difference: {} seconds", data.getMac(), secondsAgo);
-                
                 if (secondsAgo > OFFLINE_THRESHOLD_SECONDS) {
                     // Sau 30s không nhận data → INACTIVE (màu xám)
-                    log.info("🕐 Helmet {} offline for {} seconds -> INACTIVE", data.getMac(), secondsAgo);
                     status = "INACTIVE";
-                } else {
-                    log.info("✅ Helmet {} active ({} seconds ago)", data.getMac(), secondsAgo);
                 }
-            } else {
-                log.warn("⚠️ Helmet {} has NULL receivedAt!", data.getMac());
             }
 
             // Tạo helmet info

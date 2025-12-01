@@ -31,15 +31,17 @@ public class DashboardService {
     private final AlertRepository alertRepository;
     private final EmployeeRepository employeeRepository;
     private final RedisCacheService redisCacheService;
+    private final MemoryCacheService memoryCacheService; // 🚀 TỐI ƯU: Dùng cache
     
     // Timeout để coi là offline (đồng bộ với các trang khác)
     private static final long OFFLINE_THRESHOLD_SECONDS = 30;
 
     /**
      * 📊 Lấy thống kê tổng quan từ dữ liệu THỰC
+     * 🚀 TỐI ƯU: Dùng COUNT queries thay vì findAll
      */
     public Map<String, Object> getOverviewStats() {
-        // Lấy tổng số công nhân từ bảng Employee
+        // 🚀 TỐI ƯU: Dùng count() thay vì findAll().size()
         long totalEmployees = employeeRepository.count();
         
         // Lấy số công nhân đang hoạt động từ Redis (online trong 30s)
@@ -51,10 +53,9 @@ public class DashboardService {
             .filter(h -> ChronoUnit.SECONDS.between(h.getReceivedAt(), now) <= OFFLINE_THRESHOLD_SECONDS)
             .count();
         
-        // Lấy cảnh báo hôm nay
+        // 🚀 TỐI ƯU: Dùng countByTriggeredAtAfter thay vì findByTriggeredAtAfter().size()
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-        List<Alert> todayAlerts = alertRepository.findByTriggeredAtAfter(startOfDay);
-        long pendingAlerts = todayAlerts.size();
+        long pendingAlerts = alertRepository.countByTriggeredAtAfter(startOfDay);
         
         // Tính hiệu suất: % công nhân đang hoạt động / tổng số
         double efficiency = totalEmployees > 0 
@@ -75,14 +76,15 @@ public class DashboardService {
     
     /**
      * 🔴 Lấy danh sách cảnh báo gần đây (hôm nay)
+     * 🚀 TỐI ƯU: Chỉ lấy 5 alerts mới nhất thay vì toàn bộ
      */
     public List<Map<String, Object>> getRecentAlerts() {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-        List<Alert> todayAlerts = alertRepository.findByTriggeredAtAfter(startOfDay);
+        // 🚀 TỐI ƯU: Query có LIMIT và ORDER BY trực tiếp trong DB
+        List<Alert> todayAlerts = alertRepository.findTop5ByTriggeredAtAfterOrderByTriggeredAtDesc(startOfDay);
         
         return todayAlerts.stream()
             .filter(a -> a.getTriggeredAt() != null)
-            .sorted((a, b) -> b.getTriggeredAt().compareTo(a.getTriggeredAt())) // Mới nhất trước
             .limit(5)
             .map(alert -> {
                 Map<String, Object> alertData = new HashMap<>();
@@ -107,16 +109,20 @@ public class DashboardService {
     
     /**
      * 🔋 Lấy trạng thái pin từ Redis (dữ liệu thực)
+     * 🚀 TỐI ƯU: Dùng MemoryCacheService thay vì query DB trong loop
      */
     public List<Map<String, Object>> getBatteryStatus() {
         List<HelmetData> helmets = redisCacheService.getAllActiveHelmets();
         List<Map<String, Object>> batteryList = new ArrayList<>();
         
+        // 🚀 TỐI ƯU: Lấy toàn bộ employee map 1 lần
+        Map<String, Employee> employeeMap = memoryCacheService.getEmployeeMap();
+        
         for (HelmetData helmet : helmets) {
             Map<String, Object> batteryData = new HashMap<>();
             
-            // Tìm thông tin nhân viên
-            Employee emp = employeeRepository.findByMacAddress(helmet.getMac()).orElse(null);
+            // 🚀 TỐI ƯU: Tìm từ cache thay vì query DB
+            Employee emp = employeeMap.get(helmet.getMac());
             
             if (emp != null) {
                 batteryData.put("employeeName", emp.getName());

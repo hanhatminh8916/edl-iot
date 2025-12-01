@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS employees (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+-- 🚀 Index cho employee lookup by MAC
+CREATE INDEX IF NOT EXISTS idx_employees_mac ON employees(mac_address);
+
 -- Tạo bảng helmet_data để lưu dữ liệu từ các helmet
 CREATE TABLE IF NOT EXISTS helmet_data (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -41,6 +44,14 @@ CREATE TABLE IF NOT EXISTS messenger_users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE SET NULL
 );
+
+-- 🚀 TỐI ƯU: Indexes cho bảng alerts (nếu tồn tại)
+-- Composite index cho upsert theo helmet + alert_type  
+-- CREATE INDEX IF NOT EXISTS idx_alerts_helmet_type ON alerts(helmet_id, alert_type);
+-- Index cho query by triggered_at (dashboard stats)
+-- CREATE INDEX IF NOT EXISTS idx_alerts_triggered_at ON alerts(triggered_at);
+-- Index cho query by status
+-- CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status);
 
 -- Insert dữ liệu mẫu cho testing
 INSERT INTO employees (employee_id, name, position, department, mac_address, phone_number, email, status) 

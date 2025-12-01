@@ -98,6 +98,18 @@ public class MemoryCacheService {
     }
     
     /**
+     * 🚀 Lấy toàn bộ Employee Map (MAC → Employee) - dùng cho batch lookup
+     * GIẢM: N queries → 0 queries khi cần lookup nhiều employees
+     */
+    public Map<String, Employee> getEmployeeMap() {
+        Map<String, Employee> result = new ConcurrentHashMap<>();
+        for (Map.Entry<String, Optional<Employee>> entry : employeeByMacCache.entrySet()) {
+            entry.getValue().ifPresent(emp -> result.put(entry.getKey(), emp));
+        }
+        return result;
+    }
+    
+    /**
      * 🔄 Refresh employee cache mỗi 5 phút
      */
     @Scheduled(fixedRate = 300000) // 5 phút

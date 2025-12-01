@@ -5,7 +5,14 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "alerts")
+@Table(name = "alerts", indexes = {
+    // 🚀 Index cho upsert: tìm alert theo helmet + type
+    @Index(name = "idx_alerts_helmet_type", columnList = "helmet_id, alertType"),
+    // 🚀 Index cho dashboard stats: đếm alerts theo thời gian
+    @Index(name = "idx_alerts_triggered_at", columnList = "triggeredAt"),
+    // 🚀 Index cho filter by status
+    @Index(name = "idx_alerts_status", columnList = "status")
+})
 @Data
 public class Alert {
     @Id
