@@ -742,8 +742,8 @@ function handleFallAlertOnMap(alert) {
     
     console.log('🚨 Creating radar effect at:', lat, lon, 'for', workerName || mac);
     
-    // Tạo hiệu ứng radar sóng nước
-    createRadarPulseEffect(lat, lon, mac, workerName);
+    // Tạo hiệu ứng radar sóng nước (truyền alertId)
+    createRadarPulseEffect(lat, lon, mac, workerName, alert.id);
     
     // Zoom đến vị trí cảnh báo
     map.flyTo([lat, lon], 18, {
@@ -754,7 +754,7 @@ function handleFallAlertOnMap(alert) {
 /**
  * Tạo hiệu ứng radar sóng nước + chớp tắt đỏ xanh
  */
-function createRadarPulseEffect(lat, lon, mac, workerName) {
+function createRadarPulseEffect(lat, lon, mac, workerName, alertId) {
     // Xóa hiệu ứng cũ nếu có
     if (fallAlertMarkers[mac]) {
         clearFallAlertEffect(mac);
@@ -776,11 +776,11 @@ function createRadarPulseEffect(lat, lon, mac, workerName) {
         effectLayers.push(pulseCircle);
     }
     
-    // ✅ Marker trung tâm chớp tắt đỏ-xanh
+    // ✅ Marker trung tâm chớp tắt đỏ-xanh (có thể click)
     const alertIcon = L.divIcon({
         className: 'fall-alert-marker',
         html: `
-            <div class="fall-alert-container">
+            <div class="fall-alert-container" data-mac="${mac}" data-alert-id="${alertId || ''}">
                 <div class="fall-alert-icon">
                     <i class="fas fa-exclamation-triangle"></i>
                 </div>
@@ -792,10 +792,27 @@ function createRadarPulseEffect(lat, lon, mac, workerName) {
     });
     
     const alertMarker = L.marker([lat, lon], { icon: alertIcon, zIndexOffset: 1000 }).addTo(map);
+    
+    // ✅ CLICK để xác nhận và tắt hiệu ứng
+    alertMarker.on('click', function() {
+        showFallAlertConfirmPopup(lat, lon, mac, workerName, alertId);
+    });
+    
+    // ✅ Thêm popup hướng dẫn
+    alertMarker.bindTooltip('Click để xác nhận cảnh báo', {
+        permanent: false,
+        direction: 'top',
+        offset: [0, -50]
+    });
+    
     effectLayers.push(alertMarker);
     
-    // Lưu layers
-    fallAlertMarkers[mac] = effectLayers;
+    // Lưu layers + alertId
+    fallAlertMarkers[mac] = {
+        layers: effectLayers,
+        alertId: alertId,
+        workerName: workerName
+    };
     
     // ✅ Animation: Sóng radar lan ra
     let pulseStep = 0;
@@ -824,22 +841,112 @@ function createRadarPulseEffect(lat, lon, mac, workerName) {
     // ✅ Inject CSS animation styles nếu chưa có
     injectFallAlertStyles();
     
-    // ✅ Auto-clear sau 60 giây
+    // ✅ Auto-clear sau 5 phút (thay vì 60s để có thời gian xác nhận)
     setTimeout(() => {
         clearFallAlertEffect(mac);
-    }, 60000);
+    }, 300000); // 5 phút
 }
+
+/**
+ * Hiển thị popup xác nhận cảnh báo FALL
+ */
+function showFallAlertConfirmPopup(lat, lon, mac, workerName, alertId) {
+    // Tạo popup xác nhận
+    const popupContent = `
+        <div class="fall-confirm-popup">
+            <h4>🚨 Cảnh báo té ngã</h4>
+            <p><strong>Công nhân:</strong> ${workerName || 'N/A'}</p>
+            <p><strong>Mã thiết bị:</strong> ${mac}</p>
+            <div class="fall-confirm-buttons">
+                <button class="btn-confirm-fall" onclick="confirmFallAlert('${mac}', ${alertId || 'null'})">
+                    ✅ Xác nhận đã xử lý
+                </button>
+                <button class="btn-cancel-fall" onclick="closeFallPopup()">
+                    ❌ Đóng
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Hiển thị popup trên map
+    const popup = L.popup({
+        closeButton: true,
+        className: 'fall-alert-popup'
+    })
+    .setLatLng([lat, lon])
+    .setContent(popupContent)
+    .openOn(map);
+    
+    // Lưu popup reference
+    window.currentFallPopup = popup;
+}
+
+/**
+ * Xác nhận đã xử lý cảnh báo FALL
+ */
+async function confirmFallAlert(mac, alertId) {
+    console.log('✅ Confirming FALL alert for:', mac, 'alertId:', alertId);
+    
+    try {
+        // Gọi API để acknowledge alert (nếu có alertId)
+        if (alertId) {
+            const response = await fetch(`/api/alerts/${alertId}/acknowledge?username=Admin`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                console.log('✅ Alert acknowledged on server');
+            }
+        }
+        
+        // Xóa hiệu ứng radar
+        clearFallAlertEffect(mac);
+        
+        // Đóng popup
+        closeFallPopup();
+        
+        // Hiển thị thông báo thành công
+        showNotification('Đã xác nhận xử lý cảnh báo té ngã', 'success');
+        
+        // Reload markers để hiển thị lại bình thường
+        loadWorkers();
+        
+    } catch (error) {
+        console.error('❌ Error confirming alert:', error);
+        showNotification('Lỗi khi xác nhận cảnh báo', 'error');
+    }
+}
+
+/**
+ * Đóng popup xác nhận
+ */
+function closeFallPopup() {
+    if (window.currentFallPopup) {
+        map.closePopup(window.currentFallPopup);
+        window.currentFallPopup = null;
+    }
+}
+
+// Expose functions globally
+window.confirmFallAlert = confirmFallAlert;
+window.closeFallPopup = closeFallPopup;
 
 /**
  * Xóa hiệu ứng FALL alert
  */
 function clearFallAlertEffect(mac) {
-    if (fallAlertMarkers[mac]) {
-        fallAlertMarkers[mac].forEach(layer => {
-            if (map.hasLayer(layer)) {
-                map.removeLayer(layer);
-            }
-        });
+    const alertData = fallAlertMarkers[mac];
+    
+    if (alertData) {
+        const layers = alertData.layers || alertData; // Support both old and new format
+        
+        if (Array.isArray(layers)) {
+            layers.forEach(layer => {
+                if (map.hasLayer(layer)) {
+                    map.removeLayer(layer);
+                }
+            });
+        }
         delete fallAlertMarkers[mac];
     }
     
@@ -934,6 +1041,82 @@ function injectFallAlertStyles() {
         .pulse-0 { animation-delay: 0s; }
         .pulse-1 { animation-delay: 0.5s; }
         .pulse-2 { animation-delay: 1s; }
+        
+        /* 🚨 FALL CONFIRM POPUP */
+        .fall-alert-popup .leaflet-popup-content-wrapper {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(220, 38, 38, 0.4);
+        }
+        
+        .fall-alert-popup .leaflet-popup-tip {
+            background: #dc2626;
+        }
+        
+        .fall-confirm-popup {
+            padding: 10px;
+            text-align: center;
+            min-width: 200px;
+        }
+        
+        .fall-confirm-popup h4 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        
+        .fall-confirm-popup p {
+            margin: 5px 0;
+            font-size: 13px;
+        }
+        
+        .fall-confirm-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        
+        .btn-confirm-fall {
+            padding: 10px 16px;
+            background: #22c55e;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .btn-confirm-fall:hover {
+            background: #16a34a;
+            transform: scale(1.02);
+        }
+        
+        .btn-cancel-fall {
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .btn-cancel-fall:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        /* Clickable cursor for alert marker */
+        .fall-alert-marker {
+            cursor: pointer !important;
+        }
+        
+        .fall-alert-container:hover .fall-alert-icon {
+            transform: scale(1.1);
+        }
     `;
     document.head.appendChild(style);
 }
