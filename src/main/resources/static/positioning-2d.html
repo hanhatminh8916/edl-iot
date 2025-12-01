@@ -1273,19 +1273,28 @@
             tags.forEach(tag => {
                 const lastDataTime = tagLastDataTime[tag.helmet];
                 
-                // Nếu tag đang online nhưng không nhận data trong 30s
-                if (tag.status === 'online' && lastDataTime) {
-                    const timeSinceLastData = now - lastDataTime;
-                    if (timeSinceLastData > OFFLINE_TIMEOUT_MS) {
+                // Nếu tag đang online
+                if (tag.status === 'online') {
+                    // Nếu không có lastDataTime hoặc đã quá 30s
+                    if (!lastDataTime) {
+                        // Chưa có data, giả định offline
                         tag.status = 'offline';
-                        console.log(`⚪ Tag ${tag.id} went OFFLINE (no data for ${Math.round(timeSinceLastData/1000)}s)`);
+                        console.log(`⚪ Tag ${tag.id} went OFFLINE (no lastDataTime)`);
                         needRedraw = true;
+                    } else {
+                        const timeSinceLastData = now - lastDataTime;
+                        if (timeSinceLastData > OFFLINE_TIMEOUT_MS) {
+                            tag.status = 'offline';
+                            console.log(`⚪ Tag ${tag.id} went OFFLINE (no data for ${Math.round(timeSinceLastData/1000)}s)`);
+                            needRedraw = true;
+                        }
                     }
                 }
             });
             
             if (needRedraw) {
                 draw();
+                updateDeviceList(); // Cập nhật sidebar
             }
         }
         
@@ -1356,6 +1365,14 @@
                         };
                         tags.push(newTag);
                         console.log(`➕ Loaded tag ${newTag.id} (${tagData.isOnline ? 'online' : 'offline'}) at (${tagData.x?.toFixed(2)}, ${tagData.y?.toFixed(2)})`);
+                    }
+                    
+                    // ⏰ Set lastDataTime cho tag (nếu online thì now, nếu offline thì quá khứ)
+                    if (tagData.isOnline) {
+                        tagLastDataTime[tagData.mac] = Date.now();
+                    } else {
+                        // Set thời gian quá khứ để checkOffline không bị confused
+                        tagLastDataTime[tagData.mac] = Date.now() - OFFLINE_TIMEOUT_MS - 1000;
                     }
                 });
                 
