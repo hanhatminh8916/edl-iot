@@ -685,6 +685,27 @@ function connectWebSocket() {
             }
         });
         
+        // ✅ Subscribe to ALERT UPDATES - Tắt radar khi RESOLVED (realtime sync)
+        stompClient.subscribe('/topic/alerts/update', function(message) {
+            try {
+                const alert = JSON.parse(message.body);
+                console.log('📝 Received alert update:', alert.id, alert.status);
+                
+                // Nếu alert được RESOLVED → tắt radar
+                if (alert.status === 'RESOLVED') {
+                    const mac = alert.helmet?.helmetId;
+                    if (mac && fallAlertMarkers[mac]) {
+                        console.log('✅ Alert RESOLVED - clearing radar for:', mac);
+                        clearFallAlertEffect(mac);
+                        showNotification(`Cảnh báo đã được xử lý: ${mac}`, 'success');
+                    }
+                }
+                
+            } catch (e) {
+                console.error('❌ Error parsing alert update:', e);
+            }
+        });
+        
     }, function(error) {
         console.error('❌ WebSocket connection error:', error);
         // Retry after 5 seconds
