@@ -6,6 +6,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.Message;
@@ -25,6 +26,7 @@ import com.hatrustsoft.bfe_foraiot.model.Helmet;
 import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
 import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetDataRepository;
+import com.hatrustsoft.bfe_foraiot.repository.HelmetRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,6 +42,9 @@ public class MqttMessageHandler implements MessageHandler {
     
     @Autowired
     private AlertRepository alertRepository;
+    
+    @Autowired
+    private HelmetRepository helmetRepository; // ⭐ Để tìm helmet theo MAC
     
     @Autowired
     private AlertPublisher alertPublisher; // ⭐ Push alert qua WebSocket
@@ -255,9 +260,13 @@ public class MqttMessageHandler implements MessageHandler {
                 createFallDetectedAlert(data);
             }
             
+            // 🆘 HELP REQUEST: 1 = PENDING, 0 = RESOLVED
             if (helpRequest == 1) {
-                log.warn("🆘 HELP REQUEST - Creating alert...");
+                log.warn("🆘 HELP REQUEST ON - Creating/updating alert...");
                 createHelpRequestAlert(data);
+            } else {
+                // helpRequest == 0 → Resolve alert nếu đang PENDING
+                resolveHelpRequestAlert(data);
             }
 
             // ⭐ Kiểm tra cảnh báo khu vực nguy hiểm (từ Anchor qua Gateway) - DEBOUNCE 60s
@@ -528,6 +537,53 @@ public class MqttMessageHandler implements MessageHandler {
             
         } catch (Exception e) {
             log.error("❌ Error creating/updating help request alert: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * ⭐ Resolve HELP_REQUEST alert khi nhận tín hiệu helpRequest = 0 từ MQTT
+     */
+    private void resolveHelpRequestAlert(HelmetData data) {
+        try {
+            String mac = data.getMac();
+            if (mac == null || mac.isEmpty()) {
+                log.warn("⚠️ Cannot resolve help request - MAC is null");
+                return;
+            }
+            
+            Optional<Helmet> helmetOpt = helmetRepository.findByMacAddress(mac);
+            if (helmetOpt.isEmpty()) {
+                log.debug("No helmet found for MAC: {} - nothing to resolve", mac);
+                return;
+            }
+            
+            Helmet helmet = helmetOpt.get();
+            
+            // Tìm alert HELP_REQUEST đang PENDING
+            Optional<Alert> alertOpt = alertRepository.findByHelmetAndAlertType(helmet, AlertType.HELP_REQUEST);
+            
+            if (alertOpt.isPresent()) {
+                Alert alert = alertOpt.get();
+                if (alert.getStatus() == AlertStatus.PENDING) {
+                    // ⭐ Resolve alert
+                    alert.setStatus(AlertStatus.RESOLVED);
+                    alert.setAcknowledgedAt(LocalDateTime.now()); // Dùng acknowledgedAt thay vì resolvedAt
+                    alert.setAcknowledgedBy("MQTT_SIGNAL");
+                    Alert saved = alertRepository.save(alert);
+                    
+                    log.info("✅ HELP_REQUEST alert RESOLVED via MQTT signal - Helmet: {} (ID: {})", mac, saved.getId());
+                    
+                    // ⭐ Push qua WebSocket để update UI realtime
+                    alertPublisher.publishAlertUpdate(saved);
+                } else {
+                    log.debug("HELP_REQUEST alert already resolved for helmet: {}", mac);
+                }
+            } else {
+                log.debug("No HELP_REQUEST alert found for helmet: {} - nothing to resolve", mac);
+            }
+            
+        } catch (Exception e) {
+            log.error("❌ Error resolving help request alert: {}", e.getMessage(), e);
         }
     }
 }
