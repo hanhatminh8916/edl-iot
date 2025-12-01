@@ -1,6 +1,7 @@
 package com.hatrustsoft.bfe_foraiot.service;
 
 import java.time.LocalDateTime;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +27,7 @@ public class AlertService {
     }
 
     public List<Alert> getTodayAlerts() {
-        LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
+        LocalDateTime startOfDay = VietnamTimeUtils.now().withHour(0).withMinute(0).withSecond(0);
         return alertRepository.findByTriggeredAtAfter(startOfDay);
     }
 
@@ -34,7 +35,7 @@ public class AlertService {
     public void acknowledgeAlert(Long id, String username) {
         alertRepository.findById(id).ifPresent(alert -> {
             alert.setStatus(AlertStatus.ACKNOWLEDGED);
-            alert.setAcknowledgedAt(LocalDateTime.now());
+            alert.setAcknowledgedAt(VietnamTimeUtils.now());
             alert.setAcknowledgedBy(username);
             Alert saved = alertRepository.save(alert);
             
@@ -55,7 +56,7 @@ public class AlertService {
     }
 
     public Map<String, Object> getStatistics(int days) {
-        LocalDateTime since = LocalDateTime.now().minusDays(days);
+        LocalDateTime since = VietnamTimeUtils.now().minusDays(days);
         List<Alert> recentAlerts = alertRepository.findByTriggeredAtAfter(since);
 
         Map<String, Object> stats = new HashMap<>();
@@ -67,3 +68,4 @@ public class AlertService {
         return stats;
     }
 }
+

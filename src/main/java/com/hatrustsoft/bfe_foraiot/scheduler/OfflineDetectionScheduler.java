@@ -109,7 +109,7 @@ public class OfflineDetectionScheduler {
     private void cleanupOnlineHelmets() {
         try {
             List<HelmetData> allHelmets = redisCacheService.getAllActiveHelmets();
-            java.time.LocalDateTime threshold = java.time.LocalDateTime.now().minusSeconds(OFFLINE_TIMEOUT_SECONDS);
+            java.time.LocalDateTime threshold = com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils.now().minusSeconds(OFFLINE_TIMEOUT_SECONDS);
             
             // Lấy danh sách MAC đang online (có data trong 30s gần đây)
             Set<String> onlineMacs = new HashSet<>();
@@ -136,3 +136,5 @@ public class OfflineDetectionScheduler {
         }
     }
 }
+
+

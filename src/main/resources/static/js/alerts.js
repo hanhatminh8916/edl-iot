@@ -288,18 +288,21 @@ async function resolveAlert(alertId) {
 
 // Helper functions for text formatting
 function formatDateTime(dateString) {
+    // Use VietnamTime utility if available, otherwise fallback
+    if (typeof VietnamTime !== 'undefined') {
+        return VietnamTime.format(dateString);
+    }
+    
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     
-    // Convert to Vietnam timezone (UTC+7)
-    const vietnamTime = new Date(date.getTime() + (7 * 60 * 60 * 1000));
-    
-    return vietnamTime.toLocaleString('vi-VN', {
+    return date.toLocaleString('vi-VN', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
+        second: '2-digit',
         timeZone: 'Asia/Ho_Chi_Minh'
     });
 }

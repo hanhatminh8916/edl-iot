@@ -2,6 +2,8 @@ package com.hatrustsoft.bfe_foraiot.controller;
 
 import java.net.URI;
 import java.time.LocalDateTime;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,8 +59,8 @@ public class ZoneController {
         zone.setPolygonCoordinates((String) payload.get("polygonCoordinates"));
         zone.setColor((String) payload.getOrDefault("color", "#FFA500")); // Default orange/yellow
         zone.setStatus(Zone.ZoneStatus.ACTIVE);
-        zone.setCreatedAt(LocalDateTime.now());
-        zone.setUpdatedAt(LocalDateTime.now());
+        zone.setCreatedAt(VietnamTimeUtils.now());
+        zone.setUpdatedAt(VietnamTimeUtils.now());
 
         Zone saved = zoneRepository.save(zone);
         
@@ -90,7 +92,7 @@ public class ZoneController {
                     if (payload.containsKey("status")) {
                         zone.setStatus(Zone.ZoneStatus.valueOf((String) payload.get("status")));
                     }
-                    zone.setUpdatedAt(LocalDateTime.now());
+                    zone.setUpdatedAt(VietnamTimeUtils.now());
                     
                     Zone updated = zoneRepository.save(zone);
                     
@@ -124,3 +126,5 @@ public class ZoneController {
                 .orElse(ResponseEntity.notFound().build());
     }
 }
+
+

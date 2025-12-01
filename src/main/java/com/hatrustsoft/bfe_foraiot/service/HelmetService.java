@@ -1,6 +1,7 @@
 package com.hatrustsoft.bfe_foraiot.service;
 
 import java.time.LocalDateTime;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -52,7 +53,7 @@ public class HelmetService {
         alert.setMessage(generateAlertMessage(dto));
         alert.setGpsLat(dto.getGpsLat());
         alert.setGpsLon(dto.getGpsLon());
-        alert.setTriggeredAt(LocalDateTime.now());
+        alert.setTriggeredAt(VietnamTimeUtils.now());
         alert.setStatus(AlertStatus.PENDING);
 
         Alert saved = alertRepository.save(alert);
@@ -146,9 +147,9 @@ public class HelmetService {
                     newHelmet.setMacAddress(macAddress);
                     newHelmet.setStatus(HelmetStatus.ACTIVE);
                     newHelmet.setBatteryLevel(100);
-                    newHelmet.setCreatedAt(LocalDateTime.now());
-                    newHelmet.setUpdatedAt(LocalDateTime.now());
-                    newHelmet.setLastSeen(LocalDateTime.now());
+                    newHelmet.setCreatedAt(VietnamTimeUtils.now());
+                    newHelmet.setUpdatedAt(VietnamTimeUtils.now());
+                    newHelmet.setLastSeen(VietnamTimeUtils.now());
                     
                     return helmetRepository.save(newHelmet);
                 });
@@ -174,8 +175,8 @@ public class HelmetService {
             helmet.setStatus(status);
         }
         
-        helmet.setLastSeen(LocalDateTime.now());
-        helmet.setUpdatedAt(LocalDateTime.now());
+        helmet.setLastSeen(VietnamTimeUtils.now());
+        helmet.setUpdatedAt(VietnamTimeUtils.now());
         
         helmetRepository.save(helmet);
     }
@@ -203,3 +204,4 @@ public class HelmetService {
         );
     }
 }
+

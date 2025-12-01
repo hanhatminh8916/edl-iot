@@ -2,6 +2,7 @@ package com.hatrustsoft.bfe_foraiot.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -46,7 +47,7 @@ public class DashboardService {
         
         // Lấy số công nhân đang hoạt động từ Redis (online trong 30s)
         List<HelmetData> activeHelmets = redisCacheService.getAllActiveHelmets();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = VietnamTimeUtils.now();
         
         long activeWorkers = activeHelmets.stream()
             .filter(h -> h.getReceivedAt() != null)
@@ -183,7 +184,7 @@ public class DashboardService {
 
         Map<String, Object> data = new HashMap<>();
         data.put("helmets", activeHelmets);
-        data.put("timestamp", LocalDateTime.now());
+        data.put("timestamp", VietnamTimeUtils.now());
 
         return data;
     }
@@ -202,7 +203,7 @@ public class DashboardService {
             }
         }
         
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = VietnamTimeUtils.now();
 
         return employees.stream().map(employee -> {
             Map<String, Object> w = new HashMap<>();
@@ -310,7 +311,7 @@ public class DashboardService {
         Map<String, Object> report = new HashMap<>();
         report.put("startDate", startDate);
         report.put("endDate", endDate);
-        report.put("generatedAt", LocalDateTime.now());
+        report.put("generatedAt", VietnamTimeUtils.now());
 
         // Get all employees with their helmets and statistics
         List<Employee> employees = employeeRepository.findAll();
@@ -411,3 +412,4 @@ public class DashboardService {
         return report;
     }
 }
+

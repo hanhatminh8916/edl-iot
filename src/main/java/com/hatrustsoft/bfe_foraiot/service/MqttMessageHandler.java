@@ -27,6 +27,7 @@ import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
 import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetDataRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetRepository;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -174,7 +175,7 @@ public class MqttMessageHandler implements MessageHandler {
                 LocalDateTime timestamp = LocalDateTime.parse(timestampStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
                 data.setTimestamp(timestamp);
             } else {
-                data.setTimestamp(LocalDateTime.now());
+                data.setTimestamp(VietnamTimeUtils.now());
             }
 
             // ⭐ AUTO-CREATE HELMET if not exists (chỉ khi cần)
@@ -237,7 +238,7 @@ public class MqttMessageHandler implements MessageHandler {
                     .helpRequest(helpRequest == 1)
                     .status("online")
                     .timestamp(data.getTimestamp())
-                    .receivedAt(LocalDateTime.now())
+                    .receivedAt(VietnamTimeUtils.now())
                     .build();
                 
                 // 📡 Stream realtime (không lưu vào DB/Redis)
@@ -304,7 +305,7 @@ public class MqttMessageHandler implements MessageHandler {
     private void checkDangerZoneAlert(HelmetData data, String dangerZoneId, 
                                       double distance, Double anchorLat, Double anchorLon) {
         String mac = data.getMac();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = VietnamTimeUtils.now();
         
         // Debounce: Chỉ cảnh báo mỗi 30s để tránh spam
         LocalDateTime lastAlert = lastDangerZoneAlert.get(mac);
@@ -399,7 +400,7 @@ public class MqttMessageHandler implements MessageHandler {
     private void createFallDetectedAlert(HelmetData data) {
         try {
             String mac = data.getMac();
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = VietnamTimeUtils.now();
             
             // Tìm helmet theo MAC
             Helmet helmet = helmetService.findOrCreateHelmetByMac(data.getMac());
@@ -471,7 +472,7 @@ public class MqttMessageHandler implements MessageHandler {
     private void createHelpRequestAlert(HelmetData data) {
         try {
             String mac = data.getMac();
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = VietnamTimeUtils.now();
             
             log.warn("🆘 createHelpRequestAlert() called for MAC: {}", mac);
             
@@ -571,7 +572,7 @@ public class MqttMessageHandler implements MessageHandler {
                 if (alert.getStatus() == AlertStatus.PENDING) {
                     // ⭐ Resolve alert
                     alert.setStatus(AlertStatus.RESOLVED);
-                    alert.setAcknowledgedAt(LocalDateTime.now());
+                    alert.setAcknowledgedAt(VietnamTimeUtils.now());
                     alert.setAcknowledgedBy("MQTT_SIGNAL");
                     Alert saved = alertRepository.save(alert);
                     
@@ -618,7 +619,7 @@ public class MqttMessageHandler implements MessageHandler {
                 if (alert.getStatus() == AlertStatus.PENDING) {
                     // ⭐ Resolve alert
                     alert.setStatus(AlertStatus.RESOLVED);
-                    alert.setAcknowledgedAt(LocalDateTime.now()); // Dùng acknowledgedAt thay vì resolvedAt
+                    alert.setAcknowledgedAt(VietnamTimeUtils.now()); // Dùng acknowledgedAt thay vì resolvedAt
                     alert.setAcknowledgedBy("MQTT_SIGNAL");
                     Alert saved = alertRepository.save(alert);
                     

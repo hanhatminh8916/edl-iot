@@ -4,6 +4,21 @@ let helmets = [];
 let stompClient = null;
 let reloadTimeout = null;
 
+// Format date to Vietnam timezone
+function formatVietnamTime(dateString) {
+    if (!dateString) return 'Chưa có';
+    const date = new Date(dateString);
+    return date.toLocaleString('vi-VN', { 
+        timeZone: 'Asia/Ho_Chi_Minh',
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+
 // Load all helmets on page load
 async function loadHelmets() {
     try {
@@ -85,7 +100,7 @@ function createHelmetCard(helmet) {
     const batteryClass = batteryLevel < 20 ? 'low' : batteryLevel < 50 ? 'medium' : '';
     const statusText = getStatusText(helmet.status);
     const workerName = helmet.worker ? helmet.worker.name : 'Chưa gán';
-    const lastSeen = helmet.lastSeen ? new Date(helmet.lastSeen).toLocaleString('vi-VN') : 'Chưa có';
+    const lastSeen = formatVietnamTime(helmet.lastSeen);
     
     return `
         <div class="helmet-card">
@@ -181,8 +196,8 @@ function showHelmetDetails(helmetId) {
     const batteryLevel = helmet.batteryLevel || 0;
     const batteryClass = batteryLevel < 20 ? 'low' : batteryLevel < 50 ? 'medium' : 'good';
     const workerName = helmet.worker ? helmet.worker.name : 'Chưa gán';
-    const lastSeen = helmet.lastSeen ? new Date(helmet.lastSeen).toLocaleString('vi-VN') : 'Chưa có';
-    const createdAt = helmet.createdAt ? new Date(helmet.createdAt).toLocaleString('vi-VN') : 'N/A';
+    const lastSeen = formatVietnamTime(helmet.lastSeen);
+    const createdAt = formatVietnamTime(helmet.createdAt);
     const location = helmet.lastLat && helmet.lastLon ? `(${helmet.lastLat}, ${helmet.lastLon})` : 'Chưa có';
     
     // Create modal HTML

@@ -12,6 +12,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import com.hatrustsoft.bfe_foraiot.dto.MessengerMessageDTO;
 import com.hatrustsoft.bfe_foraiot.entity.MessengerUser;
 import com.hatrustsoft.bfe_foraiot.repository.MessengerUserRepository;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
@@ -70,7 +71,7 @@ public class MessengerService {
                 employeeName,
                 alertType,
                 location,
-                java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))
+                com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))
         );
 
         MessengerMessageDTO.QuickReply[] quickReplies = {
@@ -145,7 +146,7 @@ public class MessengerService {
      */
     public void broadcastDangerAlert(String employeeName, String alertType, String location) {
         // Refresh cache nếu cần
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = VietnamTimeUtils.now();
         if (lastCacheRefresh == null || 
             java.time.Duration.between(lastCacheRefresh, now).toMinutes() >= CACHE_TTL_MINUTES) {
             cachedSubscribedUsers = messengerUserRepository.findBySubscribedTrue();
@@ -206,7 +207,7 @@ public class MessengerService {
     public MessengerUser saveOrUpdateUser(String psid) {
         return messengerUserRepository.findByPsid(psid)
                 .map(user -> {
-                    user.setLastInteraction(java.time.LocalDateTime.now());
+                    user.setLastInteraction(com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils.now());
                     return messengerUserRepository.save(user);
                 })
                 .orElseGet(() -> {
@@ -228,3 +229,4 @@ public class MessengerService {
         });
     }
 }
+

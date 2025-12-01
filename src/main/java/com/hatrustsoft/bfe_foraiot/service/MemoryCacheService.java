@@ -1,6 +1,7 @@
 package com.hatrustsoft.bfe_foraiot.service;
 
 import java.time.LocalDateTime;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -144,7 +145,7 @@ public class MemoryCacheService {
      * GIẢM: ~1 query/alert → 1 query/5 phút
      */
     public List<MessengerUser> getMessengerUsers() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = VietnamTimeUtils.now();
         
         // Check cache validity
         if (messengerUsersCache != null && messengerUsersCacheTime != null) {
@@ -164,7 +165,7 @@ public class MemoryCacheService {
     public void refreshMessengerUsersCache() {
         try {
             messengerUsersCache = messengerUserRepository.findBySubscribedTrue();
-            messengerUsersCacheTime = LocalDateTime.now();
+            messengerUsersCacheTime = VietnamTimeUtils.now();
             log.info("🔄 Refreshed messenger users cache: {} users", 
                 messengerUsersCache != null ? messengerUsersCache.size() : 0);
         } catch (Exception e) {
@@ -180,7 +181,7 @@ public class MemoryCacheService {
      * GIẢM: ~2-3 queries/message → queries mỗi 30s
      */
     public boolean shouldUpdateHelmet(String macAddress) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = VietnamTimeUtils.now();
         LocalDateTime lastUpdate = lastHelmetUpdateTime.get(macAddress);
         
         if (lastUpdate == null || lastUpdate.plusSeconds(HELMET_UPDATE_INTERVAL_SECONDS).isBefore(now)) {
@@ -198,7 +199,7 @@ public class MemoryCacheService {
      * GIẢM: ~2 queries/message → queries mỗi 30s
      */
     public boolean shouldSaveTagPosition(String macAddress) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = VietnamTimeUtils.now();
         LocalDateTime lastSave = lastTagPositionSaveTime.get(macAddress);
         
         if (lastSave == null || lastSave.plusSeconds(TAG_POSITION_SAVE_INTERVAL_SECONDS).isBefore(now)) {
@@ -216,7 +217,7 @@ public class MemoryCacheService {
      * GIẢM: Gửi mỗi message → Gửi mỗi 60s
      */
     public boolean shouldSendDangerAlert(String macAddress) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = VietnamTimeUtils.now();
         LocalDateTime lastAlert = lastDangerAlertTime.get(macAddress);
         
         if (lastAlert == null || lastAlert.plusSeconds(DANGER_ALERT_DEBOUNCE_SECONDS).isBefore(now)) {
@@ -232,7 +233,7 @@ public class MemoryCacheService {
      */
     @Scheduled(fixedRate = 600000) // 10 phút
     public void cleanupOldEntries() {
-        LocalDateTime threshold = LocalDateTime.now().minusMinutes(30);
+        LocalDateTime threshold = VietnamTimeUtils.now().minusMinutes(30);
         
         // Cleanup helmet update tracking
         lastHelmetUpdateTime.entrySet().removeIf(entry -> entry.getValue().isBefore(threshold));
@@ -259,3 +260,4 @@ public class MemoryCacheService {
         );
     }
 }
+

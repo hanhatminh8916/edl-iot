@@ -1,6 +1,11 @@
 package com.hatrustsoft.bfe_foraiot.entity;
 
 import java.time.LocalDateTime;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -47,6 +52,11 @@ public class HelmetData {
     
     @PrePersist
     protected void onCreate() {
-        receivedAt = LocalDateTime.now();
+        receivedAt = VietnamTimeUtils.now();
     }
 }
+
+
+
+
+

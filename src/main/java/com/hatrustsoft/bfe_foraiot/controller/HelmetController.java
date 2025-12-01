@@ -1,5 +1,22 @@
 package com.hatrustsoft.bfe_foraiot.controller;
 
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.hatrustsoft.bfe_foraiot.dto.CommandDTO;
 import com.hatrustsoft.bfe_foraiot.dto.HelmetDataDTO;
 import com.hatrustsoft.bfe_foraiot.entity.HelmetData;
@@ -7,16 +24,9 @@ import com.hatrustsoft.bfe_foraiot.model.Helmet;
 import com.hatrustsoft.bfe_foraiot.model.HelmetStatus;
 import com.hatrustsoft.bfe_foraiot.service.HelmetService;
 import com.hatrustsoft.bfe_foraiot.service.RedisCacheService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/helmet")
@@ -89,10 +99,10 @@ public class HelmetController {
                 helmetMap.put("lastLon", realtimeData.getLon());
                 helmetMap.put("lastSeen", realtimeData.getReceivedAt());
                 
-                // Determine status based on receivedAt time
+                // Determine status based on receivedAt time (Vietnam timezone)
                 LocalDateTime receivedAt = realtimeData.getReceivedAt();
                 if (receivedAt != null) {
-                    long minutesAgo = ChronoUnit.MINUTES.between(receivedAt, LocalDateTime.now());
+                    long minutesAgo = ChronoUnit.MINUTES.between(receivedAt, VietnamTimeUtils.now());
                     if (minutesAgo <= 2) {
                         helmetMap.put("status", HelmetStatus.ACTIVE);
                     } else if (minutesAgo <= 10) {

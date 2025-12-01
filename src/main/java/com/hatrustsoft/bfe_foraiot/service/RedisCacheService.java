@@ -35,7 +35,7 @@ public class RedisCacheService {
     public void cacheHelmetData(HelmetData data) {
         try {
             // ⏰ Update receivedAt to current server time
-            data.setReceivedAt(java.time.LocalDateTime.now());
+            data.setReceivedAt(com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils.now());
             
             String key = HELMET_CACHE_PREFIX + data.getMac();
             redisTemplate.opsForValue().set(key, data, CACHE_TTL_SECONDS, TimeUnit.SECONDS);
@@ -106,7 +106,7 @@ public class RedisCacheService {
             Set<String> keys = redisTemplate.keys(HELMET_CACHE_PREFIX + "*");
             if (keys == null) return offlineHelmets;
             
-            java.time.LocalDateTime threshold = java.time.LocalDateTime.now().minusSeconds(timeoutSeconds);
+            java.time.LocalDateTime threshold = com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils.now().minusSeconds(timeoutSeconds);
             
             for (String key : keys) {
                 HelmetData data = redisTemplate.opsForValue().get(key);
@@ -140,3 +140,4 @@ public class RedisCacheService {
         }
     }
 }
+

@@ -1,6 +1,7 @@
 package com.hatrustsoft.bfe_foraiot.service;
 
 import java.time.LocalDateTime;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +56,7 @@ public class PositioningService {
     @Transactional
     public void publishRealtimePosition(HelmetRealtimeDTO dto) {
         String mac = dto.getMac();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = VietnamTimeUtils.now();
         
         // Update cache
         helmetCache.put(mac, dto);
@@ -188,7 +189,7 @@ public class PositioningService {
     @Scheduled(fixedRate = 10000) // 10 giây
     @Transactional
     public void checkOfflineTags() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = VietnamTimeUtils.now();
         LocalDateTime threshold = now.minusSeconds(OFFLINE_TIMEOUT_SECONDS);
         
         // Đánh dấu offline trong DB
@@ -248,3 +249,4 @@ public class PositioningService {
         lastSeenTime.remove(mac);
     }
 }
+

@@ -1,6 +1,9 @@
 package com.hatrustsoft.bfe_foraiot.entity;
 
 import java.time.LocalDateTime;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -40,12 +43,15 @@ public class MessengerUser {
     
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        lastInteraction = LocalDateTime.now();
+        createdAt = VietnamTimeUtils.now();
+        lastInteraction = VietnamTimeUtils.now();
     }
     
     @PreUpdate
     protected void onUpdate() {
-        lastInteraction = LocalDateTime.now();
+        lastInteraction = VietnamTimeUtils.now();
     }
 }
+
+
+

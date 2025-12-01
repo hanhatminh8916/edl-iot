@@ -1,6 +1,9 @@
 package com.hatrustsoft.bfe_foraiot.entity;
 
 import java.time.LocalDateTime;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -78,8 +81,8 @@ public class TagLastPosition {
     
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        createdAt = VietnamTimeUtils.now();
+        updatedAt = VietnamTimeUtils.now();
         if (isOnline == null) {
             isOnline = true;
         }
@@ -87,6 +90,9 @@ public class TagLastPosition {
     
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = VietnamTimeUtils.now();
     }
 }
+
+
+
