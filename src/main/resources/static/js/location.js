@@ -701,6 +701,21 @@ document.head.appendChild(style);
 // WEBSOCKET REAL-TIME UPDATE
 // ==========================================
 var stompClient = null;
+var loadWorkersTimeout = null;
+
+/**
+ * ⭐ Debounce loadWorkers để tránh gọi quá nhiều lần liên tiếp
+ * Chờ 500ms sau tin nhắn cuối cùng mới reload
+ */
+function debounceLoadWorkers() {
+    if (loadWorkersTimeout) {
+        clearTimeout(loadWorkersTimeout);
+    }
+    loadWorkersTimeout = setTimeout(function() {
+        console.log('🔄 Debounced reload workers list');
+        loadWorkers();
+    }, 500);
+}
 
 function connectWebSocket() {
     console.log('🔌 Connecting to WebSocket...');
@@ -723,6 +738,10 @@ function connectWebSocket() {
                 
                 // Update marker on map in real-time
                 updateMarkerRealtime(data);
+                
+                // ⭐ REALTIME: Update workers list và status cards
+                // Dùng debounce để tránh reload quá nhiều
+                debounceLoadWorkers();
                 
             } catch (e) {
                 console.error('❌ Error parsing WebSocket message:', e);
@@ -782,6 +801,9 @@ function connectWebSocket() {
                     handleFallAlertOnMap(alert);
                 }
                 
+                // ⭐ REALTIME: Reload workers list và status cards ngay lập tức
+                loadWorkers();
+                
             } catch (e) {
                 console.error('❌ Error parsing alert message:', e);
             }
@@ -802,6 +824,9 @@ function connectWebSocket() {
                         showNotification(`Cảnh báo đã được xử lý: ${mac}`, 'success');
                     }
                 }
+                
+                // ⭐ REALTIME: Reload workers list và status cards ngay lập tức
+                loadWorkers();
                 
             } catch (e) {
                 console.error('❌ Error parsing alert update:', e);
