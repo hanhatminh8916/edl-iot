@@ -192,18 +192,23 @@ public class PositioningService {
         LocalDateTime now = VietnamTimeUtils.now();
         LocalDateTime threshold = now.minusSeconds(OFFLINE_TIMEOUT_SECONDS);
         
+        log.debug("⏰ Checking offline tags. Cache size: {}, now: {}", lastSeenTime.size(), now);
+        
         // Đánh dấu offline trong DB
         int offlineCount = tagLastPositionRepository.markOfflineByLastSeenBefore(threshold);
         if (offlineCount > 0) {
-            log.info("⚪ Marked {} tags as offline", offlineCount);
+            log.info("⚪ Marked {} tags as offline in DB", offlineCount);
         }
         
         // Notify frontend về các tag offline (từ cache)
+        int notifiedCount = 0;
         for (Map.Entry<String, LocalDateTime> entry : lastSeenTime.entrySet()) {
             String mac = entry.getKey();
             LocalDateTime lastSeen = entry.getValue();
             
             long secondsSinceLastSeen = java.time.Duration.between(lastSeen, now).getSeconds();
+            
+            log.debug("🔍 Tag {} last seen {} seconds ago", mac, secondsSinceLastSeen);
             
             if (secondsSinceLastSeen > OFFLINE_TIMEOUT_SECONDS) {
                 HelmetRealtimeDTO cachedData = helmetCache.get(mac);
@@ -214,9 +219,14 @@ public class PositioningService {
                     // 📤 Notify frontend that tag is offline (grey color)
                     messagingTemplate.convertAndSend("/topic/helmet/position", cachedData);
                     
-                    log.info("⚪ Tag {} went OFFLINE", mac);
+                    log.info("⚪ Tag {} went OFFLINE (sent via WebSocket)", mac);
+                    notifiedCount++;
                 }
             }
+        }
+        
+        if (notifiedCount > 0) {
+            log.info("📤 Notified frontend about {} offline tags", notifiedCount);
         }
     }
     

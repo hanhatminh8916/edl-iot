@@ -298,7 +298,8 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 // ✅ Xác định màu marker dựa trên polygon và status
 function getMarkerColor(lat, lon, status) {
     // OFFLINE (xám) - Ưu tiên cao nhất
-    if (status === "INACTIVE") {
+    // Support cả INACTIVE (từ API) và offline (từ WebSocket)
+    if (status === "INACTIVE" || status === "offline" || status === "OFFLINE") {
         return '#6b7280'; // Xám
     }
     
@@ -366,13 +367,14 @@ function updateMapMarkers(workers) {
         
         // ✅ Kiểm tra ra ngoài vùng an toàn
         const inside = isInsidePolygon(lat, lon, activePolygon);
-        if (!inside && status !== "INACTIVE") {
+        const isOffline = status === "INACTIVE" || status === "offline" || status === "OFFLINE";
+        if (!inside && !isOffline) {
             hasOutOfBounds = true;
         }
         
         // ✅ Tạo text mô tả trạng thái
         var statusText = "";
-        if (status === "INACTIVE") {
+        if (isOffline) {
             statusText = "Offline (vị trí cuối cùng)";
         } else if (!inside) {
             statusText = "⚠️ Ra ngoài vùng an toàn!";
@@ -444,7 +446,7 @@ function displayWorkersList(workers) {
             txt = "🆘 Cầu cứu";
             avatarColor = "#b91c1c"; // Đỏ đậm hơn
             icon = "🆘";
-        } else if (w.helmet.status === "INACTIVE") { 
+        } else if (w.helmet.status === "INACTIVE" || w.helmet.status === "offline" || w.helmet.status === "OFFLINE") { 
             cls = "offline"; 
             txt = "Offline"; 
             avatarColor = "#6b7280";
@@ -455,7 +457,8 @@ function displayWorkersList(workers) {
         }
         
         // Kiểm tra có trong safe zone không (chỉ khi không có alert)
-        if (!w.helmet.alertType && w.helmet.lastLocation && activePolygon && w.helmet.status !== "INACTIVE") {
+        const isWorkerOffline = w.helmet.status === "INACTIVE" || w.helmet.status === "offline" || w.helmet.status === "OFFLINE";
+        if (!w.helmet.alertType && w.helmet.lastLocation && activePolygon && !isWorkerOffline) {
             var inside = isInsidePolygon(w.helmet.lastLocation.latitude, w.helmet.lastLocation.longitude, activePolygon);
             if (!inside) {
                 cls = "danger";
@@ -490,7 +493,7 @@ function updateStatusCards(workers) {
         // 🚨 Kiểm tra alert type trước
         if (w.helmet.alertType === "FALL" || w.helmet.alertType === "HELP_REQUEST") {
             danger++; // Té ngã và Cầu cứu đều là nguy hiểm
-        } else if (w.helmet.status === "INACTIVE") {
+        } else if (w.helmet.status === "INACTIVE" || w.helmet.status === "offline" || w.helmet.status === "OFFLINE") {
             offline++;
         } else if (w.helmet.status === "ALERT") {
             warning++;

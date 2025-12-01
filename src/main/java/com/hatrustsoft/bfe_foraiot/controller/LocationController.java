@@ -24,6 +24,7 @@ import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
 import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetDataRepository;
 import com.hatrustsoft.bfe_foraiot.service.MemoryCacheService;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -90,7 +91,7 @@ public class LocationController {
         log.info("📡 Redis: {} helmets, Employees: {}, Pending alerts: {}", 
             cachedHelmets.size(), employeeMap.size(), pendingAlerts.size());
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = VietnamTimeUtils.now(); // ✅ Fix timezone issue
 
         // Map với employee data - KHÔNG CÓ DB QUERY trong loop!
         for (HelmetData data : cachedHelmets) {

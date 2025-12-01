@@ -1,6 +1,7 @@
 package com.hatrustsoft.bfe_foraiot.entity;
 
 import java.time.LocalDateTime;
+
 import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
 import jakarta.persistence.Column;
