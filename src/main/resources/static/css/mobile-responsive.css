@@ -1,0 +1,425 @@
+/**
+ * 📱 MOBILE RESPONSIVE STYLES - EDL SafeWork
+ * 
+ * CSS responsive cho tất cả các trang
+ * Import file này vào các trang HTML để có responsive tốt hơn
+ */
+
+/* ==================== GLOBAL MOBILE FIXES ==================== */
+
+/* Viewport fix */
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent horizontal scroll */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* ==================== TYPOGRAPHY ==================== */
+@media (max-width: 768px) {
+    h1 { font-size: 1.5rem !important; }
+    h2 { font-size: 1.25rem !important; }
+    h3 { font-size: 1.1rem !important; }
+    h4 { font-size: 1rem !important; }
+    
+    p, span, a, td, th, li {
+        font-size: 14px;
+    }
+}
+
+/* ==================== DASHBOARD / INDEX PAGE ==================== */
+@media (max-width: 768px) {
+    .dashboard-container {
+        padding: 12px !important;
+    }
+    
+    .dashboard-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start !important;
+    }
+    
+    .stats-grid, .dashboard-cards, .card-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    
+    .stat-card, .dashboard-card {
+        padding: 16px !important;
+    }
+    
+    .stat-value, .card-value {
+        font-size: 2rem !important;
+    }
+    
+    .quick-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .quick-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ==================== LOCATION PAGE ==================== */
+@media (max-width: 768px) {
+    .location-container {
+        flex-direction: column !important;
+        height: auto !important;
+        min-height: 100vh;
+    }
+    
+    .map-section {
+        height: 50vh !important;
+        min-height: 300px;
+        order: 1;
+    }
+    
+    #map {
+        height: 100% !important;
+    }
+    
+    .sidebar-section, .worker-panel {
+        height: auto !important;
+        max-height: 50vh;
+        width: 100% !important;
+        order: 2;
+    }
+    
+    .worker-list {
+        max-height: calc(50vh - 100px);
+        overflow-y: auto;
+    }
+    
+    .worker-card {
+        padding: 12px !important;
+    }
+    
+    /* Stats row on map */
+    .stats-row {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .stats-row .stat-item {
+        flex: 1 1 45%;
+        min-width: 100px;
+        padding: 8px !important;
+        font-size: 12px;
+    }
+    
+    /* Map controls */
+    .map-controls, .leaflet-control-container {
+        font-size: 12px;
+    }
+    
+    .leaflet-control-zoom a {
+        width: 30px !important;
+        height: 30px !important;
+        line-height: 30px !important;
+    }
+}
+
+/* ==================== POSITIONING 2D PAGE ==================== */
+@media (max-width: 768px) {
+    .positioning-container {
+        padding: 8px !important;
+    }
+    
+    .canvas-container {
+        height: 60vh !important;
+        min-height: 300px;
+    }
+    
+    #positioning-canvas {
+        touch-action: manipulation;
+    }
+    
+    .control-panel {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        padding: 12px;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+        z-index: 100;
+    }
+    
+    .legend {
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+    }
+    
+    .legend-item {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+}
+
+/* ==================== ALERTS PAGE ==================== */
+@media (max-width: 768px) {
+    .alerts-container {
+        padding: 12px !important;
+    }
+    
+    .alert-filters {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .alert-filters select,
+    .alert-filters input {
+        width: 100%;
+    }
+    
+    .alert-card {
+        padding: 12px !important;
+    }
+    
+    .alert-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 8px;
+    }
+    
+    .alert-actions {
+        width: 100%;
+        display: flex;
+        gap: 8px;
+    }
+    
+    .alert-actions .btn {
+        flex: 1;
+        justify-content: center;
+        padding: 8px 12px;
+    }
+}
+
+/* ==================== EMPLOYEES PAGE ==================== */
+@media (max-width: 768px) {
+    .employees-container {
+        padding: 12px !important;
+    }
+    
+    .employee-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    
+    .employee-card {
+        padding: 16px !important;
+    }
+    
+    .employee-avatar {
+        width: 50px !important;
+        height: 50px !important;
+        font-size: 20px !important;
+    }
+    
+    .employee-info h3 {
+        font-size: 16px;
+    }
+    
+    .employee-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .employee-actions .btn {
+        width: 100%;
+    }
+}
+
+/* ==================== TABLES ==================== */
+@media (max-width: 768px) {
+    .table-container, .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0 -12px;
+        padding: 0 12px;
+    }
+    
+    table {
+        min-width: 600px;
+        font-size: 13px;
+    }
+    
+    th, td {
+        padding: 10px 8px !important;
+        white-space: nowrap;
+    }
+    
+    /* Scrollable table hint */
+    .table-container::after {
+        content: '← Vuốt để xem thêm →';
+        display: block;
+        text-align: center;
+        font-size: 11px;
+        color: #94a3b8;
+        padding: 8px;
+    }
+}
+
+/* ==================== FORMS ==================== */
+@media (max-width: 768px) {
+    .form-group {
+        margin-bottom: 16px;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    input, select, textarea {
+        font-size: 16px !important; /* Prevent zoom on iOS */
+        padding: 12px !important;
+    }
+    
+    .btn {
+        padding: 12px 20px !important;
+        font-size: 14px !important;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .btn-group .btn {
+        width: 100%;
+    }
+}
+
+/* ==================== MODALS ==================== */
+@media (max-width: 768px) {
+    .modal-content, .dialog-content {
+        width: 95% !important;
+        max-width: none !important;
+        margin: 10px auto !important;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .modal-header, .modal-body, .modal-footer {
+        padding: 16px !important;
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .modal-footer .btn {
+        width: 100%;
+    }
+}
+
+/* ==================== HEADER ==================== */
+@media (max-width: 768px) {
+    .header, header, .top-header, .navbar {
+        padding: 12px 16px !important;
+        padding-left: 60px !important; /* Space for hamburger */
+    }
+    
+    .header-title, .page-title {
+        font-size: 16px !important;
+    }
+    
+    .header-actions {
+        gap: 8px;
+    }
+    
+    .header-actions .btn {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    
+    /* Hide text on header buttons, show only icons */
+    .header-actions .btn span:not(.badge) {
+        display: none;
+    }
+    
+    .user-info .user-name {
+        display: none;
+    }
+}
+
+/* ==================== CHARTS ==================== */
+@media (max-width: 768px) {
+    .chart-container {
+        height: 250px !important;
+    }
+    
+    .chart-legend {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+    }
+}
+
+/* ==================== UTILITY CLASSES ==================== */
+@media (max-width: 768px) {
+    .hide-mobile { display: none !important; }
+    .show-mobile { display: block !important; }
+    
+    .text-center-mobile { text-align: center !important; }
+    .full-width-mobile { width: 100% !important; }
+    
+    .p-mobile { padding: 12px !important; }
+    .m-mobile { margin: 12px !important; }
+    
+    .gap-mobile { gap: 12px !important; }
+    
+    .flex-col-mobile {
+        flex-direction: column !important;
+    }
+}
+
+/* ==================== SAFE AREA (Notch support) ==================== */
+@supports (padding: max(0px)) {
+    .header, header, .top-header {
+        padding-top: max(12px, env(safe-area-inset-top)) !important;
+    }
+    
+    .mobile-menu {
+        padding-top: max(16px, env(safe-area-inset-top));
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+    
+    .control-panel {
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+}
+
+/* ==================== ANIMATIONS (Reduce motion) ==================== */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ==================== PRINT STYLES ==================== */
+@media print {
+    .mobile-menu-btn,
+    .mobile-menu-overlay,
+    .header-actions,
+    .sidebar,
+    .no-print {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+    }
+}

@@ -2,9 +2,26 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EDL SafeWork - Hệ thống giám sát công trường</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1e40af">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SafeWork">
+    <meta name="description" content="Hệ thống giám sát vị trí và an toàn công nhân tại công trường">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/images/icon.svg">
+    <link rel="apple-touch-icon" href="/images/icon-192.png">
+    
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/mobile-responsive.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -376,7 +393,7 @@
             container.innerHTML = html;
         }
 
-        function refreshAIInsights() {
+function refreshAIInsights() {
             const container = document.getElementById('ai-insights-container');
             container.innerHTML = `
                 <div style="text-align: center; padding: 30px; color: #6b7280;">
@@ -387,6 +404,9 @@
             loadDailyAIInsights();
         }
     </script>
+    
+    <!-- Mobile Navigation & PWA -->
+    <script src="js/mobile-nav.js"></script>
+    <script src="js/pwa-init.js"></script>
 </body>
 </html>
-

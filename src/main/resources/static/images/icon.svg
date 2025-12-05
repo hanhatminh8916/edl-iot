@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="#1e40af"/>
+  
+  <!-- Helmet shape -->
+  <ellipse cx="256" cy="280" rx="140" ry="100" fill="#fbbf24"/>
+  <ellipse cx="256" cy="260" rx="130" ry="85" fill="#fcd34d"/>
+  
+  <!-- Helmet top -->
+  <path d="M126 280 Q256 120 386 280" fill="none" stroke="#fbbf24" stroke-width="40" stroke-linecap="round"/>
+  
+  <!-- Signal waves -->
+  <path d="M380 180 Q420 140 380 100" fill="none" stroke="#10b981" stroke-width="12" stroke-linecap="round"/>
+  <path d="M400 200 Q450 150 400 90" fill="none" stroke="#10b981" stroke-width="10" stroke-linecap="round"/>
+  <path d="M420 220 Q480 160 420 80" fill="none" stroke="#10b981" stroke-width="8" stroke-linecap="round"/>
+  
+  <!-- Location pin -->
+  <circle cx="256" cy="380" r="30" fill="#ef4444"/>
+  <circle cx="256" cy="380" r="12" fill="white"/>
+  
+  <!-- Text -->
+  <text x="256" y="460" text-anchor="middle" font-family="Arial, sans-serif" font-size="40" font-weight="bold" fill="white">SafeWork</text>
+</svg>

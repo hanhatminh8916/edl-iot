@@ -67,7 +67,7 @@ public class PositioningService {
         // 💾 Lưu vị trí cuối vào DB - CHỈ MỖI 30 GIÂY (throttle) 🚀
         if (memoryCacheService.shouldSaveTagPosition(mac)) {
             saveLastPosition(dto, now);
-            log.debug("💾 Saved tag position to DB: {}", mac);
+            log.info("💾 [THROTTLE] Saved tag position to DB: {} (every 30s)", mac);
         }
         
         log.debug("📍 Realtime position: {} UWB={}", mac, dto.getUwb());

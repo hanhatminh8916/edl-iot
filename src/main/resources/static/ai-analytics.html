@@ -3,9 +3,22 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI Analytics - Safety Monitoring</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="description" content="AI phân tích an toàn công trường">
+    
+    <!-- PWA Manifest & Icons -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/images/icon.svg">
+    <link rel="apple-touch-icon" href="/images/icon-192.png">
+    
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/mobile-responsive.css">
     <style>
         * {
             margin: 0;
@@ -16,9 +29,7 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: #f5f7fa;
-        }
-
-        /* Header */
+        }        /* Header */
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -688,13 +699,14 @@
         });
     </script>
     
-    <!-- Global Alert Banner -->
+<!-- Global Alert Banner -->
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
     <script src="js/vietnam-time.js"></script>
-    <script src="js/vietnam-time.js"></script>
     <script src="js/global-alerts.js"></script>
+    <!-- Mobile Navigation & PWA -->
+    <script src="js/mobile-nav.js"></script>
+    <script src="js/pwa-init.js"></script>
 </body>
 
 </html>
-

@@ -2,8 +2,22 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Quản lý Nhân viên & MAC Address</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="description" content="Quản lý nhân viên và địa chỉ MAC mũ bảo hộ">
+    
+    <!-- PWA Manifest & Icons -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/images/icon.svg">
+    <link rel="apple-touch-icon" href="/images/icon-192.png">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <style>
         * {
             margin: 0;
@@ -16,9 +30,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
-        }
-
-        .container {
+        }        .container {
             max-width: 1200px;
             margin: 0 auto;
             background: white;
@@ -513,7 +525,7 @@
             }, 5000);
         }
 
-        // Close modal when clicking outside
+// Close modal when clicking outside
         window.onclick = function(event) {
             const modal = document.getElementById('assignMacModal');
             if (event.target === modal) {
@@ -521,5 +533,9 @@
             }
         }
     </script>
+    
+    <!-- Mobile Navigation & PWA -->
+    <script src="js/mobile-nav.js"></script>
+    <script src="js/pwa-init.js"></script>
 </body>
 </html>

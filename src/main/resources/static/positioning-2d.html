@@ -2,14 +2,28 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Sơ Đồ 2D Positioning - EDL SafeWork v188 (Realtime UWB)</title>
+    <title>Sơ Đồ 2D Positioning - EDL SafeWork</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1e40af">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Sơ đồ định vị 2D UWB theo thời gian thực">
+    
+    <!-- PWA Manifest & Icons -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/images/icon.svg">
+    <link rel="apple-touch-icon" href="/images/icon-192.png">
+    
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=187">
-    <link rel="stylesheet" href="css/location.css?v=187">
+    <link rel="stylesheet" href="css/style.css?v=188">
+    <link rel="stylesheet" href="css/location.css?v=188">
+    <link rel="stylesheet" href="css/mobile-responsive.css">
     <style>
         .main-content {
             padding: 20px;
@@ -1523,7 +1537,7 @@
                     const length = Math.sqrt(dx * dx + dy * dy);
                     const angle = Math.atan2(dy, dx) * 180 / Math.PI;
                     
-                    const line = document.createElement('div');
+const line = document.createElement('div');
                     line.className = 'distance-line';
                     line.style.left = tagX + 'px';
                     line.style.top = tagY + 'px';
@@ -1543,5 +1557,9 @@
             }, 100);
         }
     </script>
+    
+    <!-- Mobile Navigation & PWA -->
+    <script src="js/mobile-nav.js"></script>
+    <script src="js/pwa-init.js"></script>
 </body>
 </html>

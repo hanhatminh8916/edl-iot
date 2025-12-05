@@ -2,13 +2,27 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>EDL SafeWork - Giám sát vị trí thời gian thực (v183)</title>
-    <link rel="stylesheet" href="css/style.css?v=183">
-    <link rel="stylesheet" href="css/location.css?v=183">
+    <title>EDL SafeWork - Giám sát vị trí thời gian thực</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1e40af">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Giám sát vị trí công nhân trên bản đồ theo thời gian thực">
+    
+    <!-- PWA Manifest & Icons -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/images/icon.svg">
+    <link rel="apple-touch-icon" href="/images/icon-192.png">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/style.css?v=184">
+    <link rel="stylesheet" href="css/location.css?v=184">
+    <link rel="stylesheet" href="css/mobile-responsive.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
@@ -227,10 +241,11 @@
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
     <script src="js/vietnam-time.js"></script>
-    <script src="js/vietnam-time.js"></script>
     <script src="js/global-alerts.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/location.js?v=190"></script>
+    <!-- Mobile Navigation & PWA -->
+    <script src="js/mobile-nav.js"></script>
+    <script src="js/pwa-init.js"></script>
 </body>
 </html>
-
