@@ -7,9 +7,9 @@
  * 3. Cache-first strategy cho assets
  */
 
-const CACHE_NAME = 'safework-v2';
-const STATIC_CACHE = 'safework-static-v2';
-const DYNAMIC_CACHE = 'safework-dynamic-v2';
+const CACHE_NAME = 'safework-v3';
+const STATIC_CACHE = 'safework-static-v3';
+const DYNAMIC_CACHE = 'safework-dynamic-v3';
 
 // Files to cache immediately on install
 const STATIC_ASSETS = [

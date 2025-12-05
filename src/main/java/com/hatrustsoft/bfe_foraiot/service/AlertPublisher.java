@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Alert Publisher
- * Push alerts qua WebSocket khi có cảnh báo mới hoặc cập nhật
+ * Push alerts qua WebSocket và Web Push khi có cảnh báo mới hoặc cập nhật
  */
 @Service
 @Slf4j
@@ -18,9 +18,12 @@ public class AlertPublisher {
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
+    
+    @Autowired
+    private WebPushService webPushService;
 
     /**
-     * Broadcast alert mới qua WebSocket
+     * Broadcast alert mới qua WebSocket và Web Push
      */
     public void publishNewAlert(Alert alert) {
         try {
@@ -29,6 +32,9 @@ public class AlertPublisher {
             
             log.info("📡 Published new alert to WebSocket: ID={}, Type={}", 
                 alert.getId(), alert.getAlertType());
+            
+            // ⭐ Gửi Web Push Notification (async) - chỉ cho FALL và HELP_REQUEST
+            webPushService.sendAlertPush(alert);
             
         } catch (Exception e) {
             log.error("❌ Error publishing new alert: {}", e.getMessage(), e);

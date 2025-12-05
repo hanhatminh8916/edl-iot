@@ -88,10 +88,11 @@
     }
     
     // Expose functions globally
-    window.enableNotifications = function(btn) {
+    window.enableNotifications = async function(btn) {
         const prompt = btn.closest('.notification-permission-prompt');
         
-        Notification.requestPermission().then(permission => {
+        try {
+            const permission = await Notification.requestPermission();
             console.log('🔔 Notification permission:', permission);
             
             if (permission === 'granted') {
@@ -100,6 +101,9 @@
                     body: 'Bạn sẽ nhận được cảnh báo khi có sự cố',
                     icon: '/images/icon-192.png'
                 });
+                
+                // ⭐ Subscribe to Web Push for background notifications
+                await subscribeToWebPush();
             }
             
             localStorage.setItem('notification-prompt-shown', 'true');
@@ -108,8 +112,134 @@
                 prompt.classList.add('hide');
                 setTimeout(() => prompt.remove(), 300);
             }
-        });
+        } catch (e) {
+            console.error('❌ Notification error:', e);
+        }
     };
+    
+    // ==================== WEB PUSH SUBSCRIPTION ====================
+    /**
+     * Subscribe to Web Push notifications
+     * Cho phép nhận thông báo khi màn hình khóa (iPhone 16.4+, Android, Desktop)
+     */
+    async function subscribeToWebPush() {
+        try {
+            // Check if push is supported
+            if (!('PushManager' in window)) {
+                console.log('⚠️ Push notifications not supported');
+                return;
+            }
+            
+            // Wait for service worker
+            const registration = await navigator.serviceWorker.ready;
+            
+            // Check if already subscribed
+            let subscription = await registration.pushManager.getSubscription();
+            
+            if (subscription) {
+                console.log('✅ Already subscribed to push');
+                await sendSubscriptionToServer(subscription);
+                return;
+            }
+            
+            // Get VAPID public key from server
+            const response = await fetch('/api/push/vapid-key');
+            const { publicKey } = await response.json();
+            
+            if (!publicKey) {
+                console.error('❌ VAPID public key not available');
+                return;
+            }
+            
+            // Convert VAPID key to Uint8Array
+            const applicationServerKey = urlBase64ToUint8Array(publicKey);
+            
+            // Subscribe
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: applicationServerKey
+            });
+            
+            console.log('✅ Push subscription created');
+            
+            // Send subscription to server
+            await sendSubscriptionToServer(subscription);
+            
+        } catch (error) {
+            console.error('❌ Push subscription failed:', error);
+        }
+    }
+    
+    /**
+     * Send subscription to backend
+     */
+    async function sendSubscriptionToServer(subscription) {
+        try {
+            const response = await fetch('/api/push/subscribe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    endpoint: subscription.endpoint,
+                    keys: {
+                        p256dh: arrayBufferToBase64(subscription.getKey('p256dh')),
+                        auth: arrayBufferToBase64(subscription.getKey('auth'))
+                    },
+                    userAgent: navigator.userAgent
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log('✅ Push subscription sent to server:', result.deviceType);
+            } else {
+                console.error('❌ Failed to save subscription:', result.message);
+            }
+        } catch (error) {
+            console.error('❌ Error sending subscription:', error);
+        }
+    }
+    
+    /**
+     * Convert VAPID public key from base64 URL to Uint8Array
+     */
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+            .replace(/-/g, '+')
+            .replace(/_/g, '/');
+        
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+    
+    /**
+     * Convert ArrayBuffer to base64
+     */
+    function arrayBufferToBase64(buffer) {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+    }
+    
+    // Auto-subscribe if already granted permission
+    if ('Notification' in window && Notification.permission === 'granted') {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(() => {
+                subscribeToWebPush();
+            });
+        }
+    }
     
     window.dismissNotificationPrompt = function(btn) {
         const prompt = btn.closest('.notification-permission-prompt');
