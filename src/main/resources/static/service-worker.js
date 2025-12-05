@@ -7,9 +7,9 @@
  * 3. Cache-first strategy cho assets
  */
 
-const CACHE_NAME = 'safework-v1';
-const STATIC_CACHE = 'safework-static-v1';
-const DYNAMIC_CACHE = 'safework-dynamic-v1';
+const CACHE_NAME = 'safework-v2';
+const STATIC_CACHE = 'safework-static-v2';
+const DYNAMIC_CACHE = 'safework-dynamic-v2';
 
 // Files to cache immediately on install
 const STATIC_ASSETS = [
@@ -179,4 +179,71 @@ self.addEventListener('message', event => {
   }
 });
 
-console.log('🔧 Service Worker: Loaded');
+// ==================== PUSH NOTIFICATIONS (PWA) ====================
+
+/**
+ * Handle notification click - open app and navigate to alert page
+ */
+self.addEventListener('notificationclick', event => {
+  console.log('🔔 Notification clicked:', event.notification.tag);
+  
+  event.notification.close();
+  
+  // Get URL from notification data or default to location page
+  const urlToOpen = event.notification.data?.url || '/location.html';
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(windowClients => {
+        // Check if app is already open
+        for (let client of windowClients) {
+          if (client.url.includes(self.registration.scope)) {
+            // App is open, focus it and navigate
+            client.focus();
+            return client.navigate(urlToOpen);
+          }
+        }
+        // App is not open, open new window
+        return clients.openWindow(urlToOpen);
+      })
+  );
+});
+
+/**
+ * Handle notification close
+ */
+self.addEventListener('notificationclose', event => {
+  console.log('🔔 Notification closed:', event.notification.tag);
+});
+
+/**
+ * Handle push events (for future Web Push implementation)
+ * This requires VAPID keys and a push service
+ */
+self.addEventListener('push', event => {
+  console.log('📲 Push received:', event);
+  
+  if (event.data) {
+    const data = event.data.json();
+    
+    const title = data.title || '🚨 Cảnh Báo Mới';
+    const options = {
+      body: data.body || 'Có cảnh báo mới từ hệ thống SafeWork',
+      icon: '/images/icon-192.png',
+      badge: '/images/icon-72.png',
+      vibrate: [200, 100, 200, 100, 200],
+      tag: data.tag || 'safework-alert',
+      requireInteraction: data.critical || false,
+      data: {
+        url: data.url || '/location.html',
+        alertId: data.alertId
+      }
+    };
+    
+    event.waitUntil(
+      self.registration.showNotification(title, options)
+    );
+  }
+});
+
+console.log('🔧 Service Worker: Loaded (with Push Notification support)');

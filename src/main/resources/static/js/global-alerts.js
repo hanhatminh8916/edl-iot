@@ -3,6 +3,12 @@
  * 
  * File này được include vào tất cả các trang HTML để hiển thị banner cảnh báo
  * khi có sự cố như: ngã, SOS, vào vùng nguy hiểm...
+ * 
+ * ⭐ PWA/Mobile Enhanced Features:
+ * - Web Notification API for background alerts
+ * - Vibration API for mobile devices
+ * - Enhanced audio alerts with multiple beeps
+ * - Focus window on critical alerts
  */
 
 (function() {
@@ -18,12 +24,28 @@
     let currentBanner = null;
     let bannerQueue = [];
     let bannerTimeout = null;
+    let notificationPermission = 'default';
+    
+    // ==================== NOTIFICATION PERMISSION ====================
+    function requestNotificationPermission() {
+        if ('Notification' in window) {
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then(permission => {
+                    notificationPermission = permission;
+                    console.log('📱 Notification permission:', permission);
+                });
+            } else {
+                notificationPermission = Notification.permission;
+            }
+        }
+    }
     
     // ==================== INIT ====================
     document.addEventListener('DOMContentLoaded', function() {
         console.log('🔔 Global Alert System initializing...');
         injectStyles();
         createBannerContainer();
+        requestNotificationPermission(); // Request permission early
         connectGlobalWebSocket();
     });
     
@@ -97,9 +119,77 @@
         // Add to queue
         bannerQueue.push(alertInfo);
         
+        // ⭐ Show system notification (works when PWA is in background)
+        showSystemNotification(alertInfo);
+        
+        // ⭐ Vibrate device for mobile
+        vibrateDevice(alertInfo.severity);
+        
         // Display if no banner showing
         if (!currentBanner) {
             displayNextBanner();
+        }
+    }
+    
+    // ==================== SYSTEM NOTIFICATION (PWA) ====================
+    function showSystemNotification(alertInfo) {
+        // Only show if page is not visible (app in background)
+        const shouldNotify = document.hidden || !document.hasFocus();
+        
+        if ('Notification' in window && Notification.permission === 'granted') {
+            const title = alertInfo.severity === 'CRITICAL' ? '🚨 CẢNH BÁO KHẨN CẤP!' : '⚠️ Cảnh Báo Mới';
+            const options = {
+                body: alertInfo.message,
+                icon: '/images/icon-192.png',
+                badge: '/images/icon-72.png',
+                tag: 'alert-' + alertInfo.id, // Prevent duplicates
+                requireInteraction: alertInfo.severity === 'CRITICAL', // Don't auto-dismiss critical
+                vibrate: alertInfo.severity === 'CRITICAL' ? [200, 100, 200, 100, 200] : [200, 100, 200],
+                data: {
+                    alertId: alertInfo.id,
+                    url: '/location.html'
+                },
+                actions: [
+                    { action: 'view', title: 'Xem chi tiết' },
+                    { action: 'dismiss', title: 'Đóng' }
+                ]
+            };
+            
+            try {
+                const notification = new Notification(title, options);
+                
+                notification.onclick = function(event) {
+                    event.preventDefault();
+                    window.focus();
+                    window.location.href = '/location.html';
+                    notification.close();
+                };
+                
+                // Auto close after 15 seconds for non-critical
+                if (alertInfo.severity !== 'CRITICAL') {
+                    setTimeout(() => notification.close(), 15000);
+                }
+            } catch (e) {
+                console.log('📱 Notification API error:', e);
+            }
+        }
+    }
+    
+    // ==================== VIBRATION ====================
+    function vibrateDevice(severity) {
+        if ('vibrate' in navigator) {
+            try {
+                if (severity === 'CRITICAL') {
+                    // Long vibration pattern for critical: 3 long bursts
+                    navigator.vibrate([300, 100, 300, 100, 300, 100, 300]);
+                } else {
+                    // Short pattern for warning: 2 short bursts
+                    navigator.vibrate([200, 100, 200]);
+                }
+                console.log('📳 Device vibrated');
+            } catch (e) {
+                console.log('📳 Vibration not supported:', e);
+            }
         }
     }
     
@@ -292,33 +382,55 @@
     
     function playAlertSound(severity) {
         try {
-            // Create beep sound
+            // Create beep sound - Enhanced for mobile/PWA
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
             
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            // Different tones for different severities
             if (severity === 'CRITICAL') {
-                oscillator.frequency.value = 800; // Higher pitch for critical
-                gainNode.gain.value = 0.3;
+                // ⭐ Multiple urgent beeps for critical alerts
+                playMultipleBeeps(audioContext, 800, 0.4, 4, 200);
             } else {
-                oscillator.frequency.value = 600;
-                gainNode.gain.value = 0.2;
+                // Single beep for warnings
+                playMultipleBeeps(audioContext, 600, 0.25, 2, 250);
             }
-            
-            oscillator.type = 'sine';
-            oscillator.start();
-            
-            // Short beep
-            setTimeout(() => {
-                oscillator.stop();
-            }, 200);
             
         } catch (e) {
             console.log('Could not play alert sound:', e);
+            // Fallback: try HTML5 Audio
+            tryFallbackAudio(severity);
+        }
+    }
+    
+    function playMultipleBeeps(audioContext, frequency, volume, count, duration) {
+        let delay = 0;
+        for (let i = 0; i < count; i++) {
+            setTimeout(() => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+                gainNode.gain.value = volume;
+                
+                oscillator.start();
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration/1000);
+                oscillator.stop(audioContext.currentTime + duration/1000);
+            }, delay);
+            delay += duration + 100; // Gap between beeps
+        }
+    }
+    
+    function tryFallbackAudio(severity) {
+        // Fallback using data URI beep sound
+        try {
+            // Create a simple beep using Web Audio API fallback
+            const audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU');
+            audio.volume = severity === 'CRITICAL' ? 0.8 : 0.5;
+            audio.play().catch(() => {});
+        } catch (e) {
+            // Silent fail
         }
     }
     
