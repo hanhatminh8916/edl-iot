@@ -605,24 +605,31 @@ class VoiceAssistant {
 
         switch(name) {
             case 'get_workers':
-                return await this.apiCall(`${baseUrl}/api/voice/workers`);
+                // Sử dụng existing API
+                return await this.apiCall(`${baseUrl}/api/workers`);
             
             case 'get_recent_alerts':
                 const limit = args.limit || 10;
-                return await this.apiCall(`${baseUrl}/api/voice/alerts?limit=${limit}`);
+                return await this.apiCall(`${baseUrl}/api/alerts/recent?limit=${limit}`);
             
             case 'get_helmet_status':
                 const macAddress = args.mac_address;
                 if (!macAddress) {
                     return { error: 'MAC address required' };
                 }
-                return await this.apiCall(`${baseUrl}/api/voice/helmet?macAddress=${macAddress}`);
+                // Get map data and filter by MAC
+                const mapData = await this.apiCall(`${baseUrl}/api/positioning/tags`);
+                const helmet = mapData.find(h => h.macAddress === macAddress);
+                if (!helmet) {
+                    return { error: `Helmet ${macAddress} not found or offline` };
+                }
+                return helmet;
             
             case 'get_map_data':
-                return await this.apiCall(`${baseUrl}/api/voice/map`);
+                return await this.apiCall(`${baseUrl}/api/positioning/tags`);
             
             case 'get_dashboard_overview':
-                return await this.apiCall(`${baseUrl}/api/voice/dashboard`);
+                return await this.apiCall(`${baseUrl}/api/dashboard/overview`);
             
             default:
                 return { error: 'Unknown function: ' + name };
