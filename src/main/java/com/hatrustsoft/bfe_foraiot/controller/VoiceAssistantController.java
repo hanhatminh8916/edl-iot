@@ -42,6 +42,12 @@ public class VoiceAssistantController {
     ) {
         log.info("🎤 Proxying request to Gemini API");
         
+        // Validate API key
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            log.error("❌ Missing API key in request header");
+            return Mono.error(new IllegalArgumentException("API key is required"));
+        }
+        
         // CRITICAL FIX: Dùng gemini-2.5-flash (model mới nhất, STABLE)
         // gemini-2.0-flash-exp: quota=0 cho free tier → LỖI 429 NGAY
         // gemini-1.5/2.0-flash: tự động redirect sang 2.0-flash-exp → LỖI 429
@@ -50,6 +56,7 @@ public class VoiceAssistantController {
         
         log.info("📤 Gemini Model: gemini-2.5-flash");
         log.info("📤 Request URL: {}", geminiUrl.replace(apiKey, "***KEY***"));
+        log.info("📤 Request body length: {} bytes", requestBody != null ? requestBody.length() : 0);
         
         return webClient.post()
                 .uri(geminiUrl)
@@ -74,9 +81,13 @@ public class VoiceAssistantController {
                             log.error("❌ Gemini API error {}: {}", webEx.getStatusCode(), errorBody);
                         }
                     } else {
-                        log.error("❌ Gemini API error: {}", error != null ? error.getMessage() : "Unknown error");
+                        log.error("❌ Gemini API error: {}", error != null ? error.getMessage() : "Unknown error", error);
                     }
                 })
-                .doOnSuccess(response -> log.info("✅ Gemini API response received"));
+                .doOnSuccess(response -> log.info("✅ Gemini API response received"))
+                .onErrorResume(error -> {
+                    log.error("❌ Error in proxy: {}", error.getMessage(), error);
+                    return Mono.just("{\"error\": \"" + error.getMessage() + "\"}");
+                });
     }
 }
