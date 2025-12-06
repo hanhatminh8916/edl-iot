@@ -42,11 +42,12 @@ public class VoiceAssistantController {
     ) {
         log.info("🎤 Proxying request to Gemini API");
         
-        // Force sử dụng gemini-1.5-flash (free tier stable model)
-        // Tránh gemini-2.0-flash-exp có quota = 0 cho free tier
-        String geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+        // CRITICAL FIX: Dùng gemini-1.5-pro thay vì flash để tránh auto-redirect sang 2.0-flash-exp
+        // gemini-2.0-flash-exp có quota=0 cho free tier, gây lỗi 429 ngay lập tức
+        // gemini-1.5-pro free tier: 2 RPM, 32,000 tokens/min (đủ cho voice assistant)
+        String geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=" + apiKey;
         
-        log.debug("📤 Request to: {}", geminiUrl);
+        log.info("📤 Request URL: {}", geminiUrl.replace(apiKey, "***KEY***"));
         
         return webClient.post()
                 .uri(geminiUrl)
@@ -56,14 +57,22 @@ public class VoiceAssistantController {
                 .bodyToMono(String.class)
                 .doOnError(error -> {
                     if (error instanceof WebClientResponseException webEx) {
+                        String errorBody = webEx.getResponseBodyAsString();
                         if (webEx.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
-                            log.error("❌ 429 Rate Limit: {}. Hướng dẫn: Tạo project mới tại https://console.cloud.google.com hoặc nâng cấp lên paid tier", 
-                                    webEx.getResponseBodyAsString());
+                            log.error("❌ 429 Rate Limit Error:");
+                            log.error("   Status: {}", webEx.getStatusCode());
+                            log.error("   Headers: {}", webEx.getHeaders());
+                            log.error("   Body: {}", errorBody);
+                            log.error("   💡 Giải pháp:");
+                            log.error("      1. Tạo Google Cloud Project MỚI: https://console.cloud.google.com");
+                            log.error("      2. Enable Generative Language API");
+                            log.error("      3. Tạo API key MỚI từ project MỚI");
+                            log.error("      4. KHÔNG enable experimental APIs");
                         } else {
-                            log.error("❌ Gemini API error {}: {}", webEx.getStatusCode(), webEx.getResponseBodyAsString());
+                            log.error("❌ Gemini API error {}: {}", webEx.getStatusCode(), errorBody);
                         }
                     } else {
-                        log.error("❌ Gemini API error: {}", error.getMessage());
+                        log.error("❌ Gemini API error: {}", error != null ? error.getMessage() : "Unknown error");
                     }
                 })
                 .doOnSuccess(response -> log.info("✅ Gemini API response received"));
