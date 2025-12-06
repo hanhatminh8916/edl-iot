@@ -573,6 +573,7 @@ class VoiceAssistant {
 
             // Execute function
             const functionResult = await this.executeFunction(functionName, functionArgs);
+            console.log('📥 Function result:', functionResult);
 
             // Send function result back to Gemini
             const finalResponse = await fetch(this.geminiEndpoint, {
@@ -596,12 +597,13 @@ class VoiceAssistant {
                             parts: [{
                                 functionResponse: {
                                     name: functionName,
-                                    response: functionResult
+                                    response: {
+                                        result: functionResult
+                                    }
                                 }
                             }]
                         }
-                    ],
-                    tools: tools
+                    ]
                 })
             });
 
