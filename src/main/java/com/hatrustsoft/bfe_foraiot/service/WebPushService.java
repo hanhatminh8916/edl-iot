@@ -1,23 +1,25 @@
 package com.hatrustsoft.bfe_foraiot.service;
 
-import com.hatrustsoft.bfe_foraiot.dto.PushSubscriptionRequest;
-import com.hatrustsoft.bfe_foraiot.model.Alert;
-import com.hatrustsoft.bfe_foraiot.entity.PushSubscription;
-import com.hatrustsoft.bfe_foraiot.repository.PushSubscriptionRepository;
-import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import nl.martijndwars.webpush.Notification;
-import nl.martijndwars.webpush.PushService;
-import nl.martijndwars.webpush.Subscription;
+import java.security.Security;
+import java.util.List;
+
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.Security;
-import java.util.List;
+import com.hatrustsoft.bfe_foraiot.dto.PushSubscriptionRequest;
+import com.hatrustsoft.bfe_foraiot.entity.PushSubscription;
+import com.hatrustsoft.bfe_foraiot.model.Alert;
+import com.hatrustsoft.bfe_foraiot.repository.PushSubscriptionRepository;
+
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import nl.martijndwars.webpush.Notification;
+import nl.martijndwars.webpush.PushService;
+import nl.martijndwars.webpush.Subscription;
 
 /**
  * 📱 WEB PUSH NOTIFICATION SERVICE
@@ -34,20 +36,29 @@ public class WebPushService {
     
     private final PushSubscriptionRepository subscriptionRepository;
     
-    @Value("${webpush.vapid.public-key}")
+    @Value("${webpush.vapid.public-key:DISABLED}")
     private String vapidPublicKey;
     
-    @Value("${webpush.vapid.private-key}")
+    @Value("${webpush.vapid.private-key:DISABLED}")
     private String vapidPrivateKey;
     
     @Value("${webpush.vapid.subject:mailto:admin@edl-safework.com}")
     private String vapidSubject;
     
     private PushService pushService;
+    private boolean webPushEnabled = false;
     
     @PostConstruct
     public void init() {
         try {
+            // Check if VAPID keys are configured
+            if ("DISABLED".equals(vapidPublicKey) || "DISABLED".equals(vapidPrivateKey)) {
+                log.warn("⚠️ WebPushService DISABLED: VAPID keys not configured");
+                log.warn("💡 Set WEBPUSH_VAPID_PUBLIC_KEY and WEBPUSH_VAPID_PRIVATE_KEY to enable push notifications");
+                webPushEnabled = false;
+                return;
+            }
+            
             // Add BouncyCastle provider for encryption
             if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
                 Security.addProvider(new BouncyCastleProvider());
@@ -59,11 +70,13 @@ public class WebPushService {
             pushService.setPrivateKey(vapidPrivateKey);
             pushService.setSubject(vapidSubject);
             
+            webPushEnabled = true;
             log.info("✅ WebPushService initialized with VAPID keys");
             log.info("📱 VAPID Public Key: {}...", vapidPublicKey.substring(0, 20));
             
         } catch (Exception e) {
             log.error("❌ Failed to initialize WebPushService: {}", e.getMessage());
+            webPushEnabled = false;
         }
     }
     
@@ -125,6 +138,11 @@ public class WebPushService {
      */
     @Async
     public void sendAlertPush(Alert alert) {
+        if (!webPushEnabled) {
+            log.debug("⏭️ WebPush disabled - skipping notification");
+            return;
+        }
+        
         // Chỉ gửi push cho FALL và HELP_REQUEST
         String alertType = alert.getAlertType() != null ? alert.getAlertType().name() : "UNKNOWN";
         if (!"FALL".equals(alertType) && !"HELP_REQUEST".equals(alertType)) {
