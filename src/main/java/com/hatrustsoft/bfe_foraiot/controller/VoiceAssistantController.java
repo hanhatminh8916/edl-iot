@@ -45,7 +45,8 @@ public class VoiceAssistantController {
         // CRITICAL FIX: Dùng gemini-1.5-pro thay vì flash để tránh auto-redirect sang 2.0-flash-exp
         // gemini-2.0-flash-exp có quota=0 cho free tier, gây lỗi 429 ngay lập tức
         // gemini-1.5-pro free tier: 2 RPM, 32,000 tokens/min (đủ cho voice assistant)
-        String geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=" + apiKey;
+        // VoiceAssistantController.java line 36
+        String geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
         
         log.info("📤 Request URL: {}", geminiUrl.replace(apiKey, "***KEY***"));
         
