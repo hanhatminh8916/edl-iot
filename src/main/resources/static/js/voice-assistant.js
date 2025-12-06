@@ -610,7 +610,7 @@ class VoiceAssistant {
             
             case 'get_recent_alerts':
                 const limit = args.limit || 10;
-                return await this.apiCall(`${baseUrl}/api/alerts/recent?limit=${limit}`);
+                return await this.apiCall(`${baseUrl}/api/dashboard/alerts/recent?limit=${limit}`);
             
             case 'get_helmet_status':
                 const macAddress = args.mac_address;
@@ -656,6 +656,16 @@ class VoiceAssistant {
         utterance.lang = 'vi-VN';
         utterance.rate = 1.0;
         utterance.pitch = 1.0;
+
+        // Select Vietnamese voice if available
+        const voices = this.synthesis.getVoices();
+        const vietnameseVoice = voices.find(voice => 
+            voice.lang === 'vi-VN' || 
+            voice.lang.startsWith('vi')
+        );
+        if (vietnameseVoice) {
+            utterance.voice = vietnameseVoice;
+        }
 
         utterance.onstart = () => {
             this.updateUI('speaking');
