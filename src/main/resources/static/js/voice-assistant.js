@@ -535,11 +535,33 @@ class VoiceAssistant {
             } else if (geminiResponse.status === 403) {
                 throw new Error('API key bị từ chối. Vui lòng tạo key mới.');
             }
+            const errorText = await geminiResponse.text();
+            console.error('❌ Gemini initial error response:', errorText);
             throw new Error(`Gemini API error: ${geminiResponse.status}`);
         }
 
         const data = await geminiResponse.json();
+        console.log('📥 Initial Gemini response:', data);
+        
+        // Validate response structure
+        if (!data.candidates || data.candidates.length === 0) {
+            console.error('❌ Invalid initial response:', data);
+            throw new Error('Gemini API trả về response không hợp lệ');
+        }
+        
         const candidate = data.candidates[0];
+        
+        // Check if response is blocked
+        if (!candidate.content) {
+            console.error('❌ Response blocked or missing content:', candidate);
+            const reason = candidate.finishReason || 'UNKNOWN';
+            throw new Error(`Gemini blocked response: ${reason}`);
+        }
+        
+        if (!candidate.content.parts || candidate.content.parts.length === 0) {
+            console.error('❌ Missing parts in response:', candidate.content);
+            throw new Error('Gemini API không trả về nội dung');
+        }
         
         // Check if Gemini wants to call a function
         if (candidate.content.parts[0].functionCall) {
@@ -587,10 +609,26 @@ class VoiceAssistant {
                 if (finalResponse.status === 429) {
                     throw new Error('Vượt quá giới hạn API (15 requests/phút). Đợi 1 phút hoặc nâng cấp paid tier.');
                 }
+                const errorText = await finalResponse.text();
+                console.error('❌ Gemini API error response:', errorText);
                 throw new Error(`Gemini API error: ${finalResponse.status}`);
             }
 
             const finalData = await finalResponse.json();
+            console.log('📥 Final Gemini response:', finalData);
+            
+            // Validate response structure
+            if (!finalData.candidates || finalData.candidates.length === 0) {
+                console.error('❌ Invalid response structure:', finalData);
+                throw new Error('Gemini API trả về response không hợp lệ');
+            }
+            
+            if (!finalData.candidates[0].content || !finalData.candidates[0].content.parts || 
+                finalData.candidates[0].content.parts.length === 0) {
+                console.error('❌ Missing content in response:', finalData.candidates[0]);
+                throw new Error('Gemini API không trả về nội dung');
+            }
+            
             return finalData.candidates[0].content.parts[0].text;
         } else {
             // Direct text response
