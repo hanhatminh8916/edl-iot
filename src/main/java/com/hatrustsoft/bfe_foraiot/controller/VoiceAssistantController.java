@@ -42,12 +42,13 @@ public class VoiceAssistantController {
     ) {
         log.info("🎤 Proxying request to Gemini API");
         
-        // CRITICAL FIX: Dùng gemini-1.5-pro thay vì flash để tránh auto-redirect sang 2.0-flash-exp
-        // gemini-2.0-flash-exp có quota=0 cho free tier, gây lỗi 429 ngay lập tức
-        // gemini-1.5-pro free tier: 2 RPM, 32,000 tokens/min (đủ cho voice assistant)
-        // VoiceAssistantController.java line 36
+        // CRITICAL FIX: Dùng gemini-2.5-flash (model mới nhất, STABLE)
+        // gemini-2.0-flash-exp: quota=0 cho free tier → LỖI 429 NGAY
+        // gemini-1.5/2.0-flash: tự động redirect sang 2.0-flash-exp → LỖI 429
+        // gemini-2.5-flash: Stable, free tier support, KHÔNG bị redirect
         String geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
         
+        log.info("📤 Gemini Model: gemini-2.5-flash");
         log.info("📤 Request URL: {}", geminiUrl.replace(apiKey, "***KEY***"));
         
         return webClient.post()
