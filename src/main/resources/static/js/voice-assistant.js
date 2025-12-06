@@ -600,23 +600,29 @@ class VoiceAssistant {
 
     async executeFunction(name, args) {
         const baseUrl = window.location.origin;
+        
+        console.log(`📞 Executing backend API: ${name}`, args);
 
         switch(name) {
             case 'get_workers':
-                return await this.apiCall(`${baseUrl}/api/workers`);
+                return await this.apiCall(`${baseUrl}/api/voice/workers`);
             
             case 'get_recent_alerts':
                 const limit = args.limit || 10;
-                return await this.apiCall(`${baseUrl}/api/alerts/recent?limit=${limit}`);
+                return await this.apiCall(`${baseUrl}/api/voice/alerts?limit=${limit}`);
             
             case 'get_helmet_status':
-                return await this.apiCall(`${baseUrl}/api/location/map-data-realtime`);
+                const macAddress = args.mac_address;
+                if (!macAddress) {
+                    return { error: 'MAC address required' };
+                }
+                return await this.apiCall(`${baseUrl}/api/voice/helmet?macAddress=${macAddress}`);
             
             case 'get_map_data':
-                return await this.apiCall(`${baseUrl}/api/location/map-data-realtime`);
+                return await this.apiCall(`${baseUrl}/api/voice/map`);
             
             case 'get_dashboard_overview':
-                return await this.apiCall(`${baseUrl}/api/dashboard/overview`);
+                return await this.apiCall(`${baseUrl}/api/voice/dashboard`);
             
             default:
                 return { error: 'Unknown function: ' + name };
