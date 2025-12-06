@@ -11,6 +11,13 @@ class VoiceAssistant {
         this.apiKey = null; // Sẽ set từ UI
         this.geminiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
         
+        // Rate limiting
+        this.lastRequestTime = 0;
+        this.minRequestInterval = 2000; // 2 giây giữa các requests
+        this.requestCount = 0;
+        this.requestResetTime = Date.now() + 60000; // Reset sau 1 phút
+        this.maxRequestsPerMinute = 10; // Giới hạn 10 requests/phút
+        
         this.initSpeechRecognition();
         this.initUI();
     }
@@ -389,8 +396,34 @@ class VoiceAssistant {
 
     async processCommand(command) {
         try {
+            // Check rate limit
+            const now = Date.now();
+            
+            // Reset counter mỗi phút
+            if (now > this.requestResetTime) {
+                this.requestCount = 0;
+                this.requestResetTime = now + 60000;
+            }
+            
+            // Kiểm tra số lượng requests
+            if (this.requestCount >= this.maxRequestsPerMinute) {
+                const waitTime = Math.ceil((this.requestResetTime - now) / 1000);
+                throw new Error(`Vượt quá giới hạn ${this.maxRequestsPerMinute} requests/phút. Vui lòng đợi ${waitTime} giây.`);
+            }
+            
+            // Kiểm tra thời gian chờ giữa requests
+            const timeSinceLastRequest = now - this.lastRequestTime;
+            if (timeSinceLastRequest < this.minRequestInterval) {
+                const waitTime = Math.ceil((this.minRequestInterval - timeSinceLastRequest) / 1000);
+                throw new Error(`Vui lòng đợi ${waitTime} giây trước khi hỏi tiếp.`);
+            }
+            
             // Hiển thị command
             document.getElementById('user-text').textContent = command;
+            
+            // Update request tracking
+            this.lastRequestTime = now;
+            this.requestCount++;
             
             // Gọi Gemini API với tools
             const response = await this.callGeminiWithTools(command);
@@ -492,6 +525,13 @@ class VoiceAssistant {
         });
 
         if (!geminiResponse.ok) {
+            if (geminiResponse.status === 429) {
+                throw new Error('Vượt quá giới hạn API của Google (15 requests/phút). Vui lòng đợi 1 phút hoặc nâng cấp lên paid tier.');
+            } else if (geminiResponse.status === 401) {
+                throw new Error('API key không hợp lệ. Vui lòng kiểm tra lại.');
+            } else if (geminiResponse.status === 403) {
+                throw new Error('API key bị từ chối. Vui lòng tạo key mới.');
+            }
             throw new Error(`Gemini API error: ${geminiResponse.status}`);
         }
 
@@ -536,6 +576,13 @@ class VoiceAssistant {
                     tools: tools
                 })
             });
+
+            if (!finalResponse.ok) {
+                if (finalResponse.status === 429) {
+                    throw new Error('Vượt quá giới hạn API (15 requests/phút). Đợi 1 phút hoặc nâng cấp paid tier.');
+                }
+                throw new Error(`Gemini API error: ${finalResponse.status}`);
+            }
 
             const finalData = await finalResponse.json();
             return finalData.candidates[0].content.parts[0].text;
