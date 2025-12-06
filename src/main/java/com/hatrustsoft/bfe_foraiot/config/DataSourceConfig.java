@@ -17,8 +17,8 @@ public class DataSourceConfig {
     public DataSource dataSource() {
         HikariConfig config = new HikariConfig();
         
-        // Database URL - Connect to localhost:3306 (cloudflared tunnel forwards to MySQL)
-        config.setJdbcUrl("jdbc:mysql://localhost:3306/hatrustsoft?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true&autoReconnect=true");
+        // Database URL - Connect via ngrok tunnel to self-hosted MySQL (no query limit!)
+        config.setJdbcUrl("jdbc:mysql://0.tcp.ap.ngrok.io:13542/hatrustsoft?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true&autoReconnect=true");
         config.setUsername("remote_user");
         config.setPassword("MatKhauManh123!");
         config.setDriverClassName("com.mysql.cj.jdbc.Driver");
