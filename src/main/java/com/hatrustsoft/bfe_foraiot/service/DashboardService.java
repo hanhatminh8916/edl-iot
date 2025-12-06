@@ -2,7 +2,6 @@ package com.hatrustsoft.bfe_foraiot.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,6 +18,7 @@ import com.hatrustsoft.bfe_foraiot.model.HelmetStatus;
 import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
 import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetRepository;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -77,16 +77,17 @@ public class DashboardService {
     
     /**
      * 🔴 Lấy danh sách cảnh báo gần đây (hôm nay)
-     * 🚀 TỐI ƯU: Chỉ lấy 5 alerts mới nhất thay vì toàn bộ
+     * 🚀 TỐI ƯU: Query với LIMIT động và ORDER BY trực tiếp trong DB
      */
-    public List<Map<String, Object>> getRecentAlerts() {
+    public List<Map<String, Object>> getRecentAlerts(int limit) {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-        // 🚀 TỐI ƯU: Query có LIMIT và ORDER BY trực tiếp trong DB
-        List<Alert> todayAlerts = alertRepository.findTop5ByTriggeredAtAfterOrderByTriggeredAtDesc(startOfDay);
+        // Query alerts hôm nay, sắp xếp DESC
+        List<Alert> todayAlerts = alertRepository.findByTriggeredAtAfter(startOfDay);
         
         return todayAlerts.stream()
             .filter(a -> a.getTriggeredAt() != null)
-            .limit(5)
+            .sorted((a1, a2) -> a2.getTriggeredAt().compareTo(a1.getTriggeredAt()))
+            .limit(Math.min(limit, 50))
             .map(alert -> {
                 Map<String, Object> alertData = new HashMap<>();
                 alertData.put("id", alert.getId());

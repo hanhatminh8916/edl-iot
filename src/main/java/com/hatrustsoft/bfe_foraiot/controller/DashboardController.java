@@ -31,8 +31,9 @@ public class DashboardController {
      * 🔴 API lấy cảnh báo gần đây (hôm nay)
      */
     @GetMapping("/alerts/recent")
-    public ResponseEntity<List<Map<String, Object>>> getRecentAlerts() {
-        return ResponseEntity.ok(dashboardService.getRecentAlerts());
+    public ResponseEntity<List<Map<String, Object>>> getRecentAlerts(
+            @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(dashboardService.getRecentAlerts(limit));
     }
     
     /**
