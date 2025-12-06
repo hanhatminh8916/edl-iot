@@ -9,7 +9,7 @@ class VoiceAssistant {
         this.recognition = null;
         this.synthesis = window.speechSynthesis;
         this.apiKey = null; // Sẽ set từ UI
-        this.geminiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+        this.geminiEndpoint = '/api/voice-assistant/gemini'; // Backend proxy
         
         // Rate limiting
         this.lastRequestTime = 0;
@@ -503,10 +503,13 @@ class VoiceAssistant {
             }
         ];
 
-        // Gọi Gemini API
-        const geminiResponse = await fetch(`${this.geminiEndpoint}?key=${this.apiKey}`, {
+        // Gọi Gemini API qua backend proxy
+        const geminiResponse = await fetch(this.geminiEndpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-API-Key': this.apiKey
+            },
             body: JSON.stringify({
                 contents: [{
                     role: 'user',
@@ -550,9 +553,12 @@ class VoiceAssistant {
             const functionResult = await this.executeFunction(functionName, functionArgs);
 
             // Send function result back to Gemini
-            const finalResponse = await fetch(`${this.geminiEndpoint}?key=${this.apiKey}`, {
+            const finalResponse = await fetch(this.geminiEndpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-API-Key': this.apiKey
+                },
                 body: JSON.stringify({
                     contents: [
                         {
