@@ -1,17 +1,20 @@
 package com.hatrustsoft.bfe_foraiot.controller;
 
-import com.hatrustsoft.bfe_foraiot.config.GracefulShutdownConfig;
-import lombok.RequiredArgsConstructor;
+import java.sql.Connection;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.sql.DataSource;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.util.HashMap;
-import java.util.Map;
+import com.hatrustsoft.bfe_foraiot.config.GracefulShutdownConfig;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * 🏥 HEALTH CHECK CONTROLLER

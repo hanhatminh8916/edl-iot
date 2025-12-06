@@ -1,12 +1,13 @@
 package com.hatrustsoft.bfe_foraiot.config;
 
-import jakarta.annotation.PreDestroy;
-import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 
-import java.util.concurrent.TimeUnit;
+import jakarta.annotation.PreDestroy;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 🛡️ GRACEFUL SHUTDOWN CONFIG
