@@ -1,13 +1,13 @@
 package com.hatrustsoft.bfe_foraiot.config;
 
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import javax.sql.DataSource;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
-import javax.sql.DataSource;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 
 @Configuration
 public class DataSourceConfig {
@@ -20,7 +20,7 @@ public class DataSourceConfig {
         // Database URL - Connect via ngrok tunnel to self-hosted MySQL (no query limit!)
         config.setJdbcUrl("jdbc:mysql://0.tcp.ap.ngrok.io:13542/hatrustsoft?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true&autoReconnect=true");
         config.setUsername("remote_user");
-        config.setPassword("MatKhauManh123!");
+        config.setPassword("MatKhauManh123! ");
         config.setDriverClassName("com.mysql.cj.jdbc.Driver");
         
         // Connection pool settings - Optimized for self-hosted MySQL (no query limit!)
