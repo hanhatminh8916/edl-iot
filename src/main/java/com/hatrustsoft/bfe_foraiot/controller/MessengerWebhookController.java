@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class MessengerWebhookController {
 
-    @Value("${facebook.messenger.verify-token}")
+    @Value("${facebook.messenger.verify-token:DISABLED}")
     private String verifyToken;
 
     private final MessengerService messengerService;

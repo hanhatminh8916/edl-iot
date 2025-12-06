@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class MessengerSetupService {
 
-    @Value("${facebook.messenger.page-access-token}")
+    @Value("${facebook.messenger.page-access-token:DISABLED}")
     private String pageAccessToken;
 
     private final WebClient webClient;

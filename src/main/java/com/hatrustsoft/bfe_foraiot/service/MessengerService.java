@@ -16,6 +16,7 @@ import com.hatrustsoft.bfe_foraiot.entity.MessengerUser;
 import com.hatrustsoft.bfe_foraiot.repository.MessengerUserRepository;
 import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
@@ -23,11 +24,13 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class MessengerService {
 
-    @Value("${facebook.messenger.page-access-token}")
+    @Value("${facebook.messenger.page-access-token:DISABLED}")
     private String pageAccessToken;
 
-    @Value("${facebook.messenger.api-url}")
+    @Value("${facebook.messenger.api-url:https://graph.facebook.com/v21.0/me/messages}")
     private String apiUrl;
+    
+    private boolean messengerEnabled = false;
 
     private final MessengerUserRepository messengerUserRepository;
     private final WebClient webClient;
@@ -59,11 +62,27 @@ public class MessengerService {
         this.messengerUserRepository = messengerUserRepository;
         this.webClient = webClientBuilder.build();
     }
+    
+    @PostConstruct
+    public void init() {
+        if ("DISABLED".equals(pageAccessToken)) {
+            log.warn("⚠️ MessengerService DISABLED: page-access-token not configured");
+            log.warn("💡 Set FACEBOOK_MESSENGER_PAGE_ACCESS_TOKEN to enable Messenger notifications");
+            messengerEnabled = false;
+        } else {
+            messengerEnabled = true;
+            log.info("✅ MessengerService initialized with Page Access Token");
+        }
+    }
 
     /**
      * Gửi tin nhắn text đơn giản
      */
     public void sendTextMessage(String recipientId, String messageText) {
+        if (!messengerEnabled) {
+            log.debug("⏭️ Messenger disabled - skipping message");
+            return;
+        }
         MessengerMessageDTO message = MessengerMessageDTO.builder()
                 .recipient(MessengerMessageDTO.Recipient.builder()
                         .id(recipientId)
@@ -81,6 +100,11 @@ public class MessengerService {
      * Gửi tin nhắn nguy hiểm với Button để mở Google Maps
      */
     public void sendDangerAlert(String recipientId, String employeeName, String alertType, String location) {
+        if (!messengerEnabled) {
+            log.debug("⏭️ Messenger disabled - skipping alert");
+            return;
+        }
+        
         // Lưu thông tin alert để xử lý khi user click "Đã xử lý"
         pendingAlerts.put(recipientId, new AlertPendingInfo(employeeName, alertType, location));
         
