@@ -1,1 +1,2 @@
-cloudflared
+# Cloudflare không có trong Ubuntu repo
+# Sẽ download binary trong Procfile
