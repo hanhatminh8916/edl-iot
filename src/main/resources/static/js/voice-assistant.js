@@ -9,7 +9,7 @@ class VoiceAssistant {
         this.recognition = null;
         this.synthesis = window.speechSynthesis;
         this.apiKey = null; // Sẽ set từ UI
-        this.geminiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+        this.geminiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
         
         // Rate limiting
         this.lastRequestTime = 0;
