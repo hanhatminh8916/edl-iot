@@ -1,10 +1,17 @@
 package com.hatrustsoft.bfe_foraiot.controller;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 /**
@@ -35,7 +42,11 @@ public class VoiceAssistantController {
     ) {
         log.info("🎤 Proxying request to Gemini API");
         
+        // Force sử dụng gemini-1.5-flash (free tier stable model)
+        // Tránh gemini-2.0-flash-exp có quota = 0 cho free tier
         String geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+        
+        log.debug("📤 Request to: {}", geminiUrl);
         
         return webClient.post()
                 .uri(geminiUrl)
@@ -43,7 +54,18 @@ public class VoiceAssistantController {
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(String.class)
-                .doOnError(error -> log.error("❌ Gemini API error: {}", error.getMessage()))
+                .doOnError(error -> {
+                    if (error instanceof WebClientResponseException webEx) {
+                        if (webEx.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
+                            log.error("❌ 429 Rate Limit: {}. Hướng dẫn: Tạo project mới tại https://console.cloud.google.com hoặc nâng cấp lên paid tier", 
+                                    webEx.getResponseBodyAsString());
+                        } else {
+                            log.error("❌ Gemini API error {}: {}", webEx.getStatusCode(), webEx.getResponseBodyAsString());
+                        }
+                    } else {
+                        log.error("❌ Gemini API error: {}", error.getMessage());
+                    }
+                })
                 .doOnSuccess(response -> log.info("✅ Gemini API response received"));
     }
 }
