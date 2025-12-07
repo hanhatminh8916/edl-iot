@@ -10,6 +10,7 @@ class VoiceAssistant {
         this.synthesis = window.speechSynthesis;
         this.apiKey = null; // Không cần cho LM Studio
         this.llmEndpoint = '/api/voice-assistant/lmstudio'; // LM Studio proxy
+        this.pendingNavigation = null; // Store navigation to execute after response
         
         // Rate limiting
         this.lastRequestTime = 0;
@@ -428,6 +429,17 @@ class VoiceAssistant {
             this.speak(response);
             
             this.updateUI('ready', 'Hoàn thành!');
+            
+            // Execute pending navigation AFTER showing response
+            if (this.pendingNavigation) {
+                const navFunction = this.pendingNavigation;
+                this.pendingNavigation = null;
+                
+                // Wait 1.5 seconds to let user see/hear the response
+                setTimeout(() => {
+                    this.executeNavigation(navFunction.function, navFunction.args || {});
+                }, 1500);
+            }
         } catch (error) {
             console.error('❌ Lỗi xử lý:', error);
             const errorMsg = 'Xin lỗi, đã có lỗi xảy ra: ' + error.message;
@@ -507,7 +519,25 @@ Sau khi nhận kết quả, hãy tổng hợp và trả lời bằng tiếng Vi�
                 const functionCall = JSON.parse(jsonMatch[0]);
                 console.log('🔧 Detected function call:', functionCall);
                 
-                // Execute function
+                // Check if this is a navigation function - handle specially
+                const isNavigation = functionCall.function.startsWith('navigate_to_');
+                
+                if (isNavigation) {
+                    // For navigation, just return the message and navigate AFTER response
+                    const navMessages = {
+                        'navigate_to_dashboard': 'Đang chuyển sang trang Dashboard...',
+                        'navigate_to_positioning': 'Đang chuyển sang trang Giám sát vị trí...',
+                        'navigate_to_alerts': 'Đang chuyển sang trang Cảnh báo...',
+                        'navigate_to_employees': 'Đang chuyển sang trang Quản lý nhân viên...'
+                    };
+                    
+                    // Store navigation info to execute after response
+                    this.pendingNavigation = functionCall;
+                    
+                    return navMessages[functionCall.function] || 'Đang chuyển trang...';
+                }
+                
+                // Execute non-navigation function
                 const functionResult = await this.executeFunction(functionCall.function, functionCall.args || {});
                 console.log('📥 Function result:', functionResult);
 
@@ -589,23 +619,7 @@ Sau khi nhận kết quả, hãy tổng hợp và trả lời bằng tiếng Vi�
             case 'get_dashboard_overview':
                 return await this.apiCall(`${baseUrl}/api/dashboard/overview`);
             
-            // ===== UI CONTROL FUNCTIONS =====
-            case 'navigate_to_dashboard':
-                window.location.href = `${baseUrl}/index.html`;
-                return { success: true, message: 'Đã chuyển sang Dashboard' };
-            
-            case 'navigate_to_positioning':
-                window.location.href = `${baseUrl}/positioning-2d.html`;
-                return { success: true, message: 'Đã chuyển sang trang Giám sát vị trí' };
-            
-            case 'navigate_to_alerts':
-                window.location.href = `${baseUrl}/alerts.html`;
-                return { success: true, message: 'Đã chuyển sang trang Cảnh báo' };
-            
-            case 'navigate_to_employees':
-                window.location.href = `${baseUrl}/manage-employees.html`;
-                return { success: true, message: 'Đã chuyển sang trang Quản lý nhân viên' };
-            
+            // ===== UI CONTROL FUNCTIONS (non-navigation) =====
             case 'highlight_element':
                 const selector = args.selector;
                 const message = args.message || '';
@@ -715,6 +729,32 @@ Sau khi nhận kết quả, hãy tổng hợp và trả lời bằng tiếng Vi�
             return await response.json();
         } catch (error) {
             return { error: error.message };
+        }
+    }
+
+    executeNavigation(name, args) {
+        const baseUrl = window.location.origin;
+        console.log(`🧭 Navigating via: ${name}`);
+
+        switch(name) {
+            case 'navigate_to_dashboard':
+                window.location.href = `${baseUrl}/index.html`;
+                break;
+            
+            case 'navigate_to_positioning':
+                window.location.href = `${baseUrl}/positioning-2d.html`;
+                break;
+            
+            case 'navigate_to_alerts':
+                window.location.href = `${baseUrl}/alerts.html`;
+                break;
+            
+            case 'navigate_to_employees':
+                window.location.href = `${baseUrl}/manage-employees.html`;
+                break;
+            
+            default:
+                console.error('Unknown navigation function:', name);
         }
     }
 
