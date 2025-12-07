@@ -17,8 +17,8 @@ import reactor.core.publisher.Mono;
 /**
  * 🎤 VOICE ASSISTANT PROXY CONTROLLER
  * 
- * Proxy để gọi Gemini API từ backend thay vì client (tránh CORS)
- * Client sẽ gọi endpoint này, backend sẽ forward request đến Gemini API
+ * Proxy để gọi LLM API từ backend thay vì client (tránh CORS)
+ * Hỗ trợ: LM Studio (local server) và Gemini API
  */
 @RestController
 @RequestMapping("/api/voice-assistant")
@@ -27,8 +27,43 @@ public class VoiceAssistantController {
     
     private final WebClient webClient;
     
+    // LM Studio server URL
+    private static final String LM_STUDIO_BASE_URL = "http://llm.tranvienduyhung.id.vn";
+    private static final String LM_STUDIO_CHAT_ENDPOINT = LM_STUDIO_BASE_URL + "/v1/chat/completions";
+    
     public VoiceAssistantController(WebClient.Builder webClientBuilder) {
         this.webClient = webClientBuilder.build();
+    }
+    
+    /**
+     * NEW: Proxy endpoint cho LM Studio (OpenAI-compatible API)
+     * POST /api/voice-assistant/lmstudio
+     */
+    @PostMapping("/lmstudio")
+    public Mono<String> proxyLMStudioRequest(@RequestBody String requestBody) {
+        log.info("🎤 Proxying request to LM Studio");
+        log.info("📤 LM Studio URL: {}", LM_STUDIO_CHAT_ENDPOINT);
+        log.info("📤 Request body length: {} bytes", requestBody != null ? requestBody.length() : 0);
+        
+        return webClient.post()
+                .uri(LM_STUDIO_CHAT_ENDPOINT)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(String.class)
+                .doOnError(error -> {
+                    if (error instanceof WebClientResponseException webEx) {
+                        String errorBody = webEx.getResponseBodyAsString();
+                        log.error("❌ LM Studio API error {}: {}", webEx.getStatusCode(), errorBody);
+                    } else {
+                        log.error("❌ LM Studio connection error: {}", error != null ? error.getMessage() : "Unknown error", error);
+                    }
+                })
+                .doOnSuccess(response -> log.info("✅ LM Studio API response received"))
+                .onErrorResume(error -> {
+                    log.error("❌ Error in LM Studio proxy: {}", error.getMessage(), error);
+                    return Mono.just("{\"error\": \"" + error.getMessage() + "\"}");
+                });
     }
     
     /**

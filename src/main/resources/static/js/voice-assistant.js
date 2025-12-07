@@ -8,8 +8,8 @@ class VoiceAssistant {
         this.isListening = false;
         this.recognition = null;
         this.synthesis = window.speechSynthesis;
-        this.apiKey = null; // Sẽ set từ UI
-        this.geminiEndpoint = '/api/voice-assistant/gemini'; // Backend proxy
+        this.apiKey = null; // Không cần cho LM Studio
+        this.llmEndpoint = '/api/voice-assistant/lmstudio'; // LM Studio proxy
         
         // Rate limiting
         this.lastRequestTime = 0;
@@ -444,198 +444,113 @@ class VoiceAssistant {
     }
 
     async callGeminiWithTools(userQuery) {
-        // Định nghĩa tools (functions) cho Gemini
-        const tools = [
-            {
-                functionDeclarations: [
-                    {
-                        name: 'get_workers',
-                        description: 'Lấy danh sách tất cả công nhân và trạng thái online/offline',
-                        parameters: {
-                            type: 'object',
-                            properties: {}
-                        }
-                    },
-                    {
-                        name: 'get_recent_alerts',
-                        description: 'Lấy danh sách cảnh báo nguy hiểm gần đây (FALL, HELP_REQUEST)',
-                        parameters: {
-                            type: 'object',
-                            properties: {
-                                limit: {
-                                    type: 'integer',
-                                    description: 'Số lượng cảnh báo cần lấy (mặc định 10)'
-                                }
-                            }
-                        }
-                    },
-                    {
-                        name: 'get_helmet_status',
-                        description: 'Kiểm tra trạng thái chi tiết của một mũ bảo hộ (pin, vị trí, online/offline)',
-                        parameters: {
-                            type: 'object',
-                            properties: {
-                                mac_address: {
-                                    type: 'string',
-                                    description: 'Địa chỉ MAC của mũ bảo hộ (vd: F4DD40BA2010)'
-                                }
-                            },
-                            required: ['mac_address']
-                        }
-                    },
-                    {
-                        name: 'get_map_data',
-                        description: 'Lấy vị trí hiện tại của tất cả công nhân trên bản đồ',
-                        parameters: {
-                            type: 'object',
-                            properties: {}
-                        }
-                    },
-                    {
-                        name: 'get_dashboard_overview',
-                        description: 'Lấy tổng quan dashboard (tổng số công nhân, số active, số alerts, hiệu suất)',
-                        parameters: {
-                            type: 'object',
-                            properties: {}
-                        }
-                    }
-                ]
-            }
-        ];
-
-        // Gọi Gemini API qua backend proxy
-        const geminiResponse = await fetch(this.geminiEndpoint, {
+        // Gọi LM Studio API (OpenAI-compatible format)
+        const llmResponse = await fetch(this.llmEndpoint, {
             method: 'POST',
             headers: { 
-                'Content-Type': 'application/json',
-                'X-API-Key': this.apiKey
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                contents: [{
-                    role: 'user',
-                    parts: [{ text: userQuery }]
-                }],
-                tools: tools,
-                systemInstruction: {
-                    parts: [{
-                        text: `Bạn là trợ lý AI cho hệ thống giám sát an toàn công nhân xây dựng.
-                        Luôn trả lời bằng tiếng Việt, ngắn gọn, dễ hiểu.
-                        Sử dụng các function tools để lấy dữ liệu realtime từ backend.
-                        Ưu tiên thông tin về an toàn và cảnh báo.`
-                    }]
-                }
+                model: "local-model", // LM Studio sẽ dùng model đang load
+                messages: [
+                    {
+                        role: "system",
+                        content: `Bạn là trợ lý AI cho hệ thống giám sát an toàn công nhân xây dựng.
+Luôn trả lời bằng tiếng Việt, ngắn gọn, dễ hiểu.
+Bạn có thể gọi các function sau để lấy dữ liệu:
+- get_workers: Lấy danh sách công nhân
+- get_recent_alerts: Lấy cảnh báo gần đây
+- get_helmet_status(mac_address): Kiểm tra trạng thái mũ
+- get_map_data: Lấy vị trí công nhân
+- get_dashboard_overview: Tổng quan dashboard
+
+Khi cần dữ liệu, hãy trả lời JSON format: {"function": "tên_function", "args": {}}
+Sau khi nhận kết quả, hãy tổng hợp và trả lời bằng tiếng Việt tự nhiên.`
+                    },
+                    {
+                        role: "user",
+                        content: userQuery
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 500,
+                stream: false
             })
         });
 
-        if (!geminiResponse.ok) {
-            if (geminiResponse.status === 429) {
-                throw new Error('Vượt quá giới hạn API của Google (15 requests/phút). Vui lòng đợi 1 phút hoặc nâng cấp lên paid tier.');
-            } else if (geminiResponse.status === 401) {
-                throw new Error('API key không hợp lệ. Vui lòng kiểm tra lại.');
-            } else if (geminiResponse.status === 403) {
-                throw new Error('API key bị từ chối. Vui lòng tạo key mới.');
-            }
-            const errorText = await geminiResponse.text();
-            console.error('❌ Gemini initial error response:', errorText);
-            throw new Error(`Gemini API error: ${geminiResponse.status}`);
+        if (!llmResponse.ok) {
+            const errorText = await llmResponse.text();
+            console.error('❌ LM Studio error response:', errorText);
+            throw new Error(`LM Studio API error: ${llmResponse.status}`);
         }
 
-        const data = await geminiResponse.json();
-        console.log('📥 Initial Gemini response:', data);
+        const data = await llmResponse.json();
+        console.log('📥 LM Studio response:', data);
         
-        // Validate response structure
-        if (!data.candidates || data.candidates.length === 0) {
-            console.error('❌ Invalid initial response:', data);
-            throw new Error('Gemini API trả về response không hợp lệ');
+        // OpenAI format: data.choices[0].message.content
+        if (!data.choices || data.choices.length === 0) {
+            console.error('❌ Invalid response structure:', data);
+            throw new Error('LM Studio trả về response không hợp lệ');
         }
-        
-        const candidate = data.candidates[0];
-        
-        // Check if response is blocked
-        if (!candidate.content) {
-            console.error('❌ Response blocked or missing content:', candidate);
-            const reason = candidate.finishReason || 'UNKNOWN';
-            throw new Error(`Gemini blocked response: ${reason}`);
-        }
-        
-        if (!candidate.content.parts || candidate.content.parts.length === 0) {
-            console.error('❌ Missing parts in response:', candidate.content);
-            throw new Error('Gemini API không trả về nội dung');
-        }
-        
-        // Check if Gemini wants to call a function
-        if (candidate.content.parts[0].functionCall) {
-            const functionCall = candidate.content.parts[0].functionCall;
-            const functionName = functionCall.name;
-            const functionArgs = functionCall.args || {};
 
-            console.log('🔧 Calling function:', functionName, functionArgs);
+        const responseText = data.choices[0].message.content;
+        console.log('💬 LM response:', responseText);
 
-            // Execute function
-            const functionResult = await this.executeFunction(functionName, functionArgs);
-            console.log('📥 Function result:', functionResult);
+        // Check if LLM wants to call a function (simple JSON detection)
+        try {
+            const jsonMatch = responseText.match(/\{[\s\S]*"function"[\s\S]*\}/);
+            if (jsonMatch) {
+                const functionCall = JSON.parse(jsonMatch[0]);
+                console.log('🔧 Detected function call:', functionCall);
+                
+                // Execute function
+                const functionResult = await this.executeFunction(functionCall.function, functionCall.args || {});
+                console.log('📥 Function result:', functionResult);
 
-            // Send function result back to Gemini
-            const finalResponse = await fetch(this.geminiEndpoint, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'X-API-Key': this.apiKey
-                },
-                body: JSON.stringify({
-                    contents: [
-                        {
-                            role: 'user',
-                            parts: [{ text: userQuery }]
-                        },
-                        {
-                            role: 'model',
-                            parts: [{ functionCall: functionCall }]
-                        },
-                        {
-                            role: 'function',
-                            parts: [{
-                                functionResponse: {
-                                    name: functionName,
-                                    response: {
-                                        result: functionResult
-                                    }
-                                }
-                            }]
-                        }
-                    ]
-                })
-            });
+                // Send result back to LLM for natural language response
+                const finalResponse = await fetch(this.llmEndpoint, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: "local-model",
+                        messages: [
+                            {
+                                role: "system",
+                                content: "Bạn là trợ lý AI. Hãy tổng hợp dữ liệu sau và trả lời bằng tiếng Việt tự nhiên, ngắn gọn."
+                            },
+                            {
+                                role: "user",
+                                content: userQuery
+                            },
+                            {
+                                role: "assistant",
+                                content: `Đã gọi function ${functionCall.function}`
+                            },
+                            {
+                                role: "user",
+                                content: `Kết quả: ${JSON.stringify(functionResult)}`
+                            }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 300,
+                        stream: false
+                    })
+                });
 
-            if (!finalResponse.ok) {
-                if (finalResponse.status === 429) {
-                    throw new Error('Vượt quá giới hạn API (15 requests/phút). Đợi 1 phút hoặc nâng cấp paid tier.');
+                if (finalResponse.ok) {
+                    const finalData = await finalResponse.json();
+                    console.log('📥 Final LM response:', finalData);
+                    return finalData.choices[0].message.content;
                 }
-                const errorText = await finalResponse.text();
-                console.error('❌ Gemini API error response:', errorText);
-                throw new Error(`Gemini API error: ${finalResponse.status}`);
             }
-
-            const finalData = await finalResponse.json();
-            console.log('📥 Final Gemini response:', finalData);
-            
-            // Validate response structure
-            if (!finalData.candidates || finalData.candidates.length === 0) {
-                console.error('❌ Invalid response structure:', finalData);
-                throw new Error('Gemini API trả về response không hợp lệ');
-            }
-            
-            if (!finalData.candidates[0].content || !finalData.candidates[0].content.parts || 
-                finalData.candidates[0].content.parts.length === 0) {
-                console.error('❌ Missing content in response:', finalData.candidates[0]);
-                throw new Error('Gemini API không trả về nội dung');
-            }
-            
-            return finalData.candidates[0].content.parts[0].text;
-        } else {
-            // Direct text response
-            return candidate.content.parts[0].text;
+        } catch (e) {
+            console.log('ℹ️ Not a function call, using direct response');
         }
+
+        // Direct text response
+        return responseText;
     }
 
     async executeFunction(name, args) {
