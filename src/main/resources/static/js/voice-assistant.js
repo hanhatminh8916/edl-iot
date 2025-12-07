@@ -13,6 +13,11 @@ class VoiceAssistant {
         this.pendingNavigation = null; // Store navigation to execute after response
         this.vietnameseVoice = null; // Cache Vietnamese voice
         
+        // ElevenLabs TTS
+        this.elevenLabsApiKey = 'sk_701323a10ba0aade7e19a0ec0ee2c79148381bc038cc874c';
+        this.elevenLabsVoiceId = 'pNInz6obpgDQGcFmaJgB'; // Adam voice (supports multilingual)
+        this.useElevenLabs = true; // Enable ElevenLabs by default
+        
         // Rate limiting
         this.lastRequestTime = 0;
         this.minRequestInterval = 2000; // 2 giây giữa các requests
@@ -22,7 +27,7 @@ class VoiceAssistant {
         
         this.initSpeechRecognition();
         this.initUI();
-        this.loadVietnameseVoice(); // Load Vietnamese voice
+        this.loadVietnameseVoice(); // Load Vietnamese voice as fallback
     }
 
     loadVietnameseVoice() {
@@ -968,6 +973,73 @@ AI: {"function": "get_workers"}`
 
     speak(text, isNavigationPending = false) {
         console.log('🔊 Speaking:', text, 'Navigation pending:', isNavigationPending);
+        
+        if (this.useElevenLabs) {
+            this.speakWithElevenLabs(text);
+        } else {
+            this.speakWithBrowser(text);
+        }
+    }
+
+    async speakWithElevenLabs(text) {
+        try {
+            console.log('🎤 Using ElevenLabs TTS');
+            this.updateUI('speaking');
+
+            const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${this.elevenLabsVoiceId}`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'audio/mpeg',
+                    'Content-Type': 'application/json',
+                    'xi-api-key': this.elevenLabsApiKey
+                },
+                body: JSON.stringify({
+                    text: text,
+                    model_id: 'eleven_multilingual_v2',
+                    voice_settings: {
+                        stability: 0.5,
+                        similarity_boost: 0.75,
+                        style: 0.0,
+                        use_speaker_boost: true
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`ElevenLabs API error: ${response.status}`);
+            }
+
+            const audioBlob = await response.blob();
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+
+            audio.onplay = () => {
+                console.log('🎙️ ElevenLabs speech started');
+            };
+
+            audio.onended = () => {
+                console.log('✅ ElevenLabs speech ended');
+                this.updateUI('ready');
+                URL.revokeObjectURL(audioUrl);
+            };
+
+            audio.onerror = (error) => {
+                console.error('❌ Audio playback error:', error);
+                this.updateUI('ready');
+                // Fallback to browser TTS
+                this.speakWithBrowser(text);
+            };
+
+            await audio.play();
+        } catch (error) {
+            console.error('❌ ElevenLabs TTS error:', error);
+            // Fallback to browser TTS
+            this.speakWithBrowser(text);
+        }
+    }
+
+    speakWithBrowser(text) {
+        console.log('🔊 Using browser TTS (fallback)');
         
         // Cancel any ongoing speech
         this.synthesis.cancel();
