@@ -738,16 +738,41 @@ Các function: navigate_to_dashboard, navigate_to_positioning, navigate_to_alert
                     
                     // Check if user query contains keywords for special actions after navigation
                     const query = userQuery?.toLowerCase() || '';
+                    
                     if (query.includes('đọc') || query.includes('thống kê') || query.includes('báo cáo') || query.includes('tình hình')) {
                         console.log('📊 Detected stats reading request with navigation');
                         localStorage.setItem('voice_pending_action', JSON.stringify({
                             function: 'read_dashboard_stats',
                             args: {}
                         }));
-                    } else if (query.includes('mấy công nhân') || query.includes('ai đang') || query.includes('công nhân nào') || query.includes('đang làm việc') || query.includes('online')) {
+                    } else if (query.includes('mấy công nhân đang') || query.includes('ai đang') || query.includes('công nhân nào đang') || (query.includes('đang làm việc') && query.includes('công nhân')) || (query.includes('online') && query.includes('công nhân'))) {
                         console.log('👷 Detected active workers request with navigation');
                         localStorage.setItem('voice_pending_action', JSON.stringify({
                             function: 'read_active_workers',
+                            args: {}
+                        }));
+                    } else if (query.includes('tổng cộng') || query.includes('tất cả công nhân') || query.includes('bao nhiêu công nhân')) {
+                        console.log('👥 Detected total workers request');
+                        localStorage.setItem('voice_pending_action', JSON.stringify({
+                            function: 'read_total_workers',
+                            args: {}
+                        }));
+                    } else if (query.includes('cảnh báo hôm nay') || query.includes('cảnh báo ngày nay') || query.includes('mấy cảnh báo')) {
+                        console.log('⚠️ Detected alerts today request');
+                        localStorage.setItem('voice_pending_action', JSON.stringify({
+                            function: 'read_alerts_today',
+                            args: {}
+                        }));
+                    } else if (query.includes('hiệu suất') || query.includes('performance')) {
+                        console.log('📈 Detected efficiency request');
+                        localStorage.setItem('voice_pending_action', JSON.stringify({
+                            function: 'read_efficiency',
+                            args: {}
+                        }));
+                    } else if (query.includes('cảnh báo gần') || query.includes('cảnh báo mới')) {
+                        console.log('🔔 Detected recent alerts detail request');
+                        localStorage.setItem('voice_pending_action', JSON.stringify({
+                            function: 'read_recent_alerts_detail',
                             args: {}
                         }));
                     }
@@ -855,6 +880,18 @@ Các function: navigate_to_dashboard, navigate_to_positioning, navigate_to_alert
             
             case 'read_active_workers':
                 return await this.readActiveWorkers();
+            
+            case 'read_total_workers':
+                return await this.readTotalWorkers();
+            
+            case 'read_alerts_today':
+                return await this.readAlertsToday();
+            
+            case 'read_efficiency':
+                return await this.readEfficiency();
+            
+            case 'read_recent_alerts_detail':
+                return await this.readRecentAlertsDetail();
             
             // ===== UI CONTROL FUNCTIONS (non-navigation) =====
             case 'highlight_element':
@@ -966,7 +1003,7 @@ Các function: navigate_to_dashboard, navigate_to_positioning, navigate_to_alert
             const audio = new Audio('/sounds/electric-shock.mp3');
             audio.volume = 0.7;
             audio.play();
-            return { success: true, message: 'Đang phát âm thanh điện' };
+            return { success: true, message: 'Vâng em chích điện nó ngay đây ạ!' };
         } catch (error) {
             console.error('❌ Sound playback error:', error);
             return { error: 'Không phát được âm thanh' };
@@ -981,6 +1018,127 @@ Các function: navigate_to_dashboard, navigate_to_positioning, navigate_to_alert
             }
             return await response.json();
         } catch (error) {
+            return { error: error.message };
+        }
+    }
+
+    async readTotalWorkers() {
+        try {
+            const response = await fetch('/api/workers');
+            if (!response.ok) return { error: 'Không thể lấy dữ liệu' };
+            
+            const workers = await response.json();
+            
+            // Highlight total workers stat card
+            setTimeout(() => {
+                const element = document.querySelector('#stat-total-workers');
+                if (element) {
+                    const statCard = element.closest('.stat-card');
+                    if (statCard) {
+                        this.highlightElementWithPulse(statCard, `${workers.length} công nhân`);
+                    }
+                }
+            }, 500);
+            
+            const message = `Tổng cộng có ${workers.length} công nhân trong hệ thống.`;
+            return { success: true, count: workers.length, message };
+        } catch (error) {
+            console.error('❌ Error:', error);
+            return { error: error.message };
+        }
+    }
+
+    async readAlertsToday() {
+        try {
+            const response = await fetch('/api/dashboard/alerts/recent?limit=50');
+            if (!response.ok) return { error: 'Không thể lấy dữ liệu cảnh báo' };
+            
+            const alerts = await response.json();
+            const today = new Date().toISOString().split('T')[0];
+            const todayAlerts = alerts.filter(a => a.timestamp?.startsWith(today));
+            
+            // Highlight alerts stat card
+            setTimeout(() => {
+                const element = document.querySelector('#stat-alerts');
+                if (element) {
+                    const statCard = element.closest('.stat-card');
+                    if (statCard) {
+                        this.highlightElementWithPulse(statCard, `${todayAlerts.length} cảnh báo`);
+                    }
+                }
+            }, 500);
+            
+            let message = `Hôm nay có ${todayAlerts.length} cảnh báo.`;
+            if (todayAlerts.length > 0) {
+                const types = {};
+                todayAlerts.forEach(a => {
+                    const type = a.type || a.alertType || 'Khác';
+                    types[type] = (types[type] || 0) + 1;
+                });
+                const typesList = Object.entries(types).map(([k, v]) => `${v} ${k}`).join(', ');
+                message += ` Bao gồm: ${typesList}.`;
+            }
+            
+            return { success: true, count: todayAlerts.length, alerts: todayAlerts, message };
+        } catch (error) {
+            console.error('❌ Error:', error);
+            return { error: error.message };
+        }
+    }
+
+    async readEfficiency() {
+        try {
+            // Highlight efficiency stat card
+            setTimeout(() => {
+                const element = document.querySelector('#stat-efficiency');
+                if (element) {
+                    const statCard = element.closest('.stat-card');
+                    const efficiency = element.textContent || '0%';
+                    if (statCard) {
+                        this.highlightElementWithPulse(statCard, `Hiệu suất: ${efficiency}`);
+                    }
+                }
+            }, 500);
+            
+            const efficiencyElement = document.querySelector('#stat-efficiency');
+            const efficiency = efficiencyElement?.textContent || '0%';
+            const message = `Hiệu suất làm việc hiện tại là ${efficiency}.`;
+            
+            return { success: true, efficiency, message };
+        } catch (error) {
+            console.error('❌ Error:', error);
+            return { error: error.message };
+        }
+    }
+
+    async readRecentAlertsDetail() {
+        try {
+            const response = await fetch('/api/dashboard/alerts/recent?limit=5');
+            if (!response.ok) return { error: 'Không thể lấy dữ liệu cảnh báo' };
+            
+            const alerts = await response.json();
+            
+            // Highlight alerts section/table
+            setTimeout(() => {
+                const alertsTable = document.querySelector('.alerts-table, #alerts-container, .recent-alerts');
+                if (alertsTable) {
+                    this.highlightElementWithPulse(alertsTable, 'Cảnh báo gần đây');
+                }
+            }, 500);
+            
+            let message = `Có ${alerts.length} cảnh báo gần đây. `;
+            if (alerts.length > 0) {
+                const details = alerts.slice(0, 3).map((a, i) => {
+                    const type = a.type || a.alertType || 'Cảnh báo';
+                    const name = a.employeeName || a.workerName || 'Công nhân';
+                    return `${type} - ${name}`;
+                }).join(', ');
+                message += `Bao gồm: ${details}.`;
+            }
+            
+            return { success: true, count: alerts.length, alerts, message };
+        } catch (error) {
+            console.error('❌ Error:', error);
             return { error: error.message };
         }
     }

@@ -23,15 +23,22 @@ Khi user yêu cầu chuyển trang/xem trang, BẮT BUỘC phải trả về JSO
 - **get_helmet_status(mac_address)**: Kiểm tra trạng thái mũ
 - **get_map_data**: Lấy vị trí công nhân
 - **get_dashboard_overview**: Tổng quan dashboard
-- **read_dashboard_stats**: Đọc thống kê dashboard và làm nổi bật (khi user nói "đọc thống kê", "báo cáo tổng quan", "tình hình hiện tại")
-- **read_active_workers**: Đọc tên công nhân đang làm việc và highlight card (khi user hỏi "có mấy công nhân đang làm việc", "công nhân nào đang online", "ai đang làm việc")
 
-### 3. UI CONTROL (Điều khiển giao diện)
+### 3. DASHBOARD STATS (Thống kê & Highlight)
+
+- **read_dashboard_stats**: Đọc tất cả thống kê dashboard và làm nổi bật (khi user nói "đọc thống kê", "báo cáo tổng quan", "tình hình hiện tại")
+- **read_active_workers**: Đọc tên công nhân đang làm việc và highlight card (khi user hỏi "có mấy công nhân đang làm việc", "ai đang online", "công nhân nào đang làm việc")
+- **read_total_workers**: Đọc tổng số công nhân và highlight (khi user hỏi "tổng cộng bao nhiêu công nhân", "tất cả công nhân", "bao nhiêu công nhân")
+- **read_alerts_today**: Đọc số lượng và phân loại cảnh báo hôm nay (khi user hỏi "cảnh báo hôm nay", "mấy cảnh báo", "cảnh báo ngày nay")
+- **read_efficiency**: Đọc hiệu suất làm việc và highlight (khi user hỏi "hiệu suất", "performance", "hiệu quả làm việc")
+- **read_recent_alerts_detail**: Đọc chi tiết 3-5 cảnh báo gần nhất (khi user hỏi "cảnh báo gần đây", "cảnh báo mới nhất")
+
+### 4. UI CONTROL (Điều khiển giao diện)
 
 - **highlight_element(selector, message)**: Làm nổi bật element
 - **scroll_to_element(selector)**: Scroll đến element
 
-### 4. SOUND EFFECTS (Hiệu ứng âm thanh)
+### 5. SOUND EFFECTS (Hiệu ứng âm thanh)
 
 - **play_electric_shock**: Phát âm thanh chích điện (khi user nói "chích điện", "điện giật", "shock")
 
@@ -71,6 +78,22 @@ Khi user yêu cầu chuyển trang/xem trang, BẮT BUỘC phải trả về JSO
 **User**: "Có mấy công nhân đang làm việc?"  
 **AI**: `{"function": "navigate_to_dashboard"}`
 *Lưu ý: Hệ thống sẽ tự động gọi read_active_workers sau khi chuyển trang*
+
+**User**: "Tổng cộng bao nhiêu công nhân?"  
+**AI**: `{"function": "navigate_to_dashboard"}`
+*Lưu ý: Hệ thống sẽ tự động gọi read_total_workers*
+
+**User**: "Cảnh báo hôm nay có gì?"  
+**AI**: `{"function": "navigate_to_dashboard"}`
+*Lưu ý: Hệ thống sẽ tự động gọi read_alerts_today*
+
+**User**: "Hiệu suất thế nào?"  
+**AI**: `{"function": "navigate_to_dashboard"}`
+*Lưu ý: Hệ thống sẽ tự động gọi read_efficiency*
+
+**User**: "Cảnh báo gần đây có gì?"  
+**AI**: `{"function": "navigate_to_dashboard"}`
+*Lưu ý: Hệ thống sẽ tự động gọi read_recent_alerts_detail*
 
 **User**: "Chích điện đi"  
 **AI**: `{"function": "play_electric_shock"}`
