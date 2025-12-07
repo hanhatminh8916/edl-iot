@@ -11,6 +11,7 @@ class VoiceAssistant {
         this.apiKey = null; // Không cần cho LM Studio
         this.llmEndpoint = '/api/voice-assistant/lmstudio'; // LM Studio proxy
         this.pendingNavigation = null; // Store navigation to execute after response
+        this.vietnameseVoice = null; // Cache Vietnamese voice
         
         // Rate limiting
         this.lastRequestTime = 0;
@@ -21,6 +22,39 @@ class VoiceAssistant {
         
         this.initSpeechRecognition();
         this.initUI();
+        this.loadVietnameseVoice(); // Load Vietnamese voice
+    }
+
+    loadVietnameseVoice() {
+        // Voices need to be loaded asynchronously
+        const loadVoices = () => {
+            const voices = this.synthesis.getVoices();
+            console.log('🔊 Available voices:', voices.length);
+            
+            // Find Vietnamese voice
+            this.vietnameseVoice = voices.find(voice => 
+                voice.lang === 'vi-VN' || 
+                voice.lang.startsWith('vi')
+            );
+            
+            if (this.vietnameseVoice) {
+                console.log('✅ Vietnamese voice found:', this.vietnameseVoice.name);
+            } else {
+                console.warn('⚠️ No Vietnamese voice found, using default');
+                // Find any Google voice as fallback
+                this.vietnameseVoice = voices.find(voice => 
+                    voice.name.includes('Google')
+                ) || voices[0];
+            }
+        };
+
+        // Load voices immediately
+        loadVoices();
+
+        // Also listen for voiceschanged event (for Chrome)
+        if (this.synthesis.onvoiceschanged !== undefined) {
+            this.synthesis.onvoiceschanged = loadVoices;
+        }
     }
 
     initSpeechRecognition() {
@@ -940,17 +974,16 @@ AI: {"function": "get_workers"}`
 
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'vi-VN';
-        utterance.rate = 1.0;
+        utterance.rate = 0.9; // Slightly slower for Vietnamese
         utterance.pitch = 1.0;
+        utterance.volume = 1.0;
 
-        // Select Vietnamese voice if available
-        const voices = this.synthesis.getVoices();
-        const vietnameseVoice = voices.find(voice => 
-            voice.lang === 'vi-VN' || 
-            voice.lang.startsWith('vi')
-        );
-        if (vietnameseVoice) {
-            utterance.voice = vietnameseVoice;
+        // Use cached Vietnamese voice
+        if (this.vietnameseVoice) {
+            utterance.voice = this.vietnameseVoice;
+            console.log('🎤 Using voice:', this.vietnameseVoice.name);
+        } else {
+            console.warn('⚠️ No Vietnamese voice available, using default');
         }
 
         utterance.onstart = () => {
@@ -961,6 +994,10 @@ AI: {"function": "get_workers"}`
         utterance.onend = () => {
             console.log('✅ Speech ended');
             this.updateUI('ready');
+        };
+
+        utterance.onerror = (event) => {
+            console.error('❌ Speech error:', event);
         };
 
         this.synthesis.speak(utterance);
