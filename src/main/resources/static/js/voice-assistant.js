@@ -15,7 +15,7 @@ class VoiceAssistant {
         
         // ElevenLabs TTS
         this.elevenLabsApiKey = 'sk_701323a10ba0aade7e19a0ec0ee2c79148381bc038cc874c';
-        this.elevenLabsVoiceId = 'pNInz6obpgDQGcFmaJgB'; // Adam voice (supports multilingual)
+        this.elevenLabsVoiceId = 'iSFxP4Z6YNcx9OXl62Ic'; // Adam voice (supports multilingual)
         this.useElevenLabs = true; // Enable ElevenLabs by default
         
         // Rate limiting
