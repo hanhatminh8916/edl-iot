@@ -34,12 +34,37 @@ class VoiceAssistant {
         this.initUI();
         this.loadVietnameseVoice(); // Load Vietnamese voice as fallback
         
-        // Auto-start if always listening is enabled
-        setTimeout(() => {
-            if (this.alwaysListening) {
-                this.playWelcomeAndStart();
-            }
-        }, 1000); // Wait 1s for page to load
+        // Check for pending speech from navigation
+        const pendingSpeech = localStorage.getItem('voice_pending_speech');
+        const pendingAction = localStorage.getItem('voice_pending_action');
+        
+        if (pendingSpeech) {
+            console.log('📢 Resuming speech after navigation:', pendingSpeech);
+            localStorage.removeItem('voice_pending_speech');
+            
+            setTimeout(() => {
+                this.speak(pendingSpeech);
+                
+                // Execute pending action if exists (e.g., read_dashboard_stats)
+                if (pendingAction) {
+                    localStorage.removeItem('voice_pending_action');
+                    try {
+                        const action = JSON.parse(pendingAction);
+                        console.log('🎯 Executing pending action:', action);
+                        this.executeFunction(action.function, action.args || {});
+                    } catch (e) {
+                        console.error('❌ Failed to execute pending action:', e);
+                    }
+                }
+            }, 500); // Wait for page elements to load
+        } else {
+            // Auto-start if always listening is enabled and no pending speech
+            setTimeout(() => {
+                if (this.alwaysListening) {
+                    this.playWelcomeAndStart();
+                }
+            }, 1000); // Wait 1s for page to load
+        }
     }
 
     playWelcomeAndStart() {
@@ -593,13 +618,14 @@ class VoiceAssistant {
                 const navFunction = this.pendingNavigation;
                 this.pendingNavigation = null;
                 
-                console.log('⏰ Navigation will execute in 2 seconds...', navFunction);
+                console.log('⏰ Navigation will execute immediately with speech preserved');
                 
-                // Wait 2 seconds to let user see/hear the response
-                setTimeout(() => {
-                    console.log('🚀 Executing navigation now!', navFunction);
-                    this.executeNavigation(navFunction.function, navFunction.args || {});
-                }, 2000);
+                // Store speech to resume on new page
+                localStorage.setItem('voice_pending_speech', response);
+                
+                // Execute navigation immediately (no delay needed)
+                console.log('🚀 Executing navigation now!', navFunction);
+                this.executeNavigation(navFunction.function, navFunction.args || {});
             }
         } catch (error) {
             console.error('❌ Lỗi xử lý:', error);
@@ -610,6 +636,9 @@ class VoiceAssistant {
     }
 
     async callGeminiWithTools(userQuery) {
+        // Store the original query for potential navigation context
+        this.lastUserQuery = userQuery;
+        
         // Load system prompt from file
         let systemPrompt = '';
         try {
@@ -690,8 +719,18 @@ Các function: navigate_to_dashboard, navigate_to_positioning, navigate_to_alert
                     
                     // Store navigation info to execute after response
                     this.pendingNavigation = functionCall;
-                    console.log('💾 Stored pending navigation:', this.pendingNavigation);
                     
+                    // Check if user query contains keywords for special actions after navigation
+                    const query = userQuery?.toLowerCase() || '';
+                    if (query.includes('đọc') || query.includes('thống kê') || query.includes('báo cáo') || query.includes('tình hình')) {
+                        console.log('📊 Detected stats reading request with navigation');
+                        localStorage.setItem('voice_pending_action', JSON.stringify({
+                            function: 'read_dashboard_stats',
+                            args: {}
+                        }));
+                    }
+                    
+                    console.log('💾 Stored pending navigation:', this.pendingNavigation);
                     return navMessages[functionCall.function] || 'Đang chuyển trang...';
                 }
                 
