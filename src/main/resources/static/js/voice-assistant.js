@@ -731,6 +731,12 @@ Các function: navigate_to_dashboard, navigate_to_positioning, navigate_to_alert
                             function: 'read_dashboard_stats',
                             args: {}
                         }));
+                    } else if (query.includes('mấy công nhân') || query.includes('ai đang') || query.includes('công nhân nào') || query.includes('đang làm việc') || query.includes('online')) {
+                        console.log('👷 Detected active workers request with navigation');
+                        localStorage.setItem('voice_pending_action', JSON.stringify({
+                            function: 'read_active_workers',
+                            args: {}
+                        }));
                     }
                     
                     console.log('💾 Stored pending navigation:', this.pendingNavigation);
@@ -833,6 +839,9 @@ Các function: navigate_to_dashboard, navigate_to_positioning, navigate_to_alert
             
             case 'read_dashboard_stats':
                 return await this.readDashboardStats();
+            
+            case 'read_active_workers':
+                return await this.readActiveWorkers();
             
             // ===== UI CONTROL FUNCTIONS (non-navigation) =====
             case 'highlight_element':
@@ -959,6 +968,49 @@ Các function: navigate_to_dashboard, navigate_to_positioning, navigate_to_alert
             }
             return await response.json();
         } catch (error) {
+            return { error: error.message };
+        }
+    }
+
+    async readActiveWorkers() {
+        try {
+            // Fetch workers data from API
+            const response = await fetch('/api/workers');
+            if (!response.ok) {
+                return { error: 'Không thể lấy dữ liệu công nhân' };
+            }
+            
+            const workers = await response.json();
+            const activeWorkers = workers.filter(w => w.status === 'ONLINE' || w.online);
+            
+            // Highlight active workers stat card
+            setTimeout(() => {
+                const element = document.querySelector('#stat-active-workers');
+                if (element) {
+                    const statCard = element.closest('.stat-card');
+                    if (statCard) {
+                        this.highlightElementWithPulse(statCard, `${activeWorkers.length} công nhân đang làm việc`);
+                    }
+                }
+            }, 500);
+            
+            // Build message with worker names
+            let message = `Hiện có ${activeWorkers.length} công nhân đang làm việc: `;
+            if (activeWorkers.length > 0) {
+                const names = activeWorkers.map(w => w.name || w.employeeName).join(', ');
+                message += names + '.';
+            } else {
+                message = 'Hiện không có công nhân nào đang làm việc.';
+            }
+            
+            return {
+                success: true,
+                count: activeWorkers.length,
+                workers: activeWorkers,
+                message: message
+            };
+        } catch (error) {
+            console.error('❌ Error reading active workers:', error);
             return { error: error.message };
         }
     }

@@ -24,6 +24,7 @@ Khi user yêu cầu chuyển trang/xem trang, BẮT BUỘC phải trả về JSO
 - **get_map_data**: Lấy vị trí công nhân
 - **get_dashboard_overview**: Tổng quan dashboard
 - **read_dashboard_stats**: Đọc thống kê dashboard và làm nổi bật (khi user nói "đọc thống kê", "báo cáo tổng quan", "tình hình hiện tại")
+- **read_active_workers**: Đọc tên công nhân đang làm việc và highlight card (khi user hỏi "có mấy công nhân đang làm việc", "công nhân nào đang online", "ai đang làm việc")
 
 ### 3. UI CONTROL (Điều khiển giao diện)
 
@@ -66,6 +67,10 @@ Khi user yêu cầu chuyển trang/xem trang, BẮT BUỘC phải trả về JSO
 
 **User**: "Có bao nhiêu công nhân?"  
 **AI**: `{"function": "get_workers"}`
+
+**User**: "Có mấy công nhân đang làm việc?"  
+**AI**: `{"function": "navigate_to_dashboard"}`
+*Lưu ý: Hệ thống sẽ tự động gọi read_active_workers sau khi chuyển trang*
 
 **User**: "Chích điện đi"  
 **AI**: `{"function": "play_electric_shock"}`
