@@ -78,12 +78,11 @@ class VoiceAssistant {
                         <button id="close-voice-panel" class="close-btn">&times;</button>
                     </div>
 
-                    <!-- API Key Input -->
-                    <div class="voice-section" id="api-key-section">
-                        <label>Google AI API Key:</label>
-                        <input type="password" id="gemini-api-key" placeholder="Nhập API key của bạn">
+                    <!-- API Key Input - Hidden for LM Studio -->
+                    <div class="voice-section" id="api-key-section" style="display: none;">
+                        <label>API Key:</label>
+                        <input type="password" id="gemini-api-key" placeholder="Không cần cho LM Studio">
                         <button id="save-api-key" class="btn-primary">Lưu</button>
-                        <small><a href="https://ai.google.dev/gemini-api/docs/api-key" target="_blank">Lấy API key miễn phí</a></small>
                     </div>
 
                     <!-- Status Display -->
@@ -316,12 +315,6 @@ class VoiceAssistant {
     }
 
     toggleListening() {
-        if (!this.apiKey) {
-            this.openPanel();
-            alert('⚠️ Vui lòng nhập Google AI API Key trước!');
-            return;
-        }
-
         if (this.isListening) {
             this.recognition.stop();
         } else {
@@ -352,11 +345,11 @@ class VoiceAssistant {
     }
 
     loadApiKey() {
-        const savedKey = localStorage.getItem('gemini_api_key');
-        if (savedKey) {
-            this.apiKey = savedKey;
-            document.getElementById('gemini-api-key').value = savedKey;
-            document.getElementById('api-key-section').style.display = 'none';
+        // LM Studio không cần API key
+        // Hide API key section completely
+        const apiKeySection = document.getElementById('api-key-section');
+        if (apiKeySection) {
+            apiKeySection.style.display = 'none';
         }
     }
 
