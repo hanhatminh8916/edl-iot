@@ -633,10 +633,18 @@ Sau khi nhận kết quả, hãy tổng hợp và trả lời bằng tiếng Vi�
                 return { error: `Element not found: ${selector}` };
             }
 
-            // Add highlight animation
+            // Store original styles
+            const originalBorder = element.style.border;
+            const originalOutline = element.style.outline;
+            const originalBg = element.style.backgroundColor;
+
+            // Add highlight animation with bold border
             element.style.transition = 'all 0.5s ease';
-            element.style.boxShadow = '0 0 20px 5px #667eea';
-            element.style.transform = 'scale(1.05)';
+            element.style.border = '4px solid #667eea';
+            element.style.outline = '2px solid #f5576c';
+            element.style.outlineOffset = '4px';
+            element.style.backgroundColor = 'rgba(102, 126, 234, 0.1)';
+            element.style.transform = 'scale(1.02)';
             element.style.zIndex = '9998';
 
             // Show message if provided
@@ -667,7 +675,9 @@ Sau khi nhận kết quả, hãy tổng hợp và trả lời bằng tiếng Vi�
 
             // Remove highlight after 5 seconds
             setTimeout(() => {
-                element.style.boxShadow = '';
+                element.style.border = originalBorder;
+                element.style.outline = originalOutline;
+                element.style.backgroundColor = originalBg;
                 element.style.transform = '';
                 element.style.zIndex = '';
             }, 5000);
