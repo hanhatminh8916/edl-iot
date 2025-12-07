@@ -425,8 +425,12 @@ class VoiceAssistant {
             // Hiển thị response
             document.getElementById('ai-text').textContent = response;
             
+            // Check if we have pending navigation
+            const hasPendingNav = !!this.pendingNavigation;
+            console.log('🔍 Has pending navigation:', hasPendingNav, this.pendingNavigation);
+            
             // Đọc response bằng giọng nói
-            this.speak(response);
+            this.speak(response, hasPendingNav);
             
             this.updateUI('ready', 'Hoàn thành!');
             
@@ -435,10 +439,13 @@ class VoiceAssistant {
                 const navFunction = this.pendingNavigation;
                 this.pendingNavigation = null;
                 
-                // Wait 1.5 seconds to let user see/hear the response
+                console.log('⏰ Navigation will execute in 2 seconds...', navFunction);
+                
+                // Wait 2 seconds to let user see/hear the response
                 setTimeout(() => {
+                    console.log('🚀 Executing navigation now!', navFunction);
                     this.executeNavigation(navFunction.function, navFunction.args || {});
-                }, 1500);
+                }, 2000);
             }
         } catch (error) {
             console.error('❌ Lỗi xử lý:', error);
@@ -521,6 +528,7 @@ Sau khi nhận kết quả, hãy tổng hợp và trả lời bằng tiếng Vi�
                 
                 // Check if this is a navigation function - handle specially
                 const isNavigation = functionCall.function.startsWith('navigate_to_');
+                console.log('🧭 Is navigation function?', isNavigation, functionCall.function);
                 
                 if (isNavigation) {
                     // For navigation, just return the message and navigate AFTER response
@@ -533,6 +541,7 @@ Sau khi nhận kết quả, hãy tổng hợp và trả lời bằng tiếng Vi�
                     
                     // Store navigation info to execute after response
                     this.pendingNavigation = functionCall;
+                    console.log('💾 Stored pending navigation:', this.pendingNavigation);
                     
                     return navMessages[functionCall.function] || 'Đang chuyển trang...';
                 }
@@ -758,7 +767,9 @@ Sau khi nhận kết quả, hãy tổng hợp và trả lời bằng tiếng Vi�
         }
     }
 
-    speak(text) {
+    speak(text, isNavigationPending = false) {
+        console.log('🔊 Speaking:', text, 'Navigation pending:', isNavigationPending);
+        
         // Cancel any ongoing speech
         this.synthesis.cancel();
 
@@ -778,10 +789,12 @@ Sau khi nhận kết quả, hãy tổng hợp và trả lời bằng tiếng Vi�
         }
 
         utterance.onstart = () => {
+            console.log('🎙️ Speech started');
             this.updateUI('speaking');
         };
 
         utterance.onend = () => {
+            console.log('✅ Speech ended');
             this.updateUI('ready');
         };
 
