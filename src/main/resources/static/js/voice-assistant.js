@@ -18,6 +18,10 @@ class VoiceAssistant {
         this.elevenLabsVoiceId = 'iSFxP4Z6YNcx9OXl62Ic'; // Adam voice (supports multilingual)
         this.useElevenLabs = true; // Enable ElevenLabs by default
         
+        // Always Listening mode
+        this.alwaysListening = localStorage.getItem('voice_always_listening') === 'true';
+        this.isWelcomePlayed = false;
+        
         // Rate limiting
         this.lastRequestTime = 0;
         this.minRequestInterval = 2000; // 2 giây giữa các requests
@@ -28,6 +32,32 @@ class VoiceAssistant {
         this.initSpeechRecognition();
         this.initUI();
         this.loadVietnameseVoice(); // Load Vietnamese voice as fallback
+        
+        // Auto-start if always listening is enabled
+        setTimeout(() => {
+            if (this.alwaysListening) {
+                this.playWelcomeAndStart();
+            }
+        }, 1000); // Wait 1s for page to load
+    }
+
+    playWelcomeAndStart() {
+        if (!this.isWelcomePlayed) {
+            this.isWelcomePlayed = true;
+            this.speak('EDL Assistant đã sẵn sàng');
+            
+            // Start listening after welcome message
+            setTimeout(() => {
+                this.startContinuousListening();
+            }, 2500);
+        }
+    }
+
+    startContinuousListening() {
+        if (!this.isListening && this.alwaysListening) {
+            console.log('🎤 Starting continuous listening mode');
+            this.recognition.start();
+        }
     }
 
     loadVietnameseVoice() {
@@ -99,6 +129,13 @@ class VoiceAssistant {
         this.recognition.onend = () => {
             this.isListening = false;
             console.log('🛑 Kết thúc lắng nghe');
+            
+            // Auto-restart if always listening mode is enabled
+            if (this.alwaysListening) {
+                setTimeout(() => {
+                    this.startContinuousListening();
+                }, 500); // Small delay before restart
+            }
         };
     }
 
@@ -152,6 +189,21 @@ class VoiceAssistant {
                             <button class="quick-cmd" data-cmd="Có cảnh báo nguy hiểm nào không?">⚠️ Cảnh báo</button>
                             <button class="quick-cmd" data-cmd="Có bao nhiêu công nhân đang online?">👷 Công nhân</button>
                         </div>
+                    </div>
+
+                    <!-- Settings Section -->
+                    <div class="voice-section" style="background: #f8f9fa;">
+                        <small><strong>⚙️ Cài đặt:</strong></small>
+                        <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
+                            <label style="margin: 0; cursor: pointer; display: flex; align-items: center;">
+                                <span style="margin-right: 10px;">🎤 Always Listening</span>
+                            </label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="always-listening-toggle" ${this.alwaysListening ? 'checked' : ''}>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <small style="color: #666; display: block; margin-top: 5px;">Tự động lắng nghe khi vào trang</small>
                     </div>
                 </div>
             </div>
@@ -319,6 +371,52 @@ class VoiceAssistant {
                     border-color: #667eea;
                 }
 
+                /* Toggle Switch */
+                .toggle-switch {
+                    position: relative;
+                    display: inline-block;
+                    width: 50px;
+                    height: 24px;
+                }
+
+                .toggle-switch input {
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                }
+
+                .toggle-slider {
+                    position: absolute;
+                    cursor: pointer;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background-color: #ccc;
+                    transition: 0.4s;
+                    border-radius: 24px;
+                }
+
+                .toggle-slider:before {
+                    position: absolute;
+                    content: "";
+                    height: 18px;
+                    width: 18px;
+                    left: 3px;
+                    bottom: 3px;
+                    background-color: white;
+                    transition: 0.4s;
+                    border-radius: 50%;
+                }
+
+                .toggle-switch input:checked + .toggle-slider {
+                    background-color: #667eea;
+                }
+
+                .toggle-switch input:checked + .toggle-slider:before {
+                    transform: translateX(26px);
+                }
+
                 @media (max-width: 768px) {
                     .voice-panel {
                         width: 90vw;
@@ -334,6 +432,22 @@ class VoiceAssistant {
         document.getElementById('voice-btn').addEventListener('click', () => this.toggleListening());
         document.getElementById('close-voice-panel').addEventListener('click', () => this.closePanel());
         document.getElementById('save-api-key').addEventListener('click', () => this.saveApiKey());
+        
+        // Always Listening toggle
+        document.getElementById('always-listening-toggle').addEventListener('change', (e) => {
+            this.alwaysListening = e.target.checked;
+            localStorage.setItem('voice_always_listening', this.alwaysListening);
+            
+            if (this.alwaysListening) {
+                console.log('✅ Always Listening enabled');
+                this.playWelcomeAndStart();
+            } else {
+                console.log('❌ Always Listening disabled');
+                if (this.isListening) {
+                    this.recognition.stop();
+                }
+            }
+        });
         
         // Quick commands
         document.querySelectorAll('.quick-cmd').forEach(btn => {
