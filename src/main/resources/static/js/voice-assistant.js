@@ -6,6 +6,7 @@
 class VoiceAssistant {
     constructor() {
         this.isListening = false;
+        this.isSpeaking = false; // Track if TTS is active
         this.recognition = null;
         this.synthesis = window.speechSynthesis;
         this.apiKey = null; // Không cần cho LM Studio
@@ -130,8 +131,8 @@ class VoiceAssistant {
             this.isListening = false;
             console.log('🛑 Kết thúc lắng nghe');
             
-            // Auto-restart if always listening mode is enabled
-            if (this.alwaysListening) {
+            // Only auto-restart if always listening AND not currently speaking
+            if (this.alwaysListening && !this.isSpeaking) {
                 setTimeout(() => {
                     this.startContinuousListening();
                 }, 500); // Small delay before restart
@@ -1088,6 +1089,12 @@ AI: {"function": "get_workers"}`
     speak(text, isNavigationPending = false) {
         console.log('🔊 Speaking:', text, 'Navigation pending:', isNavigationPending);
         
+        // Stop listening while speaking to avoid echo
+        if (this.isListening) {
+            console.log('⏸️ Pausing recognition while speaking');
+            this.recognition.stop();
+        }
+        
         if (this.useElevenLabs) {
             this.speakWithElevenLabs(text);
         } else {
@@ -1098,6 +1105,7 @@ AI: {"function": "get_workers"}`
     async speakWithElevenLabs(text) {
         try {
             console.log('🎤 Using ElevenLabs TTS');
+            this.isSpeaking = true; // Set speaking flag
             this.updateUI('speaking');
 
             const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${this.elevenLabsVoiceId}`, {
@@ -1112,7 +1120,7 @@ AI: {"function": "get_workers"}`
                     model_id: 'eleven_flash_v2_5',
                     voice_settings: {
                         stability: 0.5,
-                        similarity_boost: 0.75,
+                        similarity_boost: 0.9,
                         style: 0.0,
                         use_speaker_boost: true
                     }
@@ -1133,13 +1141,30 @@ AI: {"function": "get_workers"}`
 
             audio.onended = () => {
                 console.log('✅ ElevenLabs speech ended');
+                this.isSpeaking = false; // Clear speaking flag
                 this.updateUI('ready');
                 URL.revokeObjectURL(audioUrl);
+                
+                // Resume listening if always listening mode is enabled
+                if (this.alwaysListening) {
+                    setTimeout(() => {
+                        this.startContinuousListening();
+                    }, 500);
+                }
             };
 
             audio.onerror = (error) => {
                 console.error('❌ Audio playback error:', error);
+                this.isSpeaking = false; // Clear speaking flag on error
                 this.updateUI('ready');
+                
+                // Resume listening even on error
+                if (this.alwaysListening) {
+                    setTimeout(() => {
+                        this.startContinuousListening();
+                    }, 500);
+                }
+                
                 // Fallback to browser TTS
                 this.speakWithBrowser(text);
             };
@@ -1155,12 +1180,14 @@ AI: {"function": "get_workers"}`
     speakWithBrowser(text) {
         console.log('🔊 Using browser TTS (fallback)');
         
+        this.isSpeaking = true; // Set speaking flag
+        
         // Cancel any ongoing speech
         this.synthesis.cancel();
 
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'vi-VN';
-        utterance.rate = 0.9; // Slightly slower for Vietnamese
+        utterance.rate = 1.0; // Slightly slower for Vietnamese
         utterance.pitch = 1.0;
         utterance.volume = 1.0;
 
@@ -1179,11 +1206,27 @@ AI: {"function": "get_workers"}`
 
         utterance.onend = () => {
             console.log('✅ Speech ended');
+            this.isSpeaking = false; // Clear speaking flag
             this.updateUI('ready');
+            
+            // Resume listening if always listening mode is enabled
+            if (this.alwaysListening) {
+                setTimeout(() => {
+                    this.startContinuousListening();
+                }, 500);
+            }
         };
 
         utterance.onerror = (event) => {
             console.error('❌ Speech error:', event);
+            this.isSpeaking = false; // Clear speaking flag on error
+            
+            // Resume listening even on error
+            if (this.alwaysListening) {
+                setTimeout(() => {
+                    this.startContinuousListening();
+                }, 500);
+            }
         };
 
         this.synthesis.speak(utterance);
