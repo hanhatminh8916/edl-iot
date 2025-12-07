@@ -485,6 +485,7 @@ CÁC FUNCTION KHẢ DỤNG:
    - get_helmet_status(mac_address): Kiểm tra trạng thái mũ
    - get_map_data: Lấy vị trí công nhân
    - get_dashboard_overview: Tổng quan dashboard
+   - read_dashboard_stats: Đọc thống kê dashboard và làm nổi bật (khi user nói "đọc thống kê", "báo cáo tổng quan", "tình hình hiện tại")
 
 3. UI CONTROL (Điều khiển giao diện):
    - highlight_element(selector, message): Làm nổi bật element
@@ -503,6 +504,15 @@ AI: {"function": "navigate_to_positioning"}
 
 User: "Về trang chủ"
 AI: {"function": "navigate_to_dashboard"}
+
+User: "Đọc thống kê dashboard"
+AI: {"function": "read_dashboard_stats"}
+
+User: "Tình hình hiện tại thế nào?"
+AI: {"function": "read_dashboard_stats"}
+
+User: "Báo cáo tổng quan"
+AI: {"function": "read_dashboard_stats"}
 
 User: "Có bao nhiêu công nhân?"
 AI: {"function": "get_workers"}`
@@ -545,7 +555,9 @@ AI: {"function": "get_workers"}`
                 
                 // Check if this is a navigation function - handle specially
                 const isNavigation = functionCall.function.startsWith('navigate_to_');
+                const isReadStats = functionCall.function === 'read_dashboard_stats';
                 console.log('🧭 Is navigation function?', isNavigation, functionCall.function);
+                console.log('📊 Is read stats?', isReadStats);
                 
                 if (isNavigation) {
                     // For navigation, just return the message and navigate AFTER response
@@ -561,6 +573,18 @@ AI: {"function": "get_workers"}`
                     console.log('💾 Stored pending navigation:', this.pendingNavigation);
                     
                     return navMessages[functionCall.function] || 'Đang chuyển trang...';
+                }
+                
+                if (isReadStats) {
+                    // For read_dashboard_stats, execute immediately and return the message
+                    const statsResult = await this.executeFunction(functionCall.function, functionCall.args || {});
+                    console.log('📊 Stats result:', statsResult);
+                    
+                    if (statsResult.error) {
+                        return 'Không thể đọc thống kê: ' + statsResult.error;
+                    }
+                    
+                    return statsResult.message || 'Đã hiển thị thống kê dashboard.';
                 }
                 
                 // Execute non-navigation function
@@ -644,6 +668,9 @@ AI: {"function": "get_workers"}`
             
             case 'get_dashboard_overview':
                 return await this.apiCall(`${baseUrl}/api/dashboard/overview`);
+            
+            case 'read_dashboard_stats':
+                return await this.readDashboardStats();
             
             // ===== UI CONTROL FUNCTIONS (non-navigation) =====
             case 'highlight_element':
@@ -756,6 +783,127 @@ AI: {"function": "get_workers"}`
         } catch (error) {
             return { error: error.message };
         }
+    }
+
+    async readDashboardStats() {
+        try {
+            // Read stat values from dashboard
+            const totalWorkers = document.getElementById('stat-total-workers')?.textContent || '0';
+            const activeWorkers = document.getElementById('stat-active-workers')?.textContent || '0';
+            const alerts = document.getElementById('stat-alerts')?.textContent || '0';
+            const efficiency = document.getElementById('stat-efficiency')?.textContent || '0%';
+
+            // Build response text
+            const statsText = `Tổng số công nhân: ${totalWorkers}. Đang làm việc: ${activeWorkers}. Cảnh báo hôm nay: ${alerts}. Hiệu suất: ${efficiency}.`;
+
+            // Highlight each stat card with animation and delay
+            const stats = [
+                { selector: '#stat-total-workers', message: `${totalWorkers} công nhân`, delay: 0 },
+                { selector: '#stat-active-workers', message: `${activeWorkers} online`, delay: 2000 },
+                { selector: '#stat-alerts', message: `${alerts} cảnh báo`, delay: 4000 },
+                { selector: '#stat-efficiency', message: `${efficiency} hiệu suất`, delay: 6000 }
+            ];
+
+            // Schedule highlights with delays
+            stats.forEach(stat => {
+                setTimeout(() => {
+                    const element = document.querySelector(stat.selector);
+                    if (element) {
+                        // Get parent stat-card
+                        const statCard = element.closest('.stat-card');
+                        if (statCard) {
+                            this.highlightElementWithPulse(statCard, stat.message);
+                        }
+                    }
+                }, stat.delay);
+            });
+
+            return { 
+                success: true, 
+                stats: { totalWorkers, activeWorkers, alerts, efficiency },
+                message: statsText
+            };
+        } catch (error) {
+            return { error: error.message };
+        }
+    }
+
+    highlightElementWithPulse(element, message) {
+        // Store original styles
+        const originalBorder = element.style.border;
+        const originalBg = element.style.backgroundColor;
+        const originalTransform = element.style.transform;
+
+        // Add pulsing animation
+        element.style.transition = 'all 0.3s ease';
+        element.style.border = '4px solid #667eea';
+        element.style.backgroundColor = 'rgba(102, 126, 234, 0.15)';
+        element.style.transform = 'scale(1.05)';
+        element.style.zIndex = '9998';
+
+        // Add blinking effect
+        let blinkCount = 0;
+        const blinkInterval = setInterval(() => {
+            if (blinkCount % 2 === 0) {
+                element.style.boxShadow = '0 0 30px 10px rgba(102, 126, 234, 0.8)';
+            } else {
+                element.style.boxShadow = '0 0 10px 2px rgba(102, 126, 234, 0.4)';
+            }
+            blinkCount++;
+            if (blinkCount >= 6) {
+                clearInterval(blinkInterval);
+            }
+        }, 300);
+
+        // Show message popup
+        if (message) {
+            const msgDiv = document.createElement('div');
+            msgDiv.textContent = message;
+            msgDiv.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 12px 24px;
+                border-radius: 12px;
+                font-size: 18px;
+                font-weight: bold;
+                z-index: 9999;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+                animation: popupBounce 0.5s ease;
+            `;
+            
+            // Add animation keyframes
+            if (!document.getElementById('popup-animation-style')) {
+                const style = document.createElement('style');
+                style.id = 'popup-animation-style';
+                style.textContent = `
+                    @keyframes popupBounce {
+                        0% { transform: translate(-50%, -50%) scale(0); }
+                        50% { transform: translate(-50%, -50%) scale(1.1); }
+                        100% { transform: translate(-50%, -50%) scale(1); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            element.style.position = 'relative';
+            element.appendChild(msgDiv);
+
+            // Remove message after 1.5 seconds
+            setTimeout(() => msgDiv.remove(), 1500);
+        }
+
+        // Remove highlight after 2 seconds
+        setTimeout(() => {
+            element.style.border = originalBorder;
+            element.style.backgroundColor = originalBg;
+            element.style.transform = originalTransform;
+            element.style.boxShadow = '';
+            element.style.zIndex = '';
+        }, 2000);
     }
 
     executeNavigation(name, args) {
