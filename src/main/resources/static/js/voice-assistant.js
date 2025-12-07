@@ -45,13 +45,26 @@ class VoiceAssistant {
             setTimeout(() => {
                 this.speak(pendingSpeech);
                 
-                // Execute pending action if exists (e.g., read_dashboard_stats)
+                // Execute pending action if exists (e.g., read_dashboard_stats, read_active_workers)
                 if (pendingAction) {
                     localStorage.removeItem('voice_pending_action');
                     try {
                         const action = JSON.parse(pendingAction);
                         console.log('🎯 Executing pending action:', action);
-                        this.executeFunction(action.function, action.args || {});
+                        
+                        // Wait for speech to finish before executing action
+                        setTimeout(async () => {
+                            const result = await this.executeFunction(action.function, action.args || {});
+                            console.log('📊 Action result:', result);
+                            
+                            // Speak the result if it has a message
+                            if (result && result.message) {
+                                // Wait a bit for first speech to complete
+                                setTimeout(() => {
+                                    this.speak(result.message);
+                                }, 2000);
+                            }
+                        }, 2500); // Wait for "Đang chuyển sang trang..." to finish
                     } catch (e) {
                         console.error('❌ Failed to execute pending action:', e);
                     }
