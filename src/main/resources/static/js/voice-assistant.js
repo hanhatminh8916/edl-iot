@@ -808,6 +808,10 @@ Các function: navigate_to_dashboard, navigate_to_positioning, navigate_to_alert
                 }
                 return this.scrollToElement(scrollSelector);
             
+            // ===== SOUND EFFECTS =====
+            case 'play_electric_shock':
+                return this.playElectricShock();
+            
             default:
                 return { error: 'Unknown function: ' + name };
         }
@@ -890,6 +894,18 @@ Các function: navigate_to_dashboard, navigate_to_positioning, navigate_to_alert
             return { success: true, message: 'Scrolled to element' };
         } catch (error) {
             return { error: error.message };
+        }
+    }
+
+    playElectricShock() {
+        try {
+            const audio = new Audio('/sounds/electric-shock.mp3');
+            audio.volume = 0.7;
+            audio.play();
+            return { success: true, message: '⚡ BZZZZT! ⚡' };
+        } catch (error) {
+            console.error('❌ Sound playback error:', error);
+            return { error: 'Không phát được âm thanh' };
         }
     }
 
