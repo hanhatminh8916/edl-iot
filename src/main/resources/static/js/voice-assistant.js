@@ -608,25 +608,28 @@ class VoiceAssistant {
             const hasPendingNav = !!this.pendingNavigation;
             console.log('🔍 Has pending navigation:', hasPendingNav, this.pendingNavigation);
             
-            // Đọc response bằng giọng nói
-            this.speak(response, hasPendingNav);
-            
-            this.updateUI('ready', 'Hoàn thành!');
-            
-            // Execute pending navigation AFTER showing response
+            // Execute pending navigation AFTER getting response
             if (this.pendingNavigation) {
                 const navFunction = this.pendingNavigation;
                 this.pendingNavigation = null;
                 
-                console.log('⏰ Navigation will execute immediately with speech preserved');
+                console.log('⏰ Navigation detected - storing speech for new page');
                 
-                // Store speech to resume on new page
+                // Store speech to resume on new page (DON'T speak here)
                 localStorage.setItem('voice_pending_speech', response);
                 
-                // Execute navigation immediately (no delay needed)
+                // Execute navigation immediately
                 console.log('🚀 Executing navigation now!', navFunction);
                 this.executeNavigation(navFunction.function, navFunction.args || {});
+                
+                // Exit early - don't speak or update UI
+                return;
             }
+            
+            // Only speak if NOT navigating
+            this.speak(response, false);
+            
+            this.updateUI('ready', 'Hoàn thành!');
         } catch (error) {
             console.error('❌ Lỗi xử lý:', error);
             const errorMsg = 'Xin lỗi, đã có lỗi xảy ra: ' + error.message;
@@ -941,7 +944,7 @@ Các function: navigate_to_dashboard, navigate_to_positioning, navigate_to_alert
             const audio = new Audio('/sounds/electric-shock.mp3');
             audio.volume = 0.7;
             audio.play();
-            return { success: true, message: '⚡ BZZZZT! ⚡' };
+            return { success: true, message: 'Đang phát âm thanh điện' };
         } catch (error) {
             console.error('❌ Sound playback error:', error);
             return { error: 'Không phát được âm thanh' };
