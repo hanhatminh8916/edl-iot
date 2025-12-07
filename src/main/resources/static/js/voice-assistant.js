@@ -107,10 +107,10 @@ class VoiceAssistant {
                     <div class="voice-section">
                         <small><strong>Thử các lệnh:</strong></small>
                         <div class="quick-commands">
-                            <button class="quick-cmd" data-cmd="Có bao nhiêu công nhân đang online?">👷 Số công nhân</button>
+                            <button class="quick-cmd" data-cmd="Cho tôi xem dashboard">🏠 Dashboard</button>
+                            <button class="quick-cmd" data-cmd="Hiển thị bản đồ vị trí">📍 Bản đồ</button>
                             <button class="quick-cmd" data-cmd="Có cảnh báo nguy hiểm nào không?">⚠️ Cảnh báo</button>
-                            <button class="quick-cmd" data-cmd="Hiển thị vị trí công nhân trên bản đồ">📍 Bản đồ</button>
-                            <button class="quick-cmd" data-cmd="Cho tôi xem tổng quan dashboard">📊 Tổng quan</button>
+                            <button class="quick-cmd" data-cmd="Có bao nhiêu công nhân đang online?">👷 Công nhân</button>
                         </div>
                     </div>
                 </div>
@@ -450,14 +450,25 @@ class VoiceAssistant {
                         role: "system",
                         content: `Bạn là trợ lý AI cho hệ thống giám sát an toàn công nhân xây dựng.
 Luôn trả lời bằng tiếng Việt, ngắn gọn, dễ hiểu.
-Bạn có thể gọi các function sau để lấy dữ liệu:
+
+Bạn có thể gọi các function sau:
+
+DATA FUNCTIONS (lấy dữ liệu):
 - get_workers: Lấy danh sách công nhân
 - get_recent_alerts: Lấy cảnh báo gần đây
 - get_helmet_status(mac_address): Kiểm tra trạng thái mũ
 - get_map_data: Lấy vị trí công nhân
 - get_dashboard_overview: Tổng quan dashboard
 
-Khi cần dữ liệu, hãy trả lời JSON format: {"function": "tên_function", "args": {}}
+UI CONTROL FUNCTIONS (điều khiển giao diện):
+- navigate_to_dashboard: Chuyển sang tab Dashboard (trang chủ)
+- navigate_to_positioning: Chuyển sang tab Giám sát vị trí (bản đồ)
+- navigate_to_alerts: Chuyển sang tab Cảnh báo
+- navigate_to_employees: Chuyển sang tab Quản lý nhân viên
+- highlight_element(selector, message): Làm nổi bật element và hiển thị message
+- scroll_to_element(selector): Scroll đến element cụ thể
+
+Khi cần dữ liệu hoặc điều khiển UI, hãy trả lời JSON format: {"function": "tên_function", "args": {}}
 Sau khi nhận kết quả, hãy tổng hợp và trả lời bằng tiếng Việt tự nhiên.`
                     },
                     {
@@ -549,11 +560,11 @@ Sau khi nhận kết quả, hãy tổng hợp và trả lời bằng tiếng Vi�
     async executeFunction(name, args) {
         const baseUrl = window.location.origin;
         
-        console.log(`📞 Executing backend API: ${name}`, args);
+        console.log(`📞 Executing function: ${name}`, args);
 
         switch(name) {
+            // ===== DATA FUNCTIONS =====
             case 'get_workers':
-                // Sử dụng existing API
                 return await this.apiCall(`${baseUrl}/api/workers`);
             
             case 'get_recent_alerts':
@@ -565,7 +576,6 @@ Sau khi nhận kết quả, hãy tổng hợp và trả lời bằng tiếng Vi�
                 if (!macAddress) {
                     return { error: 'MAC address required' };
                 }
-                // Get map data and filter by MAC
                 const mapData = await this.apiCall(`${baseUrl}/api/positioning/tags`);
                 const helmet = mapData.find(h => h.macAddress === macAddress);
                 if (!helmet) {
@@ -579,8 +589,110 @@ Sau khi nhận kết quả, hãy tổng hợp và trả lời bằng tiếng Vi�
             case 'get_dashboard_overview':
                 return await this.apiCall(`${baseUrl}/api/dashboard/overview`);
             
+            // ===== UI CONTROL FUNCTIONS =====
+            case 'navigate_to_dashboard':
+                window.location.href = `${baseUrl}/index.html`;
+                return { success: true, message: 'Đã chuyển sang Dashboard' };
+            
+            case 'navigate_to_positioning':
+                window.location.href = `${baseUrl}/positioning-2d.html`;
+                return { success: true, message: 'Đã chuyển sang trang Giám sát vị trí' };
+            
+            case 'navigate_to_alerts':
+                window.location.href = `${baseUrl}/alerts.html`;
+                return { success: true, message: 'Đã chuyển sang trang Cảnh báo' };
+            
+            case 'navigate_to_employees':
+                window.location.href = `${baseUrl}/manage-employees.html`;
+                return { success: true, message: 'Đã chuyển sang trang Quản lý nhân viên' };
+            
+            case 'highlight_element':
+                const selector = args.selector;
+                const message = args.message || '';
+                if (!selector) {
+                    return { error: 'Selector required' };
+                }
+                return this.highlightElement(selector, message);
+            
+            case 'scroll_to_element':
+                const scrollSelector = args.selector;
+                if (!scrollSelector) {
+                    return { error: 'Selector required' };
+                }
+                return this.scrollToElement(scrollSelector);
+            
             default:
                 return { error: 'Unknown function: ' + name };
+        }
+    }
+
+    highlightElement(selector, message) {
+        try {
+            const element = document.querySelector(selector);
+            if (!element) {
+                return { error: `Element not found: ${selector}` };
+            }
+
+            // Add highlight animation
+            element.style.transition = 'all 0.5s ease';
+            element.style.boxShadow = '0 0 20px 5px #667eea';
+            element.style.transform = 'scale(1.05)';
+            element.style.zIndex = '9998';
+
+            // Show message if provided
+            if (message) {
+                const msgDiv = document.createElement('div');
+                msgDiv.innerHTML = message;
+                msgDiv.style.cssText = `
+                    position: absolute;
+                    top: -40px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: #667eea;
+                    color: white;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    font-size: 14px;
+                    font-weight: bold;
+                    white-space: nowrap;
+                    z-index: 9999;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                `;
+                element.style.position = 'relative';
+                element.appendChild(msgDiv);
+
+                // Remove message after 3 seconds
+                setTimeout(() => msgDiv.remove(), 3000);
+            }
+
+            // Remove highlight after 5 seconds
+            setTimeout(() => {
+                element.style.boxShadow = '';
+                element.style.transform = '';
+                element.style.zIndex = '';
+            }, 5000);
+
+            return { success: true, message: 'Element highlighted' };
+        } catch (error) {
+            return { error: error.message };
+        }
+    }
+
+    scrollToElement(selector) {
+        try {
+            const element = document.querySelector(selector);
+            if (!element) {
+                return { error: `Element not found: ${selector}` };
+            }
+
+            element.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+
+            return { success: true, message: 'Scrolled to element' };
+        } catch (error) {
+            return { error: error.message };
         }
     }
 
