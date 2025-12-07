@@ -55,7 +55,8 @@ Khi user yêu cầu chuyển trang/xem trang, BẮT BUỘC phải trả về JSO
 **AI**: `{"function": "navigate_to_dashboard"}`
 
 **User**: "Đọc thống kê dashboard"  
-**AI**: `{"function": "read_dashboard_stats"}`
+**AI**: `{"function": "navigate_to_dashboard"}`
+*Lưu ý: Hệ thống sẽ tự động gọi read_dashboard_stats sau khi chuyển trang*
 
 **User**: "Tình hình hiện tại thế nào?"  
 **AI**: `{"function": "read_dashboard_stats"}`
