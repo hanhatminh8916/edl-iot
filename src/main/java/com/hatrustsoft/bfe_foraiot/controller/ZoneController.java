@@ -49,37 +49,10 @@ public class ZoneController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    /**
-     * ✅ Kiểm tra tên khu vực đã tồn tại chưa
-     */
-    @GetMapping("/check-name")
-    public ResponseEntity<Map<String, Object>> checkZoneName(@org.springframework.web.bind.annotation.RequestParam String name) {
-        boolean exists = zoneRepository.existsByNameIgnoreCase(name.trim());
-        Map<String, Object> result = new HashMap<>();
-        result.put("exists", exists);
-        result.put("name", name.trim());
-        return ResponseEntity.ok(result);
-    }
-    
     @PostMapping
-    public ResponseEntity<?> createZone(@RequestBody Map<String, Object> payload) {
-        String zoneName = (String) payload.get("name");
-        
-        // ✅ Kiểm tra trùng tên khu vực
-        if (zoneName == null || zoneName.trim().isEmpty()) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Tên khu vực không được để trống");
-            return ResponseEntity.badRequest().body(error);
-        }
-        
-        if (zoneRepository.existsByNameIgnoreCase(zoneName.trim())) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Tên khu vực '" + zoneName.trim() + "' đã tồn tại. Vui lòng chọn tên khác.");
-            return ResponseEntity.badRequest().body(error);
-        }
-        
+    public ResponseEntity<Zone> createZone(@RequestBody Map<String, Object> payload) {
         Zone zone = new Zone();
-        zone.setName(zoneName.trim());
+        zone.setName((String) payload.get("name"));
         zone.setDescription((String) payload.getOrDefault("description", ""));
         zone.setPolygonCoordinates((String) payload.get("polygonCoordinates"));
         zone.setColor((String) payload.getOrDefault("color", "#FFA500")); // Default orange/yellow
