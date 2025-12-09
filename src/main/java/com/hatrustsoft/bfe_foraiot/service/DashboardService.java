@@ -2,7 +2,6 @@ package com.hatrustsoft.bfe_foraiot.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,6 +18,7 @@ import com.hatrustsoft.bfe_foraiot.model.HelmetStatus;
 import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
 import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetRepository;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

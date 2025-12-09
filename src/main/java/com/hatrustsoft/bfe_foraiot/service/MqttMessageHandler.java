@@ -208,13 +208,21 @@ public class MqttMessageHandler implements MessageHandler {
                 }
             );
 
-            // ✅ CHỈ CACHE VÀO REDIS - KHÔNG LƯU VÀO DATABASE MỖI MESSAGE
-            // Database sẽ được cập nhật bởi scheduled job khi detect offline (30s)
-            redisCacheService.cacheHelmetData(data);
+            // 🔧 MAC NOISE FILTER: Tăng counter và kiểm tra MAC confirmation
+            boolean macConfirmed = memoryCacheService.incrementAndCheckMacConfirmation(macAddress);
+            
+            // ✅ CHỈ CACHE VÀO REDIS KHI MAC ĐÃ ĐƯỢC XÁC NHẬN (>= 9 messages)
+            // Lọc nhiễu: Thiết bị lạ sẽ không xuất hiện trong danh sách công nhân
+            if (macConfirmed) {
+                redisCacheService.cacheHelmetData(data);
+            } else {
+                log.debug("📡 [MAC FILTER] Skipping Redis cache for unconfirmed MAC: {} (count: {}/9)", 
+                    macAddress, memoryCacheService.getMacMessageCount(macAddress));
+            }
             
             // ✅ CẬP NHẬT VỊ TRÍ CUỐI CÙNG VÀO HELMETS TABLE (CHỈ MỖI 30s)
             // 🔧 Chỉ update nếu MAC đã được xác nhận (>= 9 messages)
-            if (memoryCacheService.shouldUpdateHelmet(macAddress) && memoryCacheService.isMacConfirmed(macAddress)) {
+            if (memoryCacheService.shouldUpdateHelmet(macAddress) && macConfirmed) {
                 helmetService.updateHelmetData(
                     macAddress, 
                     data.getBattery(), 
@@ -224,12 +232,16 @@ public class MqttMessageHandler implements MessageHandler {
                 );
             }
             
-            // ✅ LUÔN PUBLISH QUA REDIS → WEBSOCKET (cho realtime positioning)
-            redisPublisher.publishHelmetData(data);
+            // ✅ CHỈ PUBLISH QUA REDIS → WEBSOCKET KHI MAC ĐÃ XÁC NHẬN
+            // Lọc nhiễu: Thiết bị lạ sẽ không xuất hiện trên bản đồ
+            if (macConfirmed) {
+                redisPublisher.publishHelmetData(data);
+            }
             
             // 🎯 PUBLISH UWB DATA QUA WEBSOCKET CHO 2D POSITIONING (KHÔNG LƯU DB)
+            // 🔧 Chỉ publish khi MAC đã xác nhận
             JsonNode uwbNode = jsonNode.has("uwb") ? jsonNode.get("uwb") : null;
-            if (uwbNode != null) {
+            if (uwbNode != null && macConfirmed) {
                 Map<String, Double> uwbData = positioningService.parseUwbData(uwbNode);
                 boolean uwbReady = positioningService.isUwbReady(uwbNode);
                 
@@ -263,40 +275,46 @@ public class MqttMessageHandler implements MessageHandler {
                     uwbReady);
             }
             
-            log.info("📡 Realtime: MAC={}, Battery={}%, Loc=({},{}), Mode={}", 
-                     macAddress, data.getBattery(), data.getLat(), data.getLon(), mode);
-
-            // ⭐ CRITICAL: Kiểm tra ngã và SOS TRƯỚC TIÊN!
-            log.info("⚡ Alert Check - fallDetected={}, helpRequest={}", fallDetected, helpRequest);
-            
-            // 🚨 FALL DETECTED: 1 = PENDING, 0 = RESOLVED
-            if (fallDetected == 1) {
-                log.warn("🚨 FALL DETECTED ON - Creating/updating alert...");
-                createFallDetectedAlert(data);
-            } else {
-                // fallDetected == 0 → Resolve alert nếu đang PENDING
-                resolveFallDetectedAlert(data);
-            }
-            
-            // 🆘 HELP REQUEST: 1 = PENDING, 0 = RESOLVED
-            if (helpRequest == 1) {
-                log.warn("🆘 HELP REQUEST ON - Creating/updating alert...");
-                createHelpRequestAlert(data);
-            } else {
-                // helpRequest == 0 → Resolve alert nếu đang PENDING
-                resolveHelpRequestAlert(data);
+            // 🔧 Log khác nhau cho MAC đã xác nhận và chưa xác nhận
+            if (macConfirmed) {
+                log.info("📡 Realtime: MAC={}, Battery={}%, Loc=({},{}), Mode={}", 
+                         macAddress, data.getBattery(), data.getLat(), data.getLon(), mode);
             }
 
-            // ⭐ Kiểm tra cảnh báo khu vực nguy hiểm (từ Anchor qua Gateway) - DEBOUNCE 60s
-            if (inDangerZone && dangerZoneId != null && distanceToAnchor != null) {
-                if (memoryCacheService.shouldSendDangerAlert(macAddress)) {
-                    checkDangerZoneAlert(data, dangerZoneId, distanceToAnchor, anchorLat, anchorLon);
+            // ⭐ CRITICAL: Kiểm tra ngã và SOS - CHỈ KHI MAC ĐÃ XÁC NHẬN
+            // 🔧 Lọc nhiễu: Không tạo alert từ thiết bị lạ
+            if (macConfirmed) {
+                log.debug("⚡ Alert Check - fallDetected={}, helpRequest={}", fallDetected, helpRequest);
+                
+                // 🚨 FALL DETECTED: 1 = PENDING, 0 = RESOLVED
+                if (fallDetected == 1) {
+                    log.warn("🚨 FALL DETECTED ON - Creating/updating alert...");
+                    createFallDetectedAlert(data);
+                } else {
+                    // fallDetected == 0 → Resolve alert nếu đang PENDING
+                    resolveFallDetectedAlert(data);
                 }
-            }
+                
+                // 🆘 HELP REQUEST: 1 = PENDING, 0 = RESOLVED
+                if (helpRequest == 1) {
+                    log.warn("🆘 HELP REQUEST ON - Creating/updating alert...");
+                    createHelpRequestAlert(data);
+                } else {
+                    // helpRequest == 0 → Resolve alert nếu đang PENDING
+                    resolveHelpRequestAlert(data);
+                }
 
-            // Kiểm tra nguy hiểm thiết bị (pin, voltage, current) - DEBOUNCE 60s
-            if (memoryCacheService.shouldSendDangerAlert(macAddress + "_device")) {
-                checkDangerAndAlert(data);
+                // ⭐ Kiểm tra cảnh báo khu vực nguy hiểm (từ Anchor qua Gateway) - DEBOUNCE 60s
+                if (inDangerZone && dangerZoneId != null && distanceToAnchor != null) {
+                    if (memoryCacheService.shouldSendDangerAlert(macAddress)) {
+                        checkDangerZoneAlert(data, dangerZoneId, distanceToAnchor, anchorLat, anchorLon);
+                    }
+                }
+
+                // Kiểm tra nguy hiểm thiết bị (pin, voltage, current) - DEBOUNCE 60s
+                if (memoryCacheService.shouldSendDangerAlert(macAddress + "_device")) {
+                    checkDangerAndAlert(data);
+                }
             }
 
         } catch (Exception e) {
@@ -373,18 +391,12 @@ public class MqttMessageHandler implements MessageHandler {
     /**
      * ⭐ Tạo/Cập nhật cảnh báo khi phát hiện FALL (ngã)
      * 🚀 UPSERT: Mỗi helmet chỉ có 1 alert FALL - update nếu đã tồn tại
+     * 🔧 Chỉ được gọi khi MAC đã xác nhận (>= 9 messages)
      */
     private void createFallDetectedAlert(HelmetData data) {
         try {
             String mac = data.getMac();
             LocalDateTime now = VietnamTimeUtils.now();
-            
-            // 🔧 Kiểm tra MAC đã được xác nhận chưa (lọc nhiễu)
-            if (!memoryCacheService.isMacConfirmed(mac)) {
-                log.warn("⚠️ [MAC FILTER] Ignoring FALL alert from unconfirmed MAC: {} (count: {}/9)", 
-                    mac, memoryCacheService.getMacMessageCount(mac));
-                return;
-            }
             
             // Tìm helmet theo MAC
             Helmet helmet = helmetService.findOrCreateHelmetByMac(data.getMac());
@@ -438,6 +450,7 @@ public class MqttMessageHandler implements MessageHandler {
     /**
      * ⭐ Tạo/Cập nhật cảnh báo khi nhận được SOS (helpRequest)
      * 🚀 UPSERT: Mỗi helmet chỉ có 1 alert HELP_REQUEST - update nếu đã tồn tại
+     * 🔧 Chỉ được gọi khi MAC đã xác nhận (>= 9 messages)
      */
     private void createHelpRequestAlert(HelmetData data) {
         try {
@@ -445,13 +458,6 @@ public class MqttMessageHandler implements MessageHandler {
             LocalDateTime now = VietnamTimeUtils.now();
             
             log.warn("🆘 createHelpRequestAlert() called for MAC: {}", mac);
-            
-            // 🔧 Kiểm tra MAC đã được xác nhận chưa (lọc nhiễu)
-            if (!memoryCacheService.isMacConfirmed(mac)) {
-                log.warn("⚠️ [MAC FILTER] Ignoring HELP_REQUEST alert from unconfirmed MAC: {} (count: {}/9)", 
-                    mac, memoryCacheService.getMacMessageCount(mac));
-                return;
-            }
             
             // Tìm helmet theo MAC
             Helmet helmet = helmetService.findOrCreateHelmetByMac(data.getMac());
