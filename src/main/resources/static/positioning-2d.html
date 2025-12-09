@@ -314,9 +314,6 @@
                     </p>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-secondary" onclick="window.location.href='positioning-2d.html'" id="btnOverview" style="display:none;">
-                        <i class="fas fa-th"></i> Xem tổng quan
-                    </button>
                     <button class="btn btn-primary" onclick="switchToZone()" id="btnBackToZone" style="display:none;">
                         <i class="fas fa-map-marked-alt"></i> Quay lại <span id="zoneName"></span>
                     </button>
@@ -435,7 +432,6 @@
                 <i class="fas fa-globe"></i> Chế độ: Tổng quan toàn bộ khu vực
             `;
             document.getElementById('areaTitle').textContent = 'Khu Vực Giám Sát (20m × 20m)';
-            document.getElementById('btnOverview').style.display = 'none';
             
             // Show back to zone button if there was a previous zone
             if (previousZoneId && currentZone) {
@@ -466,7 +462,6 @@
                         <i class="fas fa-map-marked-alt"></i> Chế độ: Khu vực chi tiết "<strong>${currentZone.name}</strong>"
                     `;
                     document.getElementById('areaTitle').textContent = `${currentZone.name} (Khu vực chi tiết)`;
-                    document.getElementById('btnOverview').style.display = 'inline-block';
                     document.getElementById('btnBackToZone').style.display = 'none'; // Hide when in zone view
                     console.log('✅ Viewing zone:', currentZone);
                 }
@@ -1109,25 +1104,15 @@
          * Phương pháp này chính xác hơn Linear Least Squares
          */
         function calculatePositionFromUWB(uwb, mac) {
-            // 🆕 Sử dụng anchors từ database thay vì hardcoded UWB_ANCHORS
-            // Tìm anchors đang kết nối dựa trên UWB data
-            const anchorOrder = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7']; // Support more anchors
+            // Thu thập anchors theo thứ tự CỐ ĐỊNH
+            const anchorOrder = ['A0', 'A1', 'A2', 'A3'];
             const anchorList = [];
             const distances = [];
             
-            console.log('🔍 Available anchors in DB:', anchors.map(a => `${a.id}(${a.x.toFixed(1)},${a.y.toFixed(1)})`).join(', '));
-            
             for (const key of anchorOrder) {
                 if (uwb[key] !== undefined && uwb[key] > 0 && uwb[key] < 50) {
-                    // 🆕 Tìm anchor từ database (anchors array) thay vì hardcoded
-                    const dbAnchor = anchors.find(a => a.id === key);
-                    if (dbAnchor) {
-                        anchorList.push({ x: dbAnchor.x, y: dbAnchor.y, name: key, zoneId: dbAnchor.zoneId });
-                        distances.push(uwb[key]);
-                        console.log(`✅ Found ${key} in DB at (${dbAnchor.x.toFixed(1)}, ${dbAnchor.y.toFixed(1)})`);
-                    } else {
-                        console.log(`⚠️ ${key} not found in anchors array, skipping`);
-                    }
+                    anchorList.push({ ...UWB_ANCHORS[key], name: key });
+                    distances.push(uwb[key]);
                 }
             }
             
