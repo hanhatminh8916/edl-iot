@@ -414,6 +414,38 @@
         justify-content: center;
     }
     
+    /* Fix card-header để btn-expand không rớt dòng */
+    .map-card .card-header {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: nowrap;
+        padding: 0.75rem 1rem;
+    }
+    
+    .map-card .card-header .card-title {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .map-card .card-header .card-title h3 {
+        font-size: 0.9rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .map-card .btn-expand {
+        flex-shrink: 0;
+        padding: 0.5rem;
+        min-width: 36px;
+        min-height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
     .map-legend {
         position: relative;
         bottom: auto;
