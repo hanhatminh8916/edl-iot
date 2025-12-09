@@ -21,8 +21,8 @@
     
     <!-- Stylesheets -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=194">
-    <link rel="stylesheet" href="css/location.css?v=194">
+    <link rel="stylesheet" href="css/style.css?v=195">
+    <link rel="stylesheet" href="css/location.css?v=195">
     <link rel="stylesheet" href="css/mobile-responsive.css">
     <style>
         .main-content {
@@ -363,14 +363,9 @@
                             <i class="fas fa-th-large"></i> Xem từng khu <i class="fas fa-caret-down"></i>
                         </button>
                         <div id="zoneDropdown" class="zone-dropdown" style="display: none;">
-                            <div class="zone-dropdown-item" onclick="selectZone('zone1')">
-                                <i class="fas fa-map-marker"></i> Khu 1 (A0-A3)
-                            </div>
-                            <div class="zone-dropdown-item" onclick="selectZone('zone2')">
-                                <i class="fas fa-map-marker"></i> Khu 2 (A4-A6)
-                            </div>
-                            <div class="zone-dropdown-item" onclick="selectZone('zone3')">
-                                <i class="fas fa-map-marker"></i> Khu 3 (A7-A10)
+                            <!-- Will be populated from database -->
+                            <div class="zone-dropdown-loading">
+                                <i class="fas fa-spinner fa-spin"></i> Đang tải...
                             </div>
                         </div>
                     </div>
@@ -430,9 +425,7 @@
                 <div style="margin-top: 10px; font-size: 12px; color: #666;">
                     <p>📍 Click vào khu vực để xem chi tiết</p>
                     <div id="overviewStats" style="margin-top: 10px;">
-                        <p><strong>Khu 1:</strong> <span id="zone1Tags">0</span> tag</p>
-                        <p><strong>Khu 2:</strong> <span id="zone2Tags">0</span> tag</p>
-                        <p><strong>Khu 3:</strong> <span id="zone3Tags">0</span> tag</p>
+                        <!-- Will be populated from database -->
                     </div>
                 </div>
             </div>
@@ -477,8 +470,9 @@
         const areaSize = 20; // 20m × 20m
         let isAnimating = false;
 
-        // Zone filtering
-        let currentZoneId = 'zone1'; // Default to zone 1
+        // Zone data from database
+        let zonesFromDB = []; // Array of zones from /api/zones/active
+        let currentZoneId = null; // Will be set to first zone ID
         let currentZone = null;
 
         // Anchors - will be loaded from database
@@ -486,6 +480,67 @@
         
         // Reference point for coordinate conversion
         let referencePoint = null;
+        
+        // ========== LOAD ZONES FROM DATABASE ==========
+        async function loadZonesFromDatabase() {
+            try {
+                console.log('📍 Loading zones from database...');
+                const response = await fetch('/api/zones/active');
+                if (!response.ok) throw new Error('Failed to load zones');
+                
+                zonesFromDB = await response.json();
+                console.log('✅ Loaded zones:', zonesFromDB);
+                
+                if (zonesFromDB.length === 0) {
+                    console.warn('⚠️ No active zones found in database');
+                    return;
+                }
+                
+                // Set current zone to first one
+                currentZoneId = zonesFromDB[0].id;
+                currentZone = zonesFromDB[0];
+                
+                // Update UI
+                updateZoneDropdown();
+                updateOverviewStats();
+                updateCurrentZoneDisplay();
+                
+                // Redraw
+                draw();
+                drawOverview();
+                
+            } catch (error) {
+                console.error('❌ Error loading zones:', error);
+            }
+        }
+        
+        function updateZoneDropdown() {
+            const dropdown = document.getElementById('zoneDropdown');
+            if (!dropdown) return;
+            
+            dropdown.innerHTML = zonesFromDB.map(zone => `
+                <div class="zone-dropdown-item ${zone.id === currentZoneId ? 'active' : ''}" 
+                     onclick="selectZone(${zone.id})">
+                    <i class="fas fa-map-marker" style="color: ${zone.color}"></i> ${zone.name}
+                </div>
+            `).join('');
+        }
+        
+        function updateOverviewStats() {
+            const statsContainer = document.getElementById('overviewStats');
+            if (!statsContainer) return;
+            
+            statsContainer.innerHTML = zonesFromDB.map(zone => `
+                <p><strong>${zone.name}:</strong> <span id="zone${zone.id}Tags">0</span> tag</p>
+            `).join('');
+        }
+        
+        function updateCurrentZoneDisplay() {
+            if (!currentZone) return;
+            
+            document.getElementById('currentZoneName').textContent = currentZone.name;
+            document.getElementById('areaTitle').textContent = `${currentZone.name} (Khu vực chi tiết)`;
+        }
         
         // ========== ZONE DROPDOWN ==========
         function toggleZoneDropdown() {
@@ -503,23 +558,17 @@
         
         function selectZone(zoneId) {
             currentZoneId = zoneId;
+            currentZone = zonesFromDB.find(z => z.id === zoneId);
             document.getElementById('zoneDropdown').style.display = 'none';
             
-            // Update zone name
-            const zoneNames = {
-                'zone1': 'Khu 1 (A0-A3)',
-                'zone2': 'Khu 2 (A4-A6)', 
-                'zone3': 'Khu 3 (A7-A10)'
-            };
-            document.getElementById('currentZoneName').textContent = zoneNames[zoneId];
-            document.getElementById('areaTitle').textContent = zoneNames[zoneId] + ' (Khu vực chi tiết)';
-            
-            // Highlight active item
-            document.querySelectorAll('.zone-dropdown-item').forEach(item => item.classList.remove('active'));
-            if (event && event.target) {
-                const item = event.target.closest('.zone-dropdown-item');
-                if (item) item.classList.add('active');
+            if (!currentZone) {
+                console.error('Zone not found:', zoneId);
+                return;
             }
+            
+            // Update UI
+            updateCurrentZoneDisplay();
+            updateZoneDropdown(); // Update active state
             
             // Clear last positions to reset smoothing
             lastPositions = {};
@@ -531,9 +580,10 @@
         
         // ========== OVERVIEW CANVAS ==========
         function drawOverview() {
+            if (!ctxOverview || !canvasOverview) return;
+            
             const w = canvasOverview.width;
             const h = canvasOverview.height;
-            const overviewScale = 5; // 5 pixels per meter for overview (60m total width)
             
             ctxOverview.clearRect(0, 0, w, h);
             
@@ -541,64 +591,83 @@
             ctxOverview.fillStyle = '#f5f5f5';
             ctxOverview.fillRect(0, 0, w, h);
             
-            // Draw 3 zone boxes
-            const zones = [
-                { id: 'zone1', x: 10, y: 10, w: 80, h: 80, color: currentZoneId === 'zone1' ? '#4CAF50' : '#2196F3', label: 'Khu 1' },
-                { id: 'zone2', x: 110, y: 10, w: 80, h: 80, color: currentZoneId === 'zone2' ? '#4CAF50' : '#2196F3', label: 'Khu 2' },
-                { id: 'zone3', x: 210, y: 10, w: 80, h: 80, color: currentZoneId === 'zone3' ? '#4CAF50' : '#2196F3', label: 'Khu 3' },
-            ];
+            if (zonesFromDB.length === 0) {
+                ctxOverview.fillStyle = '#666';
+                ctxOverview.font = '14px Arial';
+                ctxOverview.textAlign = 'center';
+                ctxOverview.fillText('Chưa có khu vực', w/2, h/2);
+                return;
+            }
             
-            zones.forEach(zone => {
+            // Calculate zone box layout
+            const zoneBoxSize = 80;
+            const padding = 10;
+            const spacing = 20;
+            const startY = 10;
+            
+            // Draw zone boxes dynamically
+            zonesFromDB.forEach((zone, index) => {
+                const startX = padding + index * (zoneBoxSize + spacing);
+                const isActive = zone.id === currentZoneId;
+                const color = zone.color || '#2196F3';
+                
+                // Store click area for this zone
+                zone._clickArea = { x: startX, y: startY, w: zoneBoxSize, h: zoneBoxSize };
+                
                 // Zone background
-                ctxOverview.fillStyle = zone.color + '20';
-                ctxOverview.fillRect(zone.x, zone.y, zone.w, zone.h);
+                ctxOverview.fillStyle = isActive ? (color + '40') : (color + '20');
+                ctxOverview.fillRect(startX, startY, zoneBoxSize, zoneBoxSize);
                 
                 // Zone border
-                ctxOverview.strokeStyle = zone.color;
-                ctxOverview.lineWidth = zone.id === currentZoneId ? 3 : 1;
-                ctxOverview.strokeRect(zone.x, zone.y, zone.w, zone.h);
+                ctxOverview.strokeStyle = color;
+                ctxOverview.lineWidth = isActive ? 3 : 1;
+                ctxOverview.strokeRect(startX, startY, zoneBoxSize, zoneBoxSize);
                 
                 // Zone label
                 ctxOverview.fillStyle = '#333';
-                ctxOverview.font = '12px Arial';
+                ctxOverview.font = '11px Arial';
                 ctxOverview.textAlign = 'center';
-                ctxOverview.fillText(zone.label, zone.x + zone.w/2, zone.y + zone.h + 15);
+                ctxOverview.fillText(zone.name, startX + zoneBoxSize/2, startY + zoneBoxSize + 15);
                 
                 // Draw mini anchors (4 corners)
                 ctxOverview.fillStyle = '#2196F3';
-                const padding = 8;
-                [[padding, padding], [zone.w-padding, padding], [padding, zone.h-padding], [zone.w-padding, zone.h-padding]].forEach(([ax, ay]) => {
+                const anchorPadding = 8;
+                [[anchorPadding, anchorPadding], [zoneBoxSize-anchorPadding, anchorPadding], 
+                 [anchorPadding, zoneBoxSize-anchorPadding], [zoneBoxSize-anchorPadding, zoneBoxSize-anchorPadding]].forEach(([ax, ay]) => {
                     ctxOverview.beginPath();
-                    ctxOverview.arc(zone.x + ax, zone.y + ay, 4, 0, Math.PI * 2);
+                    ctxOverview.arc(startX + ax, startY + ay, 4, 0, Math.PI * 2);
                     ctxOverview.fill();
                 });
             });
             
-            // Draw tags in overview (simplified)
-            const tagCounts = { zone1: 0, zone2: 0, zone3: 0 };
+            // Draw tags in overview for current zone
+            let tagCount = 0;
             Object.values(helmetPositions).forEach(tag => {
-                if (tag.x !== undefined && tag.y !== undefined) {
-                    // Determine which zone tag is in based on position
-                    tagCounts.zone1++; // For now all in zone 1
+                if (tag.x !== undefined && tag.y !== undefined && currentZone) {
+                    tagCount++;
                     
-                    // Draw mini tag dot in zone 1
-                    const miniX = 10 + (tag.x / areaSize) * 80;
-                    const miniY = 10 + ((areaSize - tag.y) / areaSize) * 80;
-                    
-                    ctxOverview.fillStyle = '#f44336';
-                    ctxOverview.beginPath();
-                    ctxOverview.arc(miniX, miniY, 5, 0, Math.PI * 2);
-                    ctxOverview.fill();
+                    // Draw mini tag dot in current zone's box
+                    const zoneBox = currentZone._clickArea;
+                    if (zoneBox) {
+                        const miniX = zoneBox.x + (tag.x / areaSize) * zoneBox.w;
+                        const miniY = zoneBox.y + ((areaSize - tag.y) / areaSize) * zoneBox.h;
+                        
+                        ctxOverview.fillStyle = '#f44336';
+                        ctxOverview.beginPath();
+                        ctxOverview.arc(miniX, miniY, 4, 0, Math.PI * 2);
+                        ctxOverview.fill();
+                    }
                 }
             });
             
-            // Update stats
-            document.getElementById('zone1Tags').textContent = tagCounts.zone1;
-            document.getElementById('zone2Tags').textContent = tagCounts.zone2;
-            document.getElementById('zone3Tags').textContent = tagCounts.zone3;
+            // Update stats for current zone
+            if (currentZone) {
+                const tagSpan = document.getElementById(`zone${currentZone.id}Tags`);
+                if (tagSpan) tagSpan.textContent = tagCount;
+            }
         }
         
-        // Handle overview canvas clicks - will be set up in DOMContentLoaded
+        // Handle overview canvas clicks
         function setupOverviewClick() {
             if (canvasOverview) {
                 canvasOverview.addEventListener('click', function(e) {
@@ -607,12 +676,15 @@
                     const y = e.clientY - rect.top;
                     
                     // Check which zone was clicked
-                    if (x >= 10 && x <= 90 && y >= 10 && y <= 90) {
-                        selectZone('zone1');
-                    } else if (x >= 110 && x <= 190 && y >= 10 && y <= 90) {
-                        selectZone('zone2');
-                    } else if (x >= 210 && x <= 290 && y >= 10 && y <= 90) {
-                        selectZone('zone3');
+                    for (const zone of zonesFromDB) {
+                        if (zone._clickArea) {
+                            const area = zone._clickArea;
+                            if (x >= area.x && x <= area.x + area.w && 
+                                y >= area.y && y <= area.y + area.h) {
+                                selectZone(zone.id);
+                                break;
+                            }
+                        }
                     }
                 });
             }
@@ -1682,8 +1754,8 @@
             // Setup overview click handler
             setupOverviewClick();
             
-            // 🆕 Draw overview immediately
-            drawOverview();
+            // 🆕 Load zones from database first (this will call drawOverview)
+            loadZonesFromDatabase();
             
             loadSafeZones(); // Load safe zones for color detection
             startAnchorSync(); // Load anchors from DB
