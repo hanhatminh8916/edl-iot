@@ -484,18 +484,23 @@
         }
         
         // Load anchors from database
+        let lastLoadedZoneId = null; // Track zone để biết khi nào cần clear cache
+        
         function loadAnchorsFromDatabase() {
             fetch('/api/anchors')
                 .then(response => response.json())
                 .then(data => {
                     console.log('✅ Loaded anchors from DB:', data);
                     
-                    // 🆕 CLEAR ALL CACHES when loading new anchors
-                    // This prevents position glitches when switching between zone/overview
-                    lastPositions = {};
-                    helmetPositions = {};
-                    tags = [];
-                    console.log('🧹 Cleared position caches');
+                    // 🆕 Chỉ CLEAR CACHE khi CHUYỂN ZONE, không phải mỗi lần refresh
+                    const zoneChanged = lastLoadedZoneId !== currentZoneId;
+                    if (zoneChanged) {
+                        lastPositions = {};
+                        helmetPositions = {};
+                        tags = [];
+                        lastLoadedZoneId = currentZoneId;
+                        console.log('🧹 Zone changed - cleared position caches');
+                    }
                     
                     if (data.length === 0) {
                         console.warn('⚠️ No anchors in database');
