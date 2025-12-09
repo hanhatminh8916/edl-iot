@@ -536,7 +536,7 @@ public class MqttMessageHandler implements MessageHandler {
             // Tìm alert FALL đang PENDING
             Optional<Alert> alertOpt = alertRepository.findByHelmetAndAlertType(helmet, AlertType.FALL);
             
-            if (alertOpt.isPresent()) {
+                if (alertOpt.isPresent()) {
                 Alert alert = alertOpt.get();
                 if (alert.getStatus() == AlertStatus.PENDING) {
                     // ⭐ Resolve alert
@@ -549,14 +549,17 @@ public class MqttMessageHandler implements MessageHandler {
                     
                     // ⭐ Push qua WebSocket để update UI realtime
                     alertPublisher.publishAlertUpdate(saved);
+                    
+                    // ⭐ Gửi thông báo Messenger "Đã xử lý"
+                    String employeeName = data.getEmployeeName() != null ? 
+                        data.getEmployeeName() + " (" + data.getEmployeeId() + ")" : mac;
+                    messengerService.broadcastAlertResolved(employeeName, "🚑 PHÁT HIỆN NGÃ");
                 } else {
                     log.debug("FALL alert already resolved for helmet: {}", mac);
                 }
             } else {
                 log.debug("No FALL alert found for helmet: {} - nothing to resolve", mac);
-            }
-            
-        } catch (Exception e) {
+            }        } catch (Exception e) {
             log.error("❌ Error resolving fall alert: {}", e.getMessage(), e);
         }
     }
@@ -596,6 +599,11 @@ public class MqttMessageHandler implements MessageHandler {
                     
                     // ⭐ Push qua WebSocket để update UI realtime
                     alertPublisher.publishAlertUpdate(saved);
+                    
+                    // ⭐ Gửi thông báo Messenger "Đã xử lý"
+                    String employeeName = data.getEmployeeName() != null ? 
+                        data.getEmployeeName() + " (" + data.getEmployeeId() + ")" : mac;
+                    messengerService.broadcastAlertResolved(employeeName, "🆘 YÊU CẦU TRỢ GIÚP");
                 } else {
                     log.debug("HELP_REQUEST alert already resolved for helmet: {}", mac);
                 }

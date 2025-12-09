@@ -386,4 +386,51 @@ public class MessengerService {
     public AlertPendingInfo getPendingAlert(String psid) {
         return pendingAlerts.get(psid);
     }
+    
+    /**
+     * ⭐ Gửi thông báo "Đã xử lý" khi nhận được tín hiệu reset từ thiết bị
+     * (fallDetected=0 hoặc helpRequest=0)
+     */
+    public void broadcastAlertResolved(String employeeName, String alertType) {
+        if (!messengerEnabled) {
+            log.debug("⏭️ Messenger disabled - skipping resolved notification");
+            return;
+        }
+        
+        // Refresh cache nếu cần
+        LocalDateTime now = VietnamTimeUtils.now();
+        if (lastCacheRefresh == null || 
+            java.time.Duration.between(lastCacheRefresh, now).toMinutes() >= CACHE_TTL_MINUTES) {
+            cachedSubscribedUsers = messengerUserRepository.findBySubscribedTrue();
+            lastCacheRefresh = now;
+            log.debug("🔄 Refreshed subscribed users cache: {} users", cachedSubscribedUsers.size());
+        }
+        
+        log.info("📤 Broadcasting alert RESOLVED to {} subscribed users", cachedSubscribedUsers.size());
+        
+        // Xác định icon dựa vào loại alert
+        String icon = alertType.contains("NGÃ") || alertType.contains("FALL") ? "🚑" : "🆘";
+        
+        String resolvedMessage = String.format(
+            "✅ TÌNH HUỐNG ĐÃ ĐƯỢC XỬ LÝ!\n\n" +
+            "%s Nhân viên: %s\n" +
+            "📋 Loại cảnh báo: %s\n" +
+            "⏰ Thời gian: %s\n\n" +
+            "👷 Công nhân đã tự xử lý tình huống.\n" +
+            "Hệ thống tự động ghi nhận.",
+            icon,
+            employeeName,
+            alertType,
+            VietnamTimeUtils.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))
+        );
+        
+        cachedSubscribedUsers.forEach(user -> {
+            try {
+                sendTextMessage(user.getPsid(), resolvedMessage);
+                log.info("✅ Sent resolved notification to user: {}", user.getPsid());
+            } catch (Exception e) {
+                log.error("Failed to send resolved notification to user {}: {}", user.getPsid(), e.getMessage());
+            }
+        });
+    }
 }
