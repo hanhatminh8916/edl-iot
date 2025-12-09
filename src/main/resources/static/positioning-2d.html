@@ -314,7 +314,7 @@
                     </p>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-secondary" onclick="location.reload(true)" id="btnOverview" style="display:none;">
+                    <button class="btn btn-secondary" onclick="window.location.href='positioning-2d.html'" id="btnOverview" style="display:none;">
                         <i class="fas fa-th"></i> Xem tổng quan
                     </button>
                     <button class="btn btn-primary" onclick="switchToZone()" id="btnBackToZone" style="display:none;">
@@ -494,6 +494,13 @@
                 .then(response => response.json())
                 .then(data => {
                     console.log('✅ Loaded anchors from DB:', data);
+                    
+                    // 🆕 CLEAR ALL CACHES when loading new anchors
+                    // This prevents position glitches when switching between zone/overview
+                    lastPositions = {};
+                    helmetPositions = {};
+                    tags = [];
+                    console.log('🧹 Cleared position caches');
                     
                     if (data.length === 0) {
                         console.warn('⚠️ No anchors in database');
