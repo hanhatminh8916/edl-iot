@@ -1109,15 +1109,26 @@
          * Phương pháp này chính xác hơn Linear Least Squares
          */
         function calculatePositionFromUWB(uwb, mac) {
-            // Thu thập anchors theo thứ tự CỐ ĐỊNH
-            const anchorOrder = ['A0', 'A1', 'A2', 'A3'];
+            // 🆕 Sử dụng anchors từ database thay vì hardcoded UWB_ANCHORS
+            // Tìm anchors đang kết nối dựa trên UWB data
+            const anchorOrder = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7']; // Support more anchors
             const anchorList = [];
             const distances = [];
             
             for (const key of anchorOrder) {
                 if (uwb[key] !== undefined && uwb[key] > 0 && uwb[key] < 50) {
-                    anchorList.push({ ...UWB_ANCHORS[key], name: key });
-                    distances.push(uwb[key]);
+                    // 🆕 Tìm anchor từ database (anchors array) thay vì hardcoded
+                    const dbAnchor = anchors.find(a => a.id === key);
+                    if (dbAnchor) {
+                        anchorList.push({ x: dbAnchor.x, y: dbAnchor.y, name: key });
+                        distances.push(uwb[key]);
+                    } else {
+                        // Fallback to hardcoded if not found in DB
+                        if (UWB_ANCHORS[key]) {
+                            anchorList.push({ ...UWB_ANCHORS[key], name: key });
+                            distances.push(uwb[key]);
+                        }
+                    }
                 }
             }
             
