@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Database Statistics - EDL SafeWork</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            color: #333;
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        .stat-trend {
+            color: #10b981;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .limit-warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+
+        .limit-danger {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #06b6d4);
+            transition: width 0.5s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #fbbf24, #f59e0b);
+        }
+
+        .progress-fill.danger {
+            background: linear-gradient(90deg, #ef4444, #dc2626);
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #666;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+
+        .toggle input {
+            display: none;
+        }
+
+        .slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #ccc;
+            border-radius: 26px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        input:checked + .slider {
+            background: #667eea;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Database Query Statistics</h1>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="refreshStats()">🔄 Refresh</button>
+                <button class="btn btn-danger" onclick="resetStats()">🗑️ Reset</button>
+            </div>
+        </div>
+
+        <div class="auto-refresh">
+            <label class="toggle">
+                <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()">
+                <span class="slider"></span>
+            </label>
+            <span>Auto-refresh every 5 seconds</span>
+            <span id="lastUpdate" style="margin-left: auto; color: #666; font-size: 12px;"></span>
+        </div>
+
+        <div id="limitWarning" class="limit-warning" style="display: none;">
+            <strong>⚠️ JawsDB Leopard Limit:</strong> <span id="limitMessage"></span>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Queries</div>
+                <div class="stat-value" id="totalQueries">-</div>
+                <div class="stat-trend">⬆️ Total database operations</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Query Executions</div>
+                <div class="stat-value" id="queryExecutionCount">-</div>
+                <div class="stat-trend">📝 HQL/JPQL queries</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Entity Loads</div>
+                <div class="stat-value" id="entityLoadCount">-</div>
+                <div class="stat-trend">📦 Entity fetches</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Collection Loads</div>
+                <div class="stat-value" id="collectionLoadCount">-</div>
+                <div class="stat-trend">📚 Collection fetches</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">JawsDB Leopard Usage (18,000 queries/hour limit)</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="usageProgress">0%</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Detailed Statistics</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Count</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody id="detailsTable">
+                    <tr><td colspan="3">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshInterval = null;
+
+        async function refreshStats() {
+            try {
+                const response = await fetch('/api/db-stats');
+                const stats = await response.json();
+
+                // Update main stats
+                document.getElementById('totalQueries').textContent = stats.totalDatabaseAccess.toLocaleString();
+                document.getElementById('queryExecutionCount').textContent = stats.queryExecutionCount.toLocaleString();
+                document.getElementById('entityLoadCount').textContent = stats.entityLoadCount.toLocaleString();
+                document.getElementById('collectionLoadCount').textContent = stats.collectionLoadCount.toLocaleString();
+
+                // Update progress bar
+                const percentage = (stats.totalDatabaseAccess / 18000 * 100).toFixed(2);
+                const progressBar = document.getElementById('usageProgress');
+                progressBar.style.width = Math.min(percentage, 100) + '%';
+                progressBar.textContent = percentage + '%';
+
+                if (percentage < 50) {
+                    progressBar.className = 'progress-fill';
+                } else if (percentage < 80) {
+                    progressBar.className = 'progress-fill warning';
+                } else {
+                    progressBar.className = 'progress-fill danger';
+                }
+
+                // Update limit warning
+                const limitWarning = document.getElementById('limitWarning');
+                const limitMessage = document.getElementById('limitMessage');
+                
+                if (percentage > 80) {
+                    limitWarning.style.display = 'block';
+                    limitWarning.className = 'limit-warning limit-danger';
+                    limitMessage.textContent = `Đã dùng ${percentage}% giới hạn (${stats.totalDatabaseAccess.toLocaleString()}/18,000 queries)`;
+                } else if (percentage > 50) {
+                    limitWarning.style.display = 'block';
+                    limitWarning.className = 'limit-warning';
+                    limitMessage.textContent = `Đã dùng ${percentage}% giới hạn (${stats.totalDatabaseAccess.toLocaleString()}/18,000 queries)`;
+                } else {
+                    limitWarning.style.display = 'none';
+                }
+
+                // Update details table
+                const detailsTable = document.getElementById('detailsTable');
+                detailsTable.innerHTML = `
+                    <tr><td>Entity Fetch</td><td>${stats.entityFetchCount}</td><td>Lazy loading entities</td></tr>
+                    <tr><td>Entity Insert</td><td>${stats.entityInsertCount}</td><td>New entities saved</td></tr>
+                    <tr><td>Entity Update</td><td>${stats.entityUpdateCount}</td><td>Entities updated</td></tr>
+                    <tr><td>Entity Delete</td><td>${stats.entityDeleteCount}</td><td>Entities deleted</td></tr>
+                    <tr><td>Collection Fetch</td><td>${stats.collectionFetchCount}</td><td>Lazy loading collections</td></tr>
+                    <tr><td>Session Open</td><td>${stats.sessionOpenCount}</td><td>Database sessions opened</td></tr>
+                    <tr><td>Session Close</td><td>${stats.sessionCloseCount}</td><td>Database sessions closed</td></tr>
+                    <tr><td>Transactions</td><td>${stats.transactionCount}</td><td>Total transactions</td></tr>
+                    <tr><td>Successful TX</td><td>${stats.successfulTransactionCount}</td><td>Completed transactions</td></tr>
+                    <tr><td>DB Connections</td><td>${stats.connectCount}</td><td>Connection pool usage</td></tr>
+                    <tr><td>Prepared Statements</td><td>${stats.prepareStatementCount}</td><td>SQL statements prepared</td></tr>
+                    <tr><td>Max Query Time</td><td>${stats.queryExecutionMaxTime}ms</td><td>${stats.queryExecutionMaxTimeQueryString?.substring(0, 50) || 'N/A'}...</td></tr>
+                `;
+
+                document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+                alert('Error loading statistics');
+            }
+        }
+
+        async function resetStats() {
+            if (!confirm('Reset all statistics counters?')) return;
+            
+            try {
+                const response = await fetch('/api/db-stats/reset', { method: 'POST' });
+                const result = await response.json();
+                alert(result.message);
+                refreshStats();
+            } catch (error) {
+                console.error('Error resetting stats:', error);
+                alert('Error resetting statistics');
+            }
+        }
+
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            
+            if (checkbox.checked) {
+                autoRefreshInterval = setInterval(refreshStats, 5000);
+            } else {
+                clearInterval(autoRefreshInterval);
+            }
+        }
+
+        // Initial load
+        refreshStats();
+    </script>
+</body>
+</html>
