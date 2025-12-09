@@ -21,8 +21,8 @@
     
     <!-- Stylesheets -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=193">
-    <link rel="stylesheet" href="css/location.css?v=193">
+    <link rel="stylesheet" href="css/style.css?v=194">
+    <link rel="stylesheet" href="css/location.css?v=194">
     <link rel="stylesheet" href="css/mobile-responsive.css">
     <style>
         .main-content {
@@ -469,15 +469,13 @@
     <script src="js/global-alerts.js"></script>
     <script src="js/auth.js"></script>
     <script>
-        const canvas = document.getElementById('canvas2d');
-        const ctx = canvas.getContext('2d');
-        const canvasOverview = document.getElementById('canvasOverview');
-        const ctxOverview = canvasOverview.getContext('2d');
+        // Defer initialization until DOM is ready
+        let canvas, ctx, canvasOverview, ctxOverview;
         
         // Configuration
         let scale = 20; // pixels per meter
         const areaSize = 20; // 20m × 20m
-        let isAnimating = false; // ✅ Tắt animation demo, chỉ dùng UWB realtime
+        let isAnimating = false;
 
         // Zone filtering
         let currentZoneId = 'zone1'; // Default to zone 1
@@ -486,7 +484,7 @@
         // Anchors - will be loaded from database
         let anchors = [];
         
-        // Reference point for coordinate conversion (use first anchor as reference or fixed point)
+        // Reference point for coordinate conversion
         let referencePoint = null;
         
         // ========== ZONE DROPDOWN ==========
@@ -498,7 +496,8 @@
         // Close dropdown when clicking outside
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.dropdown')) {
-                document.getElementById('zoneDropdown').style.display = 'none';
+                const dropdown = document.getElementById('zoneDropdown');
+                if (dropdown) dropdown.style.display = 'none';
             }
         });
         
@@ -517,7 +516,10 @@
             
             // Highlight active item
             document.querySelectorAll('.zone-dropdown-item').forEach(item => item.classList.remove('active'));
-            event.target.closest('.zone-dropdown-item').classList.add('active');
+            if (event && event.target) {
+                const item = event.target.closest('.zone-dropdown-item');
+                if (item) item.classList.add('active');
+            }
             
             // Clear last positions to reset smoothing
             lastPositions = {};
@@ -596,30 +598,23 @@
             document.getElementById('zone3Tags').textContent = tagCounts.zone3;
         }
         
-        // Handle overview canvas clicks
-        canvasOverview.addEventListener('click', function(e) {
-            const rect = canvasOverview.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            // Check which zone was clicked
-            if (x >= 10 && x <= 90 && y >= 10 && y <= 90) {
-                selectZone('zone1');
-            } else if (x >= 110 && x <= 190 && y >= 10 && y <= 90) {
-                selectZone('zone2');
-            } else if (x >= 210 && x <= 290 && y >= 10 && y <= 90) {
-                selectZone('zone3');
-            }
-        });
-            
-            // Update URL without zone parameter
-            window.history.pushState({}, '', 'positioning-2d.html');
-        }
-        
-        // Switch back to previous zone
-        function switchToZone() {
-            if (previousZoneId) {
-                window.location.href = `positioning-2d.html?zone=${previousZoneId}`;
+        // Handle overview canvas clicks - will be set up in DOMContentLoaded
+        function setupOverviewClick() {
+            if (canvasOverview) {
+                canvasOverview.addEventListener('click', function(e) {
+                    const rect = canvasOverview.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    // Check which zone was clicked
+                    if (x >= 10 && x <= 90 && y >= 10 && y <= 90) {
+                        selectZone('zone1');
+                    } else if (x >= 110 && x <= 190 && y >= 10 && y <= 90) {
+                        selectZone('zone2');
+                    } else if (x >= 210 && x <= 290 && y >= 10 && y <= 90) {
+                        selectZone('zone3');
+                    }
+                });
             }
         }
         
@@ -629,13 +624,11 @@
                 const response = await fetch(`/api/zones/${zoneId}`);
                 if (response.ok) {
                     currentZone = await response.json();
-                    previousZoneId = zoneId; // Remember this zone
                     
                     document.getElementById('viewMode').innerHTML = `
                         <i class="fas fa-map-marked-alt"></i> Chế độ: Khu vực chi tiết "<strong>${currentZone.name}</strong>"
                     `;
                     document.getElementById('areaTitle').textContent = `${currentZone.name} (Khu vực chi tiết)`;
-                    document.getElementById('btnOverview').style.display = 'inline-block';
                     document.getElementById('btnBackToZone').style.display = 'none'; // Hide when in zone view
                     console.log('✅ Viewing zone:', currentZone);
                 }
@@ -1676,9 +1669,18 @@
                 checkAuth();
             }
             
+            // 🆕 Initialize both canvas references
+            canvas = document.getElementById('canvas2d');
+            ctx = canvas.getContext('2d');
+            canvasOverview = document.getElementById('canvasOverview');
+            ctxOverview = canvasOverview.getContext('2d');
+            
             // Set canvas size
             canvas.width = areaSize * scale + 80;
             canvas.height = areaSize * scale + 80;
+            
+            // Setup overview click handler
+            setupOverviewClick();
             
             // 🆕 Draw overview immediately
             drawOverview();
