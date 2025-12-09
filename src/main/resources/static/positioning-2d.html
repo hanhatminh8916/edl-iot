@@ -425,20 +425,17 @@
         // Reference point for coordinate conversion (use first anchor as reference or fixed point)
         let referencePoint = null;
         
-        // 🆕 Reset tag positions cache when switching view modes
-        function resetPositionsCache() {
+        // 🆕 Reset position cache khi chuyển chế độ xem
+        function resetPositionCache() {
             lastPositions = {};
             helmetPositions = {};
-            console.log('🔄 Reset positions cache for view mode switch');
+            console.log('🔄 Reset position cache for view switch');
         }
         
         // Switch back to overview mode
         function switchToOverview() {
             currentZoneId = null; // Clear current zone but keep previousZoneId
-            
-            // 🆕 Reset positions cache để tag tính lại vị trí từ đầu
-            resetPositionsCache();
-            
+            resetPositionCache(); // 🆕 Reset cache để tránh tag bị kéo về vị trí cũ
             loadAnchorsFromDatabase(); // Reload all anchors
             
             // Update UI
@@ -461,8 +458,7 @@
         // Switch back to previous zone
         function switchToZone() {
             if (previousZoneId) {
-                // 🆕 Reset positions cache trước khi chuyển zone
-                resetPositionsCache();
+                resetPositionCache(); // 🆕 Reset cache khi chuyển zone
                 window.location.href = `positioning-2d.html?zone=${previousZoneId}`;
             }
         }
@@ -470,9 +466,7 @@
         // Load zone information
         async function loadZoneInfo(zoneId) {
             try {
-                // 🆕 Reset positions cache khi load zone mới
-                resetPositionsCache();
-                
+                resetPositionCache(); // 🆕 Reset cache khi load zone mới
                 const response = await fetch(`/api/zones/${zoneId}`);
                 if (response.ok) {
                     currentZone = await response.json();
