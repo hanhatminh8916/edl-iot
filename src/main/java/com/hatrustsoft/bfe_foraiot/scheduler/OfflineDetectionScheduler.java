@@ -33,7 +33,7 @@ public class OfflineDetectionScheduler {
     @Autowired
     private HelmetDataRepository helmetDataRepository;
     
-    private static final int OFFLINE_TIMEOUT_SECONDS = 30; // 30 giây không có data = offline
+    private static final int OFFLINE_TIMEOUT_SECONDS = 60; // 60 giây không có data = offline
     
     // Track các MAC đã được lưu vào DB khi offline (tránh lưu lặp lại)
     private Set<String> savedOfflineMacs = new HashSet<>();

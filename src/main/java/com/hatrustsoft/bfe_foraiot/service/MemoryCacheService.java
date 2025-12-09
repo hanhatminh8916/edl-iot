@@ -63,10 +63,10 @@ public class MemoryCacheService {
     private static final long DANGER_ALERT_DEBOUNCE_SECONDS = 60;
     
     // ========== MAC ADDRESS NOISE FILTER ==========
-    // 🔧 Lọc nhiễu MAC: Chỉ thêm helmet mới khi nhận >= 9 message từ MAC đó
+    // 🔧 Lọc nhiễu MAC: Chỉ thêm helmet mới khi nhận >= 3 message từ MAC đó
     // Key: MAC address, Value: số lần nhận được message
     private final Map<String, Integer> macMessageCounter = new ConcurrentHashMap<>();
-    private static final int MAC_CONFIRMATION_THRESHOLD = 9; // Phải nhận 9 lần mới được thêm vào DB
+    private static final int MAC_CONFIRMATION_THRESHOLD = 3; // Phải nhận 3 lần mới được thêm vào DB (~6 giây)
 
     /**
      * 🔄 Khởi tạo cache khi app start

@@ -39,7 +39,7 @@ public class PositioningController {
     private PositioningService positioningService;
     
     // ⏰ Đồng bộ với location.html: 30 giây không nhận data → offline
-    private static final long OFFLINE_THRESHOLD_SECONDS = 30;
+    private static final long OFFLINE_THRESHOLD_SECONDS = 60; // 60 seconds - prevent flicker
     
     /**
      * 📋 Lấy tất cả tag positions (online + offline)

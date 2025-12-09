@@ -35,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 public class LocationController {
 
     // ⏰ Đồng bộ với positioning-2d.html: 30 giây không nhận data → offline
-    private static final long OFFLINE_THRESHOLD_SECONDS = 30;
+    private static final long OFFLINE_THRESHOLD_SECONDS = 60; // 60 seconds - prevent flicker
 
     @Autowired
     private EmployeeRepository employeeRepository;

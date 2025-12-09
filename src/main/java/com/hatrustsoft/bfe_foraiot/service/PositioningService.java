@@ -46,7 +46,7 @@ public class PositioningService {
     private final Map<String, LocalDateTime> lastSeenTime = new ConcurrentHashMap<>();
     
     // Timeout để coi tag là offline (30 giây không nhận data)
-    private static final long OFFLINE_TIMEOUT_SECONDS = 30;
+    private static final long OFFLINE_TIMEOUT_SECONDS = 60; // 60 seconds - prevent flicker
     
     /**
      * 📡 Publish realtime UWB data qua WebSocket

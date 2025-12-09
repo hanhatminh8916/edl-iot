@@ -35,7 +35,7 @@ public class DashboardService {
     private final MemoryCacheService memoryCacheService; // 🚀 TỐI ƯU: Dùng cache
     
     // Timeout để coi là offline (đồng bộ với các trang khác)
-    private static final long OFFLINE_THRESHOLD_SECONDS = 30;
+    private static final long OFFLINE_THRESHOLD_SECONDS = 60; // 60 seconds - prevent flicker
 
     /**
      * 📊 Lấy thống kê tổng quan từ dữ liệu THỰC

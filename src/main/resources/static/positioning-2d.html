@@ -630,7 +630,7 @@
         
         // 📊 Track last data timestamp for each tag (for offline detection)
         const tagLastDataTime = {};
-        const OFFLINE_TIMEOUT_MS = 30000; // 30 seconds
+        const OFFLINE_TIMEOUT_MS = 60000; // 60 seconds - longer timeout to prevent flicker
 
         // Calculate distance between two points
         function calculateDistance(x1, y1, x2, y2) {
