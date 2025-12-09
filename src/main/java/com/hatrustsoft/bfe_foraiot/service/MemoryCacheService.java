@@ -61,6 +61,12 @@ public class MemoryCacheService {
     // Key: MAC address, Value: last alert time
     private final Map<String, LocalDateTime> lastDangerAlertTime = new ConcurrentHashMap<>();
     private static final long DANGER_ALERT_DEBOUNCE_SECONDS = 60;
+    
+    // ========== MAC ADDRESS NOISE FILTER ==========
+    // 🔧 Lọc nhiễu MAC: Chỉ thêm helmet mới khi nhận >= 9 message từ MAC đó
+    // Key: MAC address, Value: số lần nhận được message
+    private final Map<String, Integer> macMessageCounter = new ConcurrentHashMap<>();
+    private static final int MAC_CONFIRMATION_THRESHOLD = 9; // Phải nhận 9 lần mới được thêm vào DB
 
     /**
      * 🔄 Khởi tạo cache khi app start
@@ -228,6 +234,53 @@ public class MemoryCacheService {
         return false;
     }
     
+    // ==================== MAC ADDRESS NOISE FILTER ====================
+    
+    /**
+     * 🔧 Tăng counter và kiểm tra xem MAC đã đủ điều kiện để thêm helmet chưa
+     * Lọc nhiễu: Chỉ thêm helmet mới khi nhận được >= 9 message từ MAC đó
+     * 
+     * @param macAddress MAC address của thiết bị
+     * @return true nếu MAC đã xác nhận (>= 9 lần), false nếu chưa
+     */
+    public boolean incrementAndCheckMacConfirmation(String macAddress) {
+        int count = macMessageCounter.merge(macAddress, 1, Integer::sum);
+        
+        if (count == 1) {
+            log.info("📡 [MAC FILTER] New MAC detected: {} (count: 1/{})", macAddress, MAC_CONFIRMATION_THRESHOLD);
+        } else if (count < MAC_CONFIRMATION_THRESHOLD) {
+            log.debug("📡 [MAC FILTER] MAC {} count: {}/{}", macAddress, count, MAC_CONFIRMATION_THRESHOLD);
+        } else if (count == MAC_CONFIRMATION_THRESHOLD) {
+            log.info("✅ [MAC FILTER] MAC {} confirmed after {} messages - will create helmet", 
+                     macAddress, MAC_CONFIRMATION_THRESHOLD);
+        }
+        
+        return count >= MAC_CONFIRMATION_THRESHOLD;
+    }
+    
+    /**
+     * 🔍 Kiểm tra xem MAC đã được xác nhận chưa (không tăng counter)
+     */
+    public boolean isMacConfirmed(String macAddress) {
+        Integer count = macMessageCounter.get(macAddress);
+        return count != null && count >= MAC_CONFIRMATION_THRESHOLD;
+    }
+    
+    /**
+     * 📊 Lấy số lần nhận được message từ MAC
+     */
+    public int getMacMessageCount(String macAddress) {
+        return macMessageCounter.getOrDefault(macAddress, 0);
+    }
+    
+    /**
+     * 🔄 Reset counter cho MAC (khi cần test lại)
+     */
+    public void resetMacCounter(String macAddress) {
+        macMessageCounter.remove(macAddress);
+        log.info("🔄 [MAC FILTER] Reset counter for MAC: {}", macAddress);
+    }
+    
     /**
      * 🧹 Cleanup old entries mỗi 10 phút
      */
@@ -244,6 +297,9 @@ public class MemoryCacheService {
         // Cleanup danger alert tracking
         lastDangerAlertTime.entrySet().removeIf(entry -> entry.getValue().isBefore(threshold));
         
+        // Cleanup MAC counters chưa xác nhận (giữ lại những MAC đã đạt threshold)
+        macMessageCounter.entrySet().removeIf(entry -> entry.getValue() < MAC_CONFIRMATION_THRESHOLD);
+        
         log.debug("🧹 Cleaned up old cache entries");
     }
     
@@ -256,8 +312,23 @@ public class MemoryCacheService {
             "messengerUsersCacheSize", messengerUsersCache != null ? messengerUsersCache.size() : 0,
             "helmetUpdateTrackingSize", lastHelmetUpdateTime.size(),
             "tagPositionTrackingSize", lastTagPositionSaveTime.size(),
-            "dangerAlertTrackingSize", lastDangerAlertTime.size()
+            "dangerAlertTrackingSize", lastDangerAlertTime.size(),
+            "macCounterSize", macMessageCounter.size(),
+            "confirmedMacCount", macMessageCounter.values().stream().filter(c -> c >= MAC_CONFIRMATION_THRESHOLD).count()
         );
+    }
+    
+    /**
+     * 📊 Lấy chi tiết MAC counters đang chờ xác nhận
+     */
+    public Map<String, Integer> getPendingMacCounters() {
+        Map<String, Integer> pending = new ConcurrentHashMap<>();
+        macMessageCounter.forEach((mac, count) -> {
+            if (count < MAC_CONFIRMATION_THRESHOLD) {
+                pending.put(mac, count);
+            }
+        });
+        return pending;
     }
 }
 

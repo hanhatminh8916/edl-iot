@@ -179,8 +179,20 @@ public class MqttMessageHandler implements MessageHandler {
             }
 
             // ⭐ AUTO-CREATE HELMET if not exists (chỉ khi cần)
+            // 🔧 MAC NOISE FILTER: Chỉ tạo helmet mới khi nhận >= 9 messages từ MAC đó
             if (memoryCacheService.shouldUpdateHelmet(macAddress)) {
-                helmetService.findOrCreateHelmetByMac(macAddress);
+                // Kiểm tra MAC đã được xác nhận chưa (>= 9 lần)
+                if (memoryCacheService.isMacConfirmed(macAddress)) {
+                    helmetService.findOrCreateHelmetByMac(macAddress);
+                } else {
+                    // Tăng counter và kiểm tra
+                    boolean confirmed = memoryCacheService.incrementAndCheckMacConfirmation(macAddress);
+                    if (confirmed) {
+                        // Vừa đạt ngưỡng, tạo helmet ngay
+                        helmetService.findOrCreateHelmetByMac(macAddress);
+                    }
+                    // Nếu chưa đạt ngưỡng, không tạo helmet (bỏ qua nhiễu)
+                }
             }
             
             // 🚀 SỬ DỤNG MEMORY CACHE thay vì query DB mỗi message
@@ -201,7 +213,8 @@ public class MqttMessageHandler implements MessageHandler {
             redisCacheService.cacheHelmetData(data);
             
             // ✅ CẬP NHẬT VỊ TRÍ CUỐI CÙNG VÀO HELMETS TABLE (CHỈ MỖI 30s)
-            if (memoryCacheService.shouldUpdateHelmet(macAddress)) {
+            // 🔧 Chỉ update nếu MAC đã được xác nhận (>= 9 messages)
+            if (memoryCacheService.shouldUpdateHelmet(macAddress) && memoryCacheService.isMacConfirmed(macAddress)) {
                 helmetService.updateHelmetData(
                     macAddress, 
                     data.getBattery(), 
@@ -366,6 +379,13 @@ public class MqttMessageHandler implements MessageHandler {
             String mac = data.getMac();
             LocalDateTime now = VietnamTimeUtils.now();
             
+            // 🔧 Kiểm tra MAC đã được xác nhận chưa (lọc nhiễu)
+            if (!memoryCacheService.isMacConfirmed(mac)) {
+                log.warn("⚠️ [MAC FILTER] Ignoring FALL alert from unconfirmed MAC: {} (count: {}/9)", 
+                    mac, memoryCacheService.getMacMessageCount(mac));
+                return;
+            }
+            
             // Tìm helmet theo MAC
             Helmet helmet = helmetService.findOrCreateHelmetByMac(data.getMac());
             
@@ -425,6 +445,13 @@ public class MqttMessageHandler implements MessageHandler {
             LocalDateTime now = VietnamTimeUtils.now();
             
             log.warn("🆘 createHelpRequestAlert() called for MAC: {}", mac);
+            
+            // 🔧 Kiểm tra MAC đã được xác nhận chưa (lọc nhiễu)
+            if (!memoryCacheService.isMacConfirmed(mac)) {
+                log.warn("⚠️ [MAC FILTER] Ignoring HELP_REQUEST alert from unconfirmed MAC: {} (count: {}/9)", 
+                    mac, memoryCacheService.getMacMessageCount(mac));
+                return;
+            }
             
             // Tìm helmet theo MAC
             Helmet helmet = helmetService.findOrCreateHelmetByMac(data.getMac());
