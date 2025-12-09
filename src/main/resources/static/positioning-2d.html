@@ -1056,6 +1056,48 @@
         const MAX_JUMP_DISTANCE = 5; // meters - max allowed jump per update
         
         /**
+         * 🆕 Tính bounding box của các anchor đang kết nối
+         * Tag chỉ được nằm trong vùng này
+         */
+        function getAnchorBoundingBox(anchorList) {
+            if (anchorList.length === 0) return null;
+            
+            let minX = Infinity, maxX = -Infinity;
+            let minY = Infinity, maxY = -Infinity;
+            
+            for (const anchor of anchorList) {
+                minX = Math.min(minX, anchor.x);
+                maxX = Math.max(maxX, anchor.x);
+                minY = Math.min(minY, anchor.y);
+                maxY = Math.max(maxY, anchor.y);
+            }
+            
+            // Thêm padding nhỏ (10% kích thước vùng) để cho phép tag nằm sát biên
+            const paddingX = (maxX - minX) * 0.1;
+            const paddingY = (maxY - minY) * 0.1;
+            
+            return {
+                minX: minX - paddingX,
+                maxX: maxX + paddingX,
+                minY: minY - paddingY,
+                maxY: maxY + paddingY
+            };
+        }
+        
+        /**
+         * 🆕 Giới hạn vị trí trong bounding box của anchors
+         */
+        function constrainToAnchorZone(x, y, anchorList) {
+            const bbox = getAnchorBoundingBox(anchorList);
+            if (!bbox) return { x, y };
+            
+            return {
+                x: Math.max(bbox.minX, Math.min(bbox.maxX, x)),
+                y: Math.max(bbox.minY, Math.min(bbox.maxY, y))
+            };
+        }
+        
+        /**
          * Tính tọa độ tag từ UWB data sử dụng Nonlinear Least Squares với Gradient Descent
          * Phương pháp này chính xác hơn Linear Least Squares
          */
@@ -1129,9 +1171,10 @@
                 x -= learningRate * gradX;
                 y -= learningRate * gradY;
                 
-                // Giới hạn trong khu vực
-                x = Math.max(0, Math.min(areaSize, x));
-                y = Math.max(0, Math.min(areaSize, y));
+                // 🆕 Giới hạn trong vùng anchor đang kết nối (không phải toàn bộ area)
+                const constrained = constrainToAnchorZone(x, y, anchorList);
+                x = constrained.x;
+                y = constrained.y;
             }
             
             console.log(`📍 Gradient descent position (${anchorList.length} anchors): (${x.toFixed(2)}, ${y.toFixed(2)})`);
@@ -1153,9 +1196,10 @@
                 // Di chuyển < 1m: không smoothing, để tag phản hồi nhanh
             }
             
-            // Giới hạn cuối cùng
-            x = Math.max(0, Math.min(areaSize, x));
-            y = Math.max(0, Math.min(areaSize, y));
+            // 🆕 Giới hạn cuối cùng trong vùng anchor
+            const finalConstrained = constrainToAnchorZone(x, y, anchorList);
+            x = finalConstrained.x;
+            y = finalConstrained.y;
             
             // Lưu vị trí cuối
             lastPositions[mac] = { x, y };
