@@ -221,8 +221,11 @@ public class PositioningService {
     
     /**
      * 📋 Lấy tất cả tags (online + offline) từ DB
+     * 🚀 CACHED at repository level (allTags cache)
      */
+    @org.springframework.cache.annotation.Cacheable(value = "allTags")
     public List<TagLastPosition> getAllTagPositions() {
+        log.info("💾 [DB QUERY] Fetching all tag positions from database");
         return tagLastPositionRepository.findAll();
     }
     

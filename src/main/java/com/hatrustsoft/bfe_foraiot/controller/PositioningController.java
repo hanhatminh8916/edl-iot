@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.concurrent.TimeUnit;
+
 import com.hatrustsoft.bfe_foraiot.entity.TagLastPosition;
 import com.hatrustsoft.bfe_foraiot.service.PositioningService;
 
@@ -26,7 +28,6 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 📍 API Controller for Tag Positioning
  * Dùng cho positioning-2d.html
- * 🚀 OPTIMIZED: Cache 10s để giảm DB queries
  */
 @RestController
 @RequestMapping("/api/positioning")
@@ -44,10 +45,10 @@ public class PositioningController {
      * 📋 Lấy tất cả tag positions (online + offline)
      * Frontend dùng để hiển thị tags lúc load trang
      * ⏰ isOnline được tính realtime dựa trên lastSeen (30s threshold)
-     * 🚀 CACHE: 10 giây để giảm DB queries từ 60-80 xuống 1
+     * 🚀 CACHED: 10 giây (giảm queries từ ~60-80 xuống ~1)
      */
     @GetMapping("/tags")
-    @Cacheable(value = "tagPositions", unless = "#result == null")
+    @Cacheable(value = "tagPositions", key = "'all'")
     public ResponseEntity<List<TagPositionDTO>> getAllTagPositions() {
         List<TagLastPosition> tags = positioningService.getAllTagPositions();
         LocalDateTime now = LocalDateTime.now();
@@ -56,20 +57,18 @@ public class PositioningController {
             .map(tag -> toDTO(tag, now))
             .collect(Collectors.toList());
         
-        log.info("📍 [CACHE MISS] Returning {} tag positions from DB", result.size());
-        
-        // Cache control header: cache 10s ở browser
+        log.info("📍 [DB QUERY] Returning {} tag positions", result.size());
         return ResponseEntity.ok()
-            .cacheControl(CacheControl.maxAge(java.time.Duration.ofSeconds(10)))
+            .cacheControl(CacheControl.maxAge(10, TimeUnit.SECONDS))
             .body(result);
     }
     
     /**
      * ⚪ Lấy chỉ các offline tags
-     * 🚀 CACHE: 10 giây
+     * 🚀 CACHED: 10 giây
      */
     @GetMapping("/tags/offline")
-    @Cacheable(value = "offlineTags", unless = "#result == null")
+    @Cacheable(value = "offlineTags", key = "'all'")
     public ResponseEntity<List<TagPositionDTO>> getOfflineTags() {
         List<TagLastPosition> tags = positioningService.getAllTagPositions();
         LocalDateTime now = LocalDateTime.now();
@@ -79,10 +78,9 @@ public class PositioningController {
             .filter(dto -> !dto.getIsOnline()) // Chỉ lấy offline
             .collect(Collectors.toList());
         
-        log.info("⚪ [CACHE MISS] Returning {} offline tags", result.size());
-        
+        log.info("⚪ [DB QUERY] Returning {} offline tags", result.size());
         return ResponseEntity.ok()
-            .cacheControl(CacheControl.maxAge(java.time.Duration.ofSeconds(10)))
+            .cacheControl(CacheControl.maxAge(10, TimeUnit.SECONDS))
             .body(result);
     }
     

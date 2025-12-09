@@ -2,6 +2,7 @@ package com.hatrustsoft.bfe_foraiot.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,7 +19,6 @@ import com.hatrustsoft.bfe_foraiot.model.HelmetStatus;
 import com.hatrustsoft.bfe_foraiot.repository.AlertRepository;
 import com.hatrustsoft.bfe_foraiot.repository.EmployeeRepository;
 import com.hatrustsoft.bfe_foraiot.repository.HelmetRepository;
-import com.hatrustsoft.bfe_foraiot.util.VietnamTimeUtils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -77,16 +77,16 @@ public class DashboardService {
     
     /**
      * 🔴 Lấy danh sách cảnh báo gần đây (hôm nay)
-     * 🚀 TỐI ƯU: Dùng JOIN FETCH để tránh N+1 query problem
+     * 🚀 TỐI ƯU: Query với LIMIT động và ORDER BY trực tiếp trong DB
      */
     public List<Map<String, Object>> getRecentAlerts(int limit) {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-        
-        // 🚀 TỐI ƯU: Dùng custom query với JOIN FETCH
-        List<Alert> todayAlerts = alertRepository.findAlertsWithDetailsAfter(startOfDay);
+        // Query alerts hôm nay, sắp xếp DESC
+        List<Alert> todayAlerts = alertRepository.findByTriggeredAtAfter(startOfDay);
         
         return todayAlerts.stream()
             .filter(a -> a.getTriggeredAt() != null)
+            .sorted((a1, a2) -> a2.getTriggeredAt().compareTo(a1.getTriggeredAt()))
             .limit(Math.min(limit, 50))
             .map(alert -> {
                 Map<String, Object> alertData = new HashMap<>();
@@ -97,7 +97,7 @@ public class DashboardService {
                 alertData.put("timestamp", alert.getTriggeredAt().toString());
                 alertData.put("time", alert.getTriggeredAt().toLocalTime().toString().substring(0, 5));
                 
-                // Lấy thông tin nhân viên (đã JOIN FETCH - không query thêm)
+                // Lấy thông tin nhân viên từ Helmet -> Employee
                 if (alert.getHelmet() != null && alert.getHelmet().getEmployee() != null) {
                     alertData.put("employeeName", alert.getHelmet().getEmployee().getName());
                 } else {

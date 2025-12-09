@@ -32,10 +32,6 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     @Query("SELECT COUNT(a) FROM Alert a WHERE a.triggeredAt > :dateTime")
     long countByTriggeredAtAfter(@Param("dateTime") LocalDateTime dateTime);
     
-    // 🚀 TỐI ƯU: Lấy alerts với JOIN FETCH để tránh N+1
-    @Query("SELECT a FROM Alert a LEFT JOIN FETCH a.helmet h LEFT JOIN FETCH h.employee WHERE a.triggeredAt > :dateTime ORDER BY a.triggeredAt DESC")
-    List<Alert> findAlertsWithDetailsAfter(@Param("dateTime") LocalDateTime dateTime);
-    
     // 🚀 TỐI ƯU: Đếm PENDING alerts
     long countByStatus(AlertStatus status);
     

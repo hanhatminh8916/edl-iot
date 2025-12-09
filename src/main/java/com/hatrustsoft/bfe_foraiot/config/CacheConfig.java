@@ -1,43 +1,54 @@
 package com.hatrustsoft.bfe_foraiot.config;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.concurrent.TimeUnit;
+import com.github.benmanes.caffeine.cache.Caffeine;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * 🚀 Spring Cache Configuration for Positioning Optimization
+ * 🚀 Spring Cache Configuration
  * 
- * Reduces positioning-2d.html from 60-80 queries per F5 to ~1 query
+ * Giảm database queries cho positioning-2d.html từ ~60-80 queries/F5 xuống ~1 query
  * 
  * Cache Strategy:
- * - tagPositions: Cache all tag positions for 10 seconds
- * - offlineTags: Cache offline tag list for 10 seconds  
- * - allTags: Cache raw TagLastPosition entities for 10 seconds
+ * - tagPositions: Cache API response /api/positioning/tags (10s TTL)
+ * - offlineTags: Cache API response /api/positioning/tags/offline (10s TTL)
+ * - allTags: Cache repository findAll() (10s TTL)
  * 
- * Note: This is separate from Hibernate 2nd level cache (configured in ehcache.xml)
+ * Kết hợp với CacheControl header (10s) → Browser cache + Server cache = 0 queries on F5
  */
 @Configuration
 @EnableCaching
+@Slf4j
 public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager(
-            "tagPositions",
-            "offlineTags", 
-            "allTags"
-        );
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
         
-        // Configure TTL: 10 seconds for all caches
+        // Define cache names
+        cacheManager.setCacheNames(Arrays.asList(
+            "tagPositions",    // API /api/positioning/tags
+            "offlineTags",     // API /api/positioning/tags/offline
+            "allTags"          // Repository findAll()
+        ));
+        
+        // Configure Caffeine with 10 seconds TTL
         cacheManager.setCaffeine(Caffeine.newBuilder()
             .expireAfterWrite(10, TimeUnit.SECONDS)
             .maximumSize(1000)
-            .recordStats()); // Enable metrics
+            .recordStats()); // Enable stats for monitoring
+        
+        log.info("🚀 Cache Manager initialized with Caffeine (10s TTL)");
+        log.info("📦 Cache regions: tagPositions, offlineTags, allTags");
         
         return cacheManager;
     }
