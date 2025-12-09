@@ -1115,18 +1115,22 @@
             const anchorList = [];
             const distances = [];
             
+            console.log(`🔍 Available anchors from DB:`, anchors.map(a => `${a.id}(${a.x.toFixed(1)},${a.y.toFixed(1)})`).join(', '));
+            
             for (const key of anchorOrder) {
                 if (uwb[key] !== undefined && uwb[key] > 0 && uwb[key] < 50) {
-                    // 🆕 Tìm anchor từ database (anchors array) thay vì hardcoded
-                    const dbAnchor = anchors.find(a => a.id === key);
+                    // 🆕 Tìm anchor từ database (anchors array) - check cả id và name
+                    const dbAnchor = anchors.find(a => a.id === key || a.name === key);
                     if (dbAnchor) {
                         anchorList.push({ x: dbAnchor.x, y: dbAnchor.y, name: key });
                         distances.push(uwb[key]);
+                        console.log(`✅ Found ${key} in DB at (${dbAnchor.x.toFixed(1)}, ${dbAnchor.y.toFixed(1)})`);
                     } else {
                         // Fallback to hardcoded if not found in DB
                         if (UWB_ANCHORS[key]) {
                             anchorList.push({ ...UWB_ANCHORS[key], name: key });
                             distances.push(uwb[key]);
+                            console.log(`⚠️ ${key} not in DB, using hardcoded (${UWB_ANCHORS[key].x}, ${UWB_ANCHORS[key].y})`);
                         }
                     }
                 }
@@ -1139,7 +1143,7 @@
             }
             
             console.log(`📏 UWB distances for ${mac}:`, 
-                anchorList.map((a, i) => `${a.name}=${distances[i].toFixed(2)}m`).join(', '));
+                anchorList.map((a, i) => `${a.name}=${distances[i].toFixed(2)}m at (${a.x.toFixed(1)},${a.y.toFixed(1)})`).join(', '));
             
             // 🎯 Gradient Descent để minimize error function
             // Error = Σ (sqrt((x-xi)² + (y-yi)²) - ri)²
