@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -12,24 +13,24 @@ import org.springframework.stereotype.Repository;
 
 import com.hatrustsoft.bfe_foraiot.entity.TagLastPosition;
 
+/**
+ * 🚀 OPTIMIZED: Cache findAll() để giảm queries từ 60-80 xuống gần 0
+ */
 @Repository
 public interface TagLastPositionRepository extends JpaRepository<TagLastPosition, Long> {
     
     // Tìm theo MAC address
-    @org.springframework.cache.annotation.Cacheable(value = "tagPositionByMac", key = "#mac")
     Optional<TagLastPosition> findByMac(String mac);
     
     // Lấy tất cả tag online
-    @org.springframework.cache.annotation.Cacheable(value = "tagPositionsOnline")
     List<TagLastPosition> findByIsOnlineTrue();
     
-    // Lấy tất cả tag offline  
-    @org.springframework.cache.annotation.Cacheable(value = "tagPositionsOffline")
+    // Lấy tất cả tag offline
     List<TagLastPosition> findByIsOnlineFalse();
     
-    // Lấy tất cả tags (cả online và offline) - Cache 5 giây
-    @org.springframework.cache.annotation.Cacheable(value = "allTagPositions")
+    // 🚀 CACHE: Lấy tất cả tags (cả online và offline) - cache 10s
     @Override
+    @Cacheable(value = "allTags", unless = "#result == null || #result.isEmpty()")
     List<TagLastPosition> findAll();
     
     // Đánh dấu offline các tag không hoạt động trong khoảng thời gian

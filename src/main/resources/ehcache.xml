@@ -49,43 +49,6 @@
             <ttl unit="minutes">5</ttl>
         </expiry>
     </cache>
-    
-    <!-- Tag Position Caches - Very short TTL for real-time data -->
-    <cache alias="tagPositionByMac" uses-template="default">
-        <expiry>
-            <ttl unit="seconds">5</ttl>
-        </expiry>
-        <resources>
-            <heap unit="entries">100</heap>
-        </resources>
-    </cache>
-    
-    <cache alias="tagPositionsOnline" uses-template="default">
-        <expiry>
-            <ttl unit="seconds">5</ttl>
-        </expiry>
-        <resources>
-            <heap unit="entries">50</heap>
-        </resources>
-    </cache>
-    
-    <cache alias="tagPositionsOffline" uses-template="default">
-        <expiry>
-            <ttl unit="seconds">10</ttl>
-        </expiry>
-        <resources>
-            <heap unit="entries">50</heap>
-        </resources>
-    </cache>
-    
-    <cache alias="allTagPositions" uses-template="default">
-        <expiry>
-            <ttl unit="seconds">5</ttl>
-        </expiry>
-        <resources>
-            <heap unit="entries">50</heap>
-        </resources>
-    </cache>
 
     <!-- Update timestamps cache -->
     <cache alias="default-update-timestamps-region">
@@ -94,6 +57,34 @@
         </expiry>
         <resources>
             <heap unit="entries">5000</heap>
+        </resources>
+    </cache>
+
+    <!-- 🚀 Tag Positions Cache - Cache 10s cho positioning-2d.html (Giảm 60-80 queries xuống ~1) -->
+    <cache alias="tagPositions">
+        <expiry>
+            <ttl unit="seconds">10</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">100</heap>
+        </resources>
+    </cache>
+    
+    <cache alias="offlineTags">
+        <expiry>
+            <ttl unit="seconds">10</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">100</heap>
+        </resources>
+    </cache>
+    
+    <cache alias="allTags">
+        <expiry>
+            <ttl unit="seconds">10</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">500</heap>
         </resources>
     </cache>
 
