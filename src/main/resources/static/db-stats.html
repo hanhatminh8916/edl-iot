@@ -253,10 +253,10 @@
 
         <div class="auto-refresh">
             <label class="toggle">
-                <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()">
+                <input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()">
                 <span class="slider"></span>
             </label>
-            <span>Auto-refresh every 5 seconds</span>
+            <span>Auto-refresh every 2 seconds (Realtime)</span>
             <span id="lastUpdate" style="margin-left: auto; color: #666; font-size: 12px;"></span>
         </div>
 
@@ -397,14 +397,18 @@
             const checkbox = document.getElementById('autoRefresh');
             
             if (checkbox.checked) {
-                autoRefreshInterval = setInterval(refreshStats, 5000);
+                autoRefreshInterval = setInterval(refreshStats, 2000); // 2 seconds for realtime
             } else {
                 clearInterval(autoRefreshInterval);
             }
         }
 
-        // Initial load
+        // Initial load and auto-start
         refreshStats();
+        
+        // Auto-enable realtime refresh on load
+        document.getElementById('autoRefresh').checked = true;
+        toggleAutoRefresh();
     </script>
 </body>
 </html>
