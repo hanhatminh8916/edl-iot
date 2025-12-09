@@ -134,7 +134,7 @@ public class MessengerWebhookController {
                 Map<String, Object> notification = new HashMap<>();
                 notification.put("type", "ALERT_ACKNOWLEDGED");
                 notification.put("handlerPsid", handlerPsid);
-                notification.put("handlerName", handlerName != null ? handlerName : "Messenger User");
+                notification.put("handlerName", handlerName); // Đã được xử lý trong service (employeeId > firstName > "Messenger User")
                 notification.put("employeeName", employeeName);
                 notification.put("alertType", alertType);
                 notification.put("message", message);

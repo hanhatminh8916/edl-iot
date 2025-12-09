@@ -349,6 +349,10 @@ public class MessengerService {
             String alertType = user.getPendingAlertType();
             String employeeName = user.getPendingEmployeeName();
             
+            // ⭐ Lấy tên handler: Ưu tiên employeeId > firstName > "Messenger User"
+            String handlerName = user.getEmployeeId() != null ? user.getEmployeeId() : 
+                                 (user.getFirstName() != null ? user.getFirstName() : "Messenger User");
+            
             // Clear pending state
             user.setPendingState(null);
             user.setPendingAlertId(null);
@@ -358,7 +362,7 @@ public class MessengerService {
             
             // Gọi callback để gửi lên dashboard
             if (callback != null) {
-                callback.onAlertHandled(psid, user.getFirstName(), employeeName, alertType, message);
+                callback.onAlertHandled(psid, handlerName, employeeName, alertType, message);
             }
             
             // Gửi xác nhận cho user
