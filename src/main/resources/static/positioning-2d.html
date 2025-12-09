@@ -561,13 +561,6 @@
                         status: anchor.status
                     }));
                     
-                    // 🆕 Cập nhật UWB_ANCHORS cho positioning algorithm
-                    UWB_ANCHORS = {};
-                    anchors.forEach(anchor => {
-                        UWB_ANCHORS[anchor.name] = { x: anchor.x, y: anchor.y };
-                    });
-                    console.log('✅ Updated UWB_ANCHORS:', UWB_ANCHORS);
-                    
                     console.log('✅ Converted anchors to 2D:', anchors);
                     console.log('📊 Bounds:', { minX, maxX, minY, maxY, scaleFactor });
                     draw(); // Redraw canvas with new anchors
@@ -1034,10 +1027,29 @@
         let lastPositions = {}; // 🆕 Store last valid positions for smoothing
         
         /**
-         * 🎯 DYNAMIC UWB ANCHORS - Được cập nhật từ database
-         * Key là anchor name (A0, A1, ...), value là tọa độ {x, y}
+         * 🎯 CỐ ĐỊNH VỊ TRÍ ANCHOR CHO UWB POSITIONING
+         * Hỗ trợ 4 anchors: A0, A1, A2, A3 trong không gian 20m x 20m
+         * 
+         * Layout thực tế (nhìn từ màn hình - trục Y hướng lên):
+         *      20m ┌─────────────────────────────┐
+         *          │                             │
+         *      17m │  A0 (3,17)       A3 (17,17) │
+         *          │                             │
+         *          │                             │
+         *          │         [TAG1]              │
+         *          │                             │
+         *          │                             │
+         *       3m │  A1 (3,3)        A2 (17,3)  │
+         *          │                             │
+         *       0m └─────────────────────────────┘
+         *          0m         10m            20m
          */
-        let UWB_ANCHORS = {}; // Sẽ được populate từ loadAnchorsFromDatabase()
+        const UWB_ANCHORS = {
+            A0: { x: 3, y: 17 },   // Anchor A0 - góc trên trái
+            A1: { x: 3, y: 3 },    // Anchor A1 - góc dưới trái  
+            A2: { x: 17, y: 3 },   // Anchor A2 - góc dưới phải
+            A3: { x: 17, y: 17 }   // Anchor A3 - góc trên phải (🆕)
+        };
         
         // 🆕 Smoothing factor (0 = no smoothing, 0.8 = very smooth)
         const POSITION_SMOOTHING = 0.3;
@@ -1090,25 +1102,21 @@
          * Phương pháp này chính xác hơn Linear Least Squares
          */
         function calculatePositionFromUWB(uwb, mac) {
-            // 🆕 Thu thập TẤT CẢ anchors có trong UWB data (dynamic từ database)
+            // Thu thập anchors theo thứ tự CỐ ĐỊNH
+            const anchorOrder = ['A0', 'A1', 'A2', 'A3'];
             const anchorList = [];
             const distances = [];
             
-            // Duyệt qua tất cả keys trong uwb data
-            for (const key of Object.keys(uwb)) {
-                // Chỉ xử lý các key là anchor (A0, A1, A2, ...)
-                if (key.match(/^A\d+$/) && UWB_ANCHORS[key]) {
-                    const distance = uwb[key];
-                    if (distance !== undefined && distance > 0 && distance < 50) {
-                        anchorList.push({ ...UWB_ANCHORS[key], name: key });
-                        distances.push(distance);
-                    }
+            for (const key of anchorOrder) {
+                if (uwb[key] !== undefined && uwb[key] > 0 && uwb[key] < 50) {
+                    anchorList.push({ ...UWB_ANCHORS[key], name: key });
+                    distances.push(uwb[key]);
                 }
             }
             
             // Cần ít nhất 3 anchors
             if (anchorList.length < 3) {
-                console.log(`⚠️ Not enough anchors: ${anchorList.length}/3 required. Available UWB_ANCHORS:`, Object.keys(UWB_ANCHORS));
+                console.log(`⚠️ Not enough anchors: ${anchorList.length}/3 required`);
                 return lastPositions[mac] || null;
             }
             
