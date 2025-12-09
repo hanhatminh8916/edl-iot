@@ -21,8 +21,8 @@
     
     <!-- Stylesheets -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=188">
-    <link rel="stylesheet" href="css/location.css?v=188">
+    <link rel="stylesheet" href="css/style.css?v=189">
+    <link rel="stylesheet" href="css/location.css?v=189">
     <link rel="stylesheet" href="css/mobile-responsive.css">
     <style>
         .main-content {
@@ -1051,34 +1051,34 @@
         };
         
         /**
-         * Tính tọa độ tag từ UWB data sử dụng Weighted Centroid với 4 anchors
-         * Phương pháp này đơn giản và ổn định hơn trilateration thuần túy
+         * Tính tọa độ tag từ UWB data sử dụng Trilateration (Least Squares)
+         * Phương pháp này chính xác hơn Weighted Centroid
          */
         function calculatePositionFromUWB(uwb, mac) {
-            const anchors = [];
+            const anchorList = [];
             const distances = [];
             
             // Thu thập tất cả anchors có khoảng cách hợp lệ
             if (uwb.A0 !== undefined && uwb.A0 > 0) {
-                anchors.push(UWB_ANCHORS.A0);
+                anchorList.push(UWB_ANCHORS.A0);
                 distances.push(uwb.A0);
             }
             if (uwb.A1 !== undefined && uwb.A1 > 0) {
-                anchors.push(UWB_ANCHORS.A1);
+                anchorList.push(UWB_ANCHORS.A1);
                 distances.push(uwb.A1);
             }
             if (uwb.A2 !== undefined && uwb.A2 > 0) {
-                anchors.push(UWB_ANCHORS.A2);
+                anchorList.push(UWB_ANCHORS.A2);
                 distances.push(uwb.A2);
             }
             if (uwb.A3 !== undefined && uwb.A3 > 0) {
-                anchors.push(UWB_ANCHORS.A3);
+                anchorList.push(UWB_ANCHORS.A3);
                 distances.push(uwb.A3);
             }
             
             // Cần ít nhất 3 anchors
-            if (anchors.length < 3) {
-                console.log(`⚠️ Not enough anchors: ${anchors.length}/3 required`);
+            if (anchorList.length < 3) {
+                console.log(`⚠️ Not enough anchors: ${anchorList.length}/3 required`);
                 return null;
             }
             
@@ -1088,27 +1088,95 @@
                 `A2=${uwb.A2?.toFixed(2) || 'N/A'}m`,
                 `A3=${uwb.A3?.toFixed(2) || 'N/A'}m`);
             
-            // 🎯 Phương pháp Weighted Centroid: 
-            // Tag gần anchor nào hơn thì weight lớn hơn (weight = 1/distance²)
-            let totalWeight = 0;
-            let weightedX = 0;
-            let weightedY = 0;
+            // 🎯 Trilateration using Least Squares method
+            // Hệ phương trình: (x - xi)² + (y - yi)² = ri²
+            // Chuyển thành hệ tuyến tính: Ax = b
             
-            for (let i = 0; i < anchors.length; i++) {
-                const weight = 1 / (distances[i] * distances[i]);
-                weightedX += anchors[i].x * weight;
-                weightedY += anchors[i].y * weight;
-                totalWeight += weight;
+            const n = anchorList.length;
+            const refAnchor = anchorList[0];
+            const refDist = distances[0];
+            
+            // Xây dựng ma trận A và vector b
+            // Lấy anchor đầu tiên làm tham chiếu, trừ các phương trình khác
+            let A = [];
+            let b = [];
+            
+            for (let i = 1; i < n; i++) {
+                const xi = anchorList[i].x;
+                const yi = anchorList[i].y;
+                const ri = distances[i];
+                
+                const x0 = refAnchor.x;
+                const y0 = refAnchor.y;
+                const r0 = refDist;
+                
+                // 2*(xi - x0)*x + 2*(yi - y0)*y = ri² - r0² - xi² - yi² + x0² + y0²
+                A.push([2 * (xi - x0), 2 * (yi - y0)]);
+                b.push(r0*r0 - ri*ri - x0*x0 - y0*y0 + xi*xi + yi*yi);
             }
             
-            let x = weightedX / totalWeight;
-            let y = weightedY / totalWeight;
+            // Giải hệ phương trình tuyến tính bằng Least Squares: (A^T * A) * x = A^T * b
+            let position = solveLinearSystem(A, b);
             
-            console.log(`📍 Weighted position (${anchors.length} anchors): (${x.toFixed(2)}, ${y.toFixed(2)})`);
+            if (!position) {
+                console.log('⚠️ Failed to solve trilateration');
+                return null;
+            }
+            
+            let x = position.x;
+            let y = position.y;
+            
+            console.log(`📍 Trilateration position (${n} anchors): (${x.toFixed(2)}, ${y.toFixed(2)})`);
             
             // Giới hạn trong khu vực
             x = Math.max(0, Math.min(areaSize, x));
             y = Math.max(0, Math.min(areaSize, y));
+            
+            return { x, y };
+        }
+        
+        /**
+         * Giải hệ phương trình tuyến tính Ax = b bằng phương pháp Least Squares
+         * Sử dụng công thức: x = (A^T * A)^(-1) * A^T * b
+         */
+        function solveLinearSystem(A, b) {
+            const n = A.length;
+            
+            if (n < 1) return null;
+            
+            // Tính A^T * A (ma trận 2x2)
+            let ATA = [[0, 0], [0, 0]];
+            for (let i = 0; i < n; i++) {
+                ATA[0][0] += A[i][0] * A[i][0];
+                ATA[0][1] += A[i][0] * A[i][1];
+                ATA[1][0] += A[i][1] * A[i][0];
+                ATA[1][1] += A[i][1] * A[i][1];
+            }
+            
+            // Tính A^T * b (vector 2x1)
+            let ATb = [0, 0];
+            for (let i = 0; i < n; i++) {
+                ATb[0] += A[i][0] * b[i];
+                ATb[1] += A[i][1] * b[i];
+            }
+            
+            // Tính định thức của A^T * A
+            const det = ATA[0][0] * ATA[1][1] - ATA[0][1] * ATA[1][0];
+            
+            if (Math.abs(det) < 1e-10) {
+                console.log('⚠️ Singular matrix, cannot solve');
+                return null;
+            }
+            
+            // Tính ma trận nghịch đảo của A^T * A
+            const invATA = [
+                [ATA[1][1] / det, -ATA[0][1] / det],
+                [-ATA[1][0] / det, ATA[0][0] / det]
+            ];
+            
+            // Tính x = (A^T * A)^(-1) * A^T * b
+            const x = invATA[0][0] * ATb[0] + invATA[0][1] * ATb[1];
+            const y = invATA[1][0] * ATb[0] + invATA[1][1] * ATb[1];
             
             return { x, y };
         }
