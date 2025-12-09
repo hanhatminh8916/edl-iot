@@ -1104,26 +1104,30 @@
          * Phương pháp này chính xác hơn Linear Least Squares
          */
         function calculatePositionFromUWB(uwb, mac) {
-            // Thu thập anchors theo thứ tự CỐ ĐỊNH
-            const anchorOrder = ['A0', 'A1', 'A2', 'A3'];
+            // 🆕 Lấy vị trí anchor từ `anchors` array (load từ database) thay vì hardcoded
             const anchorList = [];
             const distances = [];
             
-            for (const key of anchorOrder) {
-                if (uwb[key] !== undefined && uwb[key] > 0 && uwb[key] < 50) {
-                    anchorList.push({ ...UWB_ANCHORS[key], name: key });
-                    distances.push(uwb[key]);
+            // Match UWB data với anchors đã load từ database
+            for (const key of Object.keys(uwb)) {
+                if (key.startsWith('A') && uwb[key] > 0 && uwb[key] < 50) {
+                    // Tìm anchor trong danh sách đã load từ DB
+                    const dbAnchor = anchors.find(a => a.id === key);
+                    if (dbAnchor) {
+                        anchorList.push({ x: dbAnchor.x, y: dbAnchor.y, name: key });
+                        distances.push(uwb[key]);
+                    }
                 }
             }
             
             // Cần ít nhất 3 anchors
             if (anchorList.length < 3) {
-                console.log(`⚠️ Not enough anchors: ${anchorList.length}/3 required`);
+                console.log(`⚠️ Not enough anchors: ${anchorList.length}/3 required (matched from DB)`);
                 return lastPositions[mac] || null;
             }
             
             console.log(`📏 UWB distances for ${mac}:`, 
-                anchorList.map((a, i) => `${a.name}=${distances[i].toFixed(2)}m`).join(', '));
+                anchorList.map((a, i) => `${a.name}=${distances[i].toFixed(2)}m at (${a.x.toFixed(1)}, ${a.y.toFixed(1)})`).join(', '));
             
             // 🎯 Gradient Descent để minimize error function
             // Error = Σ (sqrt((x-xi)² + (y-yi)²) - ri)²
