@@ -14,6 +14,149 @@ var safeZoneRadius = 200; // Bán kính 200 mét (chỉ để tham khảo, giờ
 var fallAlertMarkers = {}; // Track active fall alert effects by MAC
 var fallAlertIntervals = {}; // Track intervals for cleanup
 
+// ✅ PROMPT ZONE NAME với validation trùng tên
+async function promptZoneName(defaultName) {
+    return new Promise((resolve) => {
+        // Tạo modal dialog
+        const overlay = document.createElement('div');
+        overlay.id = 'zoneNameOverlay';
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 10000;
+            display: flex; justify-content: center; align-items: center;
+        `;
+        
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: white; padding: 25px; border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3); min-width: 350px;
+        `;
+        
+        dialog.innerHTML = `
+            <h3 style="margin: 0 0 15px 0; color: #333;">🏭 Tạo khu vực mới</h3>
+            <label style="display: block; margin-bottom: 8px; font-weight: bold;">Tên khu vực:</label>
+            <input type="text" id="zoneNameInput" value="${defaultName}" 
+                   style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; 
+                          font-size: 16px; box-sizing: border-box;" />
+            <div id="zoneNameError" style="color: #e74c3c; font-size: 14px; margin-top: 8px; 
+                                            display: none; padding: 10px; background: #fdeaea; 
+                                            border-radius: 5px; border-left: 4px solid #e74c3c;">
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="zoneCancelBtn" style="padding: 10px 20px; background: #95a5a6; 
+                                                   color: white; border: none; border-radius: 5px; 
+                                                   cursor: pointer; font-size: 14px;">Hủy</button>
+                <button id="zoneConfirmBtn" style="padding: 10px 20px; background: #3498db; 
+                                                    color: white; border: none; border-radius: 5px; 
+                                                    cursor: pointer; font-size: 14px;">Tạo khu vực</button>
+            </div>
+        `;
+        
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        
+        const input = document.getElementById('zoneNameInput');
+        const errorDiv = document.getElementById('zoneNameError');
+        const confirmBtn = document.getElementById('zoneConfirmBtn');
+        const cancelBtn = document.getElementById('zoneCancelBtn');
+        
+        input.focus();
+        input.select();
+        
+        // Kiểm tra trùng tên khi nhập
+        let checkTimeout = null;
+        input.addEventListener('input', function() {
+            clearTimeout(checkTimeout);
+            errorDiv.style.display = 'none';
+            input.style.borderColor = '#ddd';
+            
+            checkTimeout = setTimeout(async () => {
+                const name = input.value.trim();
+                if (name) {
+                    try {
+                        const response = await fetch(`/api/zones/check-name?name=${encodeURIComponent(name)}`);
+                        const result = await response.json();
+                        
+                        if (result.exists) {
+                            errorDiv.innerHTML = `<strong>⚠️ Lỗi:</strong> Tên khu vực "<b>${name}</b>" đã tồn tại!<br>Vui lòng chọn tên khác.`;
+                            errorDiv.style.display = 'block';
+                            input.style.borderColor = '#e74c3c';
+                        }
+                    } catch (error) {
+                        console.error('Error checking zone name:', error);
+                    }
+                }
+            }, 300);
+        });
+        
+        // Xác nhận tạo zone
+        async function handleConfirm() {
+            const name = input.value.trim();
+            
+            if (!name) {
+                errorDiv.innerHTML = `<strong>⚠️ Lỗi:</strong> Tên khu vực không được để trống!`;
+                errorDiv.style.display = 'block';
+                input.style.borderColor = '#e74c3c';
+                return;
+            }
+            
+            // Kiểm tra lần cuối trước khi tạo
+            try {
+                const response = await fetch(`/api/zones/check-name?name=${encodeURIComponent(name)}`);
+                const result = await response.json();
+                
+                if (result.exists) {
+                    errorDiv.innerHTML = `<strong>⚠️ Lỗi:</strong> Tên khu vực "<b>${name}</b>" đã tồn tại!<br>Vui lòng chọn tên khác.`;
+                    errorDiv.style.display = 'block';
+                    input.style.borderColor = '#e74c3c';
+                    input.focus();
+                    return;
+                }
+                
+                // Tên hợp lệ - đóng dialog và trả về tên
+                document.body.removeChild(overlay);
+                resolve(name);
+            } catch (error) {
+                console.error('Error checking zone name:', error);
+                errorDiv.innerHTML = `<strong>⚠️ Lỗi:</strong> Không thể kiểm tra tên. Vui lòng thử lại.`;
+                errorDiv.style.display = 'block';
+            }
+        }
+        
+        confirmBtn.addEventListener('click', handleConfirm);
+        
+        // Enter để xác nhận
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                handleConfirm();
+            }
+        });
+        
+        // Hủy
+        cancelBtn.addEventListener('click', function() {
+            document.body.removeChild(overlay);
+            resolve(null);
+        });
+        
+        // Click ra ngoài để hủy
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+                resolve(null);
+            }
+        });
+        
+        // ESC để hủy
+        document.addEventListener('keydown', function escHandler(e) {
+            if (e.key === 'Escape') {
+                document.body.removeChild(overlay);
+                document.removeEventListener('keydown', escHandler);
+                resolve(null);
+            }
+        });
+    });
+}
+
 function initializeMap() {
     console.log("Init map with Geo-Fencing");
     map = L.map("map").setView(safeZoneCenter, 15);
@@ -65,7 +208,9 @@ function initializeMap() {
             
             // ✅ TỰ ĐỘNG TẠO ANCHORS TỪ CÁC ĐIỂM POLYGON
             const vertices = layer.getLatLngs()[0]; // Lấy các đỉnh polygon
-            const zoneName = prompt('Nhập tên khu vực:', `Khu ${workZonesLayer.getLayers().length}`);
+            
+            // ✅ Hiển thị dialog nhập tên khu vực với validation
+            const zoneName = await promptZoneName(`Khu ${workZonesLayer.getLayers().length}`);
             
             if (zoneName) {
                 layer.bindPopup(`<b>${zoneName}</b><br><small>Double-click để xem chi tiết sơ đồ 2D</small>`).openPopup();
@@ -75,6 +220,9 @@ function initializeMap() {
                 saveWorkZoneToDatabase(layer.getLatLngs(), layer, zoneName).then(async zoneId => {
                     if (!zoneId) {
                         console.error('❌ Failed to save zone, cannot create anchors');
+                        // ✅ Xóa layer nếu lưu thất bại (trùng tên)
+                        workZonesLayer.removeLayer(layer);
+                        showNotification('❌ Đã hủy tạo khu vực do lỗi', 'error');
                         return;
                     }
                     
@@ -108,6 +256,10 @@ function initializeMap() {
                     
                     showNotification(`✅ Đã tạo ${vertices.length} anchors cho ${zoneName}`, 'success');
                 });
+            } else {
+                // ✅ Người dùng hủy tạo khu vực - xóa polygon đã vẽ
+                workZonesLayer.removeLayer(layer);
+                showNotification('⚠️ Đã hủy tạo khu vực', 'warning');
             }
         } else {
             // ✅ Vẽ Safe Zone màu xanh (như cũ)
@@ -1833,8 +1985,15 @@ async function saveWorkZoneToDatabase(latlngs, layer, zoneName) {
             layer.zoneId = savedZone.id;
             console.log('✅ Work zone saved to DB:', savedZone);
             return savedZone.id; // Trả về zoneId
+        } else {
+            // ✅ Xử lý lỗi trùng tên từ backend
+            const errorData = await response.json();
+            if (errorData.error) {
+                showNotification(`❌ ${errorData.error}`, 'error');
+                console.error('❌ Zone creation failed:', errorData.error);
+            }
+            return null;
         }
-        return null;
     } catch (error) {
         console.error('Error saving work zone:', error);
         showNotification('❌ Lỗi khi lưu khu vực', 'error');
