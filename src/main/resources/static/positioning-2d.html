@@ -21,8 +21,8 @@
     
     <!-- Stylesheets -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=190">
-    <link rel="stylesheet" href="css/location.css?v=190">
+    <link rel="stylesheet" href="css/style.css?v=191">
+    <link rel="stylesheet" href="css/location.css?v=191">
     <link rel="stylesheet" href="css/mobile-responsive.css">
     <style>
         .main-content {
@@ -1056,17 +1056,17 @@
         const MAX_JUMP_DISTANCE = 5; // meters - max allowed jump per update
         
         /**
-         * Tính tọa độ tag từ UWB data sử dụng Trilateration (Least Squares)
-         * Với smoothing để tránh nhảy đột ngột
+         * Tính tọa độ tag từ UWB data sử dụng Nonlinear Least Squares với Gradient Descent
+         * Phương pháp này chính xác hơn Linear Least Squares
          */
         function calculatePositionFromUWB(uwb, mac) {
-            // 🆕 Thu thập anchors theo thứ tự CỐ ĐỊNH (quan trọng cho độ ổn định)
+            // Thu thập anchors theo thứ tự CỐ ĐỊNH
             const anchorOrder = ['A0', 'A1', 'A2', 'A3'];
             const anchorList = [];
             const distances = [];
             
             for (const key of anchorOrder) {
-                if (uwb[key] !== undefined && uwb[key] > 0 && uwb[key] < 50) { // Filter invalid distances
+                if (uwb[key] !== undefined && uwb[key] > 0 && uwb[key] < 50) {
                     anchorList.push({ ...UWB_ANCHORS[key], name: key });
                     distances.push(uwb[key]);
                 }
@@ -1075,124 +1075,90 @@
             // Cần ít nhất 3 anchors
             if (anchorList.length < 3) {
                 console.log(`⚠️ Not enough anchors: ${anchorList.length}/3 required`);
-                return lastPositions[mac] || null; // 🆕 Return last known position
+                return lastPositions[mac] || null;
             }
             
             console.log(`📏 UWB distances for ${mac}:`, 
-                `A0=${uwb.A0?.toFixed(2) || 'N/A'}m`,
-                `A1=${uwb.A1?.toFixed(2) || 'N/A'}m`,
-                `A2=${uwb.A2?.toFixed(2) || 'N/A'}m`,
-                `A3=${uwb.A3?.toFixed(2) || 'N/A'}m`);
+                anchorList.map((a, i) => `${a.name}=${distances[i].toFixed(2)}m`).join(', '));
             
-            // 🎯 Trilateration using Least Squares method
-            // Hệ phương trình: (x - xi)² + (y - yi)² = ri²
-            // Chuyển thành hệ tuyến tính: Ax = b
+            // 🎯 Gradient Descent để minimize error function
+            // Error = Σ (sqrt((x-xi)² + (y-yi)²) - ri)²
             
-            const n = anchorList.length;
-            const refAnchor = anchorList[0];
-            const refDist = distances[0];
-            
-            // Xây dựng ma trận A và vector b
-            // Lấy anchor đầu tiên làm tham chiếu, trừ các phương trình khác
-            let A = [];
-            let b = [];
-            
-            for (let i = 1; i < n; i++) {
-                const xi = anchorList[i].x;
-                const yi = anchorList[i].y;
-                const ri = distances[i];
-                
-                const x0 = refAnchor.x;
-                const y0 = refAnchor.y;
-                const r0 = refDist;
-                
-                // 2*(xi - x0)*x + 2*(yi - y0)*y = ri² - r0² - xi² - yi² + x0² + y0²
-                A.push([2 * (xi - x0), 2 * (yi - y0)]);
-                b.push(r0*r0 - ri*ri - x0*x0 - y0*y0 + xi*xi + yi*yi);
+            // Khởi tạo vị trí ban đầu: dùng vị trí trước hoặc centroid
+            let x, y;
+            if (lastPositions[mac]) {
+                x = lastPositions[mac].x;
+                y = lastPositions[mac].y;
+            } else {
+                // Weighted centroid làm điểm khởi đầu
+                let totalW = 0;
+                x = 0; y = 0;
+                for (let i = 0; i < anchorList.length; i++) {
+                    const w = 1 / (distances[i] * distances[i]);
+                    x += anchorList[i].x * w;
+                    y += anchorList[i].y * w;
+                    totalW += w;
+                }
+                x /= totalW;
+                y /= totalW;
             }
             
-            // Giải hệ phương trình tuyến tính bằng Least Squares: (A^T * A) * x = A^T * b
-            let position = solveLinearSystem(A, b);
+            // Gradient descent với learning rate và iterations
+            const learningRate = 0.5;
+            const iterations = 50;
             
-            if (!position) {
-                console.log('⚠️ Failed to solve trilateration');
-                return lastPositions[mac] || null; // 🆕 Return last known position
+            for (let iter = 0; iter < iterations; iter++) {
+                let gradX = 0, gradY = 0;
+                
+                for (let i = 0; i < anchorList.length; i++) {
+                    const dx = x - anchorList[i].x;
+                    const dy = y - anchorList[i].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist > 0.001) { // Tránh chia cho 0
+                        const error = dist - distances[i];
+                        // Weight: anchor gần hơn có weight cao hơn
+                        const weight = 1 / (distances[i] * distances[i]);
+                        
+                        gradX += weight * error * (dx / dist);
+                        gradY += weight * error * (dy / dist);
+                    }
+                }
+                
+                // Cập nhật vị trí
+                x -= learningRate * gradX;
+                y -= learningRate * gradY;
+                
+                // Giới hạn trong khu vực
+                x = Math.max(0, Math.min(areaSize, x));
+                y = Math.max(0, Math.min(areaSize, y));
             }
             
-            let x = position.x;
-            let y = position.y;
+            console.log(`📍 Gradient descent position (${anchorList.length} anchors): (${x.toFixed(2)}, ${y.toFixed(2)})`);
             
-            // 🆕 SMOOTHING: Kiểm tra nếu nhảy quá xa so với vị trí trước
+            // Smoothing với vị trí trước
             const lastPos = lastPositions[mac];
             if (lastPos) {
                 const jumpDist = Math.sqrt((x - lastPos.x) ** 2 + (y - lastPos.y) ** 2);
                 
                 if (jumpDist > MAX_JUMP_DISTANCE) {
-                    // Nhảy quá xa - có thể là lỗi, dùng smoothing mạnh
                     console.log(`⚠️ Large jump detected: ${jumpDist.toFixed(2)}m, applying heavy smoothing`);
-                    x = lastPos.x + (x - lastPos.x) * 0.2; // Chỉ di chuyển 20%
-                    y = lastPos.y + (y - lastPos.y) * 0.2;
-                } else {
-                    // Smoothing bình thường
+                    x = lastPos.x + (x - lastPos.x) * 0.3;
+                    y = lastPos.y + (y - lastPos.y) * 0.3;
+                } else if (jumpDist > 1) {
+                    // Smoothing trung bình cho di chuyển > 1m
                     x = lastPos.x * POSITION_SMOOTHING + x * (1 - POSITION_SMOOTHING);
                     y = lastPos.y * POSITION_SMOOTHING + y * (1 - POSITION_SMOOTHING);
                 }
+                // Di chuyển < 1m: không smoothing, để tag phản hồi nhanh
             }
             
-            console.log(`📍 Trilateration position (${n} anchors): (${x.toFixed(2)}, ${y.toFixed(2)})`);
-            
-            // Giới hạn trong khu vực
+            // Giới hạn cuối cùng
             x = Math.max(0, Math.min(areaSize, x));
             y = Math.max(0, Math.min(areaSize, y));
             
-            // 🆕 Lưu vị trí cuối để smoothing
+            // Lưu vị trí cuối
             lastPositions[mac] = { x, y };
-            
-            return { x, y };
-        }
-        
-        /**
-         * Giải hệ phương trình tuyến tính Ax = b bằng phương pháp Least Squares
-         * Sử dụng công thức: x = (A^T * A)^(-1) * A^T * b
-         */
-        function solveLinearSystem(A, b) {
-            const n = A.length;
-            
-            if (n < 1) return null;
-            
-            // Tính A^T * A (ma trận 2x2)
-            let ATA = [[0, 0], [0, 0]];
-            for (let i = 0; i < n; i++) {
-                ATA[0][0] += A[i][0] * A[i][0];
-                ATA[0][1] += A[i][0] * A[i][1];
-                ATA[1][0] += A[i][1] * A[i][0];
-                ATA[1][1] += A[i][1] * A[i][1];
-            }
-            
-            // Tính A^T * b (vector 2x1)
-            let ATb = [0, 0];
-            for (let i = 0; i < n; i++) {
-                ATb[0] += A[i][0] * b[i];
-                ATb[1] += A[i][1] * b[i];
-            }
-            
-            // Tính định thức của A^T * A
-            const det = ATA[0][0] * ATA[1][1] - ATA[0][1] * ATA[1][0];
-            
-            if (Math.abs(det) < 1e-10) {
-                console.log('⚠️ Singular matrix, cannot solve');
-                return null;
-            }
-            
-            // Tính ma trận nghịch đảo của A^T * A
-            const invATA = [
-                [ATA[1][1] / det, -ATA[0][1] / det],
-                [-ATA[1][0] / det, ATA[0][0] / det]
-            ];
-            
-            // Tính x = (A^T * A)^(-1) * A^T * b
-            const x = invATA[0][0] * ATb[0] + invATA[0][1] * ATb[1];
-            const y = invATA[1][0] * ATb[0] + invATA[1][1] * ATb[1];
             
             return { x, y };
         }
