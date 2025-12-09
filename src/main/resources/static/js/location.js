@@ -1642,40 +1642,95 @@ window.addEventListener("load", function() {
     // Fullscreen button handler
     const btnExpand = document.querySelector('.btn-expand');
     if (btnExpand) {
-        btnExpand.addEventListener('click', function() {
-            const mapCard = document.querySelector('.card');
+        btnExpand.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const mapCard = document.querySelector('.map-card');
             const mapContainer = document.getElementById('map');
             
-            if (!document.fullscreenElement) {
-                // Enter fullscreen
-                if (mapCard.requestFullscreen) {
-                    mapCard.requestFullscreen();
-                } else if (mapCard.webkitRequestFullscreen) { // Safari
-                    mapCard.webkitRequestFullscreen();
-                } else if (mapCard.msRequestFullscreen) { // IE11
-                    mapCard.msRequestFullscreen();
-                }
-                this.querySelector('i').classList.replace('fa-expand', 'fa-compress');
-            } else {
-                // Exit fullscreen
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) { // Safari
-                    document.webkitExitFullscreen();
-                } else if (document.msExitFullscreen) { // IE11
-                    document.msExitFullscreen();
-                }
+            // Check if already in custom fullscreen mode (for iOS)
+            if (mapCard.classList.contains('mobile-fullscreen')) {
+                // Exit custom fullscreen
+                mapCard.classList.remove('mobile-fullscreen');
+                document.body.classList.remove('fullscreen-active');
                 this.querySelector('i').classList.replace('fa-compress', 'fa-expand');
+                
+                // Resize map after a short delay
+                setTimeout(() => {
+                    if (window.map) window.map.invalidateSize();
+                }, 100);
+                return;
+            }
+            
+            // Try native fullscreen first (works on Android, Desktop)
+            const requestFS = mapCard.requestFullscreen || 
+                             mapCard.webkitRequestFullscreen || 
+                             mapCard.mozRequestFullScreen ||
+                             mapCard.msRequestFullscreen;
+            
+            if (requestFS && !(/iPhone|iPad|iPod/.test(navigator.userAgent))) {
+                // Native fullscreen for non-iOS
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    requestFS.call(mapCard).then(() => {
+                        this.querySelector('i').classList.replace('fa-expand', 'fa-compress');
+                        setTimeout(() => {
+                            if (window.map) window.map.invalidateSize();
+                        }, 100);
+                    }).catch(() => {
+                        // Fallback to custom fullscreen
+                        enableCustomFullscreen(mapCard, this);
+                    });
+                } else {
+                    // Exit native fullscreen
+                    const exitFS = document.exitFullscreen || 
+                                  document.webkitExitFullscreen || 
+                                  document.mozCancelFullScreen ||
+                                  document.msExitFullscreen;
+                    if (exitFS) exitFS.call(document);
+                    this.querySelector('i').classList.replace('fa-compress', 'fa-expand');
+                }
+            } else {
+                // iOS or fallback: Use custom CSS fullscreen
+                enableCustomFullscreen(mapCard, this);
             }
         });
         
-        // Handle ESC key to change icon back
+        // Custom fullscreen function for iOS
+        function enableCustomFullscreen(element, button) {
+            element.classList.add('mobile-fullscreen');
+            document.body.classList.add('fullscreen-active');
+            button.querySelector('i').classList.replace('fa-expand', 'fa-compress');
+            
+            // Resize map
+            setTimeout(() => {
+                if (window.map) window.map.invalidateSize();
+            }, 100);
+        }
+        
+        // Handle ESC key and native fullscreen change
         document.addEventListener('fullscreenchange', function() {
             if (!document.fullscreenElement) {
                 const icon = btnExpand.querySelector('i');
                 if (icon.classList.contains('fa-compress')) {
                     icon.classList.replace('fa-compress', 'fa-expand');
                 }
+                // Resize map
+                setTimeout(() => {
+                    if (window.map) window.map.invalidateSize();
+                }, 100);
+            }
+        });
+        
+        document.addEventListener('webkitfullscreenchange', function() {
+            if (!document.webkitFullscreenElement) {
+                const icon = btnExpand.querySelector('i');
+                if (icon.classList.contains('fa-compress')) {
+                    icon.classList.replace('fa-compress', 'fa-expand');
+                }
+                setTimeout(() => {
+                    if (window.map) window.map.invalidateSize();
+                }, 100);
             }
         });
     }

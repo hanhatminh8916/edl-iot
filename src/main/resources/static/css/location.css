@@ -482,8 +482,9 @@
     background: #94a3b8;
 }
 
-/* Fullscreen Styles */
-.card:fullscreen {
+/* Fullscreen Styles - Native */
+.card:fullscreen,
+.map-card:fullscreen {
     width: 100vw;
     height: 100vh;
     max-width: 100%;
@@ -492,15 +493,106 @@
     flex-direction: column;
 }
 
-.card:fullscreen .map-container {
+.card:fullscreen .map-container,
+.map-card:fullscreen .map-container {
     height: 100%;
     flex: 1;
 }
 
-.card:fullscreen .map-body {
+.card:fullscreen .map-body,
+.map-card:fullscreen .map-body {
     height: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
-.card:fullscreen #map {
+.card:fullscreen #map,
+.map-card:fullscreen #map {
     height: 100%;
+    flex: 1;
+}
+
+/* Mobile Custom Fullscreen (for iOS and fallback) */
+.mobile-fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    z-index: 9999 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background: white !important;
+}
+
+.mobile-fullscreen .card-header {
+    padding: 0.5rem 1rem !important;
+    flex-shrink: 0;
+}
+
+.mobile-fullscreen .map-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 60px) !important;
+    padding: 0 !important;
+}
+
+.mobile-fullscreen #map {
+    flex: 1;
+    height: 100% !important;
+    min-height: calc(100vh - 100px) !important;
+}
+
+.mobile-fullscreen .map-legend {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    z-index: 1000;
+    background: rgba(255,255,255,0.95);
+    padding: 8px 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.mobile-fullscreen .map-subtitle {
+    display: none;
+}
+
+.mobile-fullscreen .btn-show-more {
+    display: none;
+}
+
+/* Hide other content when fullscreen active */
+body.fullscreen-active .sidebar,
+body.fullscreen-active .header,
+body.fullscreen-active .status-cards,
+body.fullscreen-active .workers-section,
+body.fullscreen-active .page-header,
+body.fullscreen-active .mobile-nav {
+    display: none !important;
+}
+
+body.fullscreen-active {
+    overflow: hidden !important;
+}
+
+body.fullscreen-active .main-content {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+body.fullscreen-active .map-layout {
+    display: block !important;
+}
+
+body.fullscreen-active .map-section {
+    width: 100% !important;
+    height: 100vh !important;
 }
