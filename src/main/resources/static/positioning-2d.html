@@ -559,6 +559,10 @@
                     // Scale to fit in 18m x 18m (leave 1m margin on each side)
                     const scaleFactor = maxRange > 0 ? 18 / maxRange : 1;
                     
+                    // 🆕 LƯU SCALE FACTOR để dùng cho positioning
+                    window.anchorScaleFactor = scaleFactor;
+                    console.log('📐 Anchor scale factor:', scaleFactor);
+                    
                     anchors = converted.map(anchor => ({
                         id: anchor.id,
                         name: anchor.name,
@@ -1115,18 +1119,22 @@
             const anchorList = [];
             const distances = [];
             
+            // 🆕 Lấy scale factor để scale khoảng cách UWB
+            const uwbScaleFactor = window.anchorScaleFactor || 1;
+            
             for (const key of anchorOrder) {
                 if (uwb[key] !== undefined && uwb[key] > 0 && uwb[key] < 50) {
                     // 🆕 Tìm anchor từ database (anchors array) thay vì hardcoded
                     const dbAnchor = anchors.find(a => a.id === key);
                     if (dbAnchor) {
                         anchorList.push({ x: dbAnchor.x, y: dbAnchor.y, name: key });
-                        distances.push(uwb[key]);
+                        // 🆕 Scale khoảng cách UWB theo tỷ lệ canvas
+                        distances.push(uwb[key] * uwbScaleFactor);
                     } else {
                         // Fallback to hardcoded if not found in DB
                         if (UWB_ANCHORS[key]) {
                             anchorList.push({ ...UWB_ANCHORS[key], name: key });
-                            distances.push(uwb[key]);
+                            distances.push(uwb[key]); // Không scale cho hardcoded
                         }
                     }
                 }
@@ -1138,7 +1146,7 @@
                 return lastPositions[mac] || null;
             }
             
-            console.log(`📏 UWB distances for ${mac}:`, 
+            console.log(`📏 UWB distances for ${mac} (scaled x${uwbScaleFactor.toFixed(2)}):`, 
                 anchorList.map((a, i) => `${a.name}=${distances[i].toFixed(2)}m`).join(', '));
             
             // 🎯 Gradient Descent để minimize error function
