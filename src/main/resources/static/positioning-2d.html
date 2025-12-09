@@ -314,7 +314,7 @@
                     </p>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-secondary" onclick="switchToOverview()" id="btnOverview" style="display:none;">
+                    <button class="btn btn-secondary" onclick="window.location.href='positioning-2d.html'" id="btnOverview" style="display:none;">
                         <i class="fas fa-th"></i> Xem tổng quan
                     </button>
                     <button class="btn btn-primary" onclick="switchToZone()" id="btnBackToZone" style="display:none;">
@@ -425,17 +425,9 @@
         // Reference point for coordinate conversion (use first anchor as reference or fixed point)
         let referencePoint = null;
         
-        // 🆕 Reset position cache khi chuyển chế độ xem
-        function resetPositionCache() {
-            lastPositions = {};
-            helmetPositions = {};
-            console.log('🔄 Reset position cache for view switch');
-        }
-        
         // Switch back to overview mode
         function switchToOverview() {
             currentZoneId = null; // Clear current zone but keep previousZoneId
-            resetPositionCache(); // 🆕 Reset cache để tránh tag bị kéo về vị trí cũ
             loadAnchorsFromDatabase(); // Reload all anchors
             
             // Update UI
@@ -458,7 +450,6 @@
         // Switch back to previous zone
         function switchToZone() {
             if (previousZoneId) {
-                resetPositionCache(); // 🆕 Reset cache khi chuyển zone
                 window.location.href = `positioning-2d.html?zone=${previousZoneId}`;
             }
         }
@@ -466,7 +457,6 @@
         // Load zone information
         async function loadZoneInfo(zoneId) {
             try {
-                resetPositionCache(); // 🆕 Reset cache khi load zone mới
                 const response = await fetch(`/api/zones/${zoneId}`);
                 if (response.ok) {
                     currentZone = await response.json();
