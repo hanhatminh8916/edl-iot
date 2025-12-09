@@ -314,7 +314,7 @@
                     </p>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-secondary" onclick="window.location.replace('positioning-2d.html?t=' + Date.now())" id="btnOverview" style="display:none;">
+                    <button class="btn btn-secondary" onclick="window.location.href='positioning-2d.html'" id="btnOverview" style="display:none;">
                         <i class="fas fa-th"></i> Xem tổng quan
                     </button>
                     <button class="btn btn-primary" onclick="switchToZone()" id="btnBackToZone" style="display:none;">
@@ -1115,23 +1115,18 @@
             const anchorList = [];
             const distances = [];
             
-            console.log(`🔍 Available anchors from DB:`, anchors.map(a => `${a.id}(${a.x.toFixed(1)},${a.y.toFixed(1)})`).join(', '));
+            console.log('🔍 Available anchors in DB:', anchors.map(a => `${a.id}(${a.x.toFixed(1)},${a.y.toFixed(1)})`).join(', '));
             
             for (const key of anchorOrder) {
                 if (uwb[key] !== undefined && uwb[key] > 0 && uwb[key] < 50) {
-                    // 🆕 Tìm anchor từ database (anchors array) - check cả id và name
-                    const dbAnchor = anchors.find(a => a.id === key || a.name === key);
+                    // 🆕 Tìm anchor từ database (anchors array) thay vì hardcoded
+                    const dbAnchor = anchors.find(a => a.id === key);
                     if (dbAnchor) {
-                        anchorList.push({ x: dbAnchor.x, y: dbAnchor.y, name: key });
+                        anchorList.push({ x: dbAnchor.x, y: dbAnchor.y, name: key, zoneId: dbAnchor.zoneId });
                         distances.push(uwb[key]);
                         console.log(`✅ Found ${key} in DB at (${dbAnchor.x.toFixed(1)}, ${dbAnchor.y.toFixed(1)})`);
                     } else {
-                        // Fallback to hardcoded if not found in DB
-                        if (UWB_ANCHORS[key]) {
-                            anchorList.push({ ...UWB_ANCHORS[key], name: key });
-                            distances.push(uwb[key]);
-                            console.log(`⚠️ ${key} not in DB, using hardcoded (${UWB_ANCHORS[key].x}, ${UWB_ANCHORS[key].y})`);
-                        }
+                        console.log(`⚠️ ${key} not found in anchors array, skipping`);
                     }
                 }
             }
@@ -1143,7 +1138,7 @@
             }
             
             console.log(`📏 UWB distances for ${mac}:`, 
-                anchorList.map((a, i) => `${a.name}=${distances[i].toFixed(2)}m at (${a.x.toFixed(1)},${a.y.toFixed(1)})`).join(', '));
+                anchorList.map((a, i) => `${a.name}=${distances[i].toFixed(2)}m`).join(', '));
             
             // 🎯 Gradient Descent để minimize error function
             // Error = Σ (sqrt((x-xi)² + (y-yi)²) - ri)²
@@ -1201,24 +1196,9 @@
             
             console.log(`📍 Gradient descent position (${anchorList.length} anchors): (${x.toFixed(2)}, ${y.toFixed(2)})`);
             
-            // 🆕 NGHIÊM NGẶT: Kiểm tra vị trí có nằm trong vùng anchor không
-            // Nếu lastPos nằm ngoài vùng anchor hiện tại → bỏ qua smoothing
+            // Smoothing với vị trí trước
             const lastPos = lastPositions[mac];
-            const bbox = getAnchorBoundingBox(anchorList);
-            
-            let useSmoothing = false;
-            if (lastPos && bbox) {
-                // Chỉ dùng smoothing nếu lastPos nằm trong vùng anchor hiện tại
-                const lastPosInZone = lastPos.x >= bbox.minX && lastPos.x <= bbox.maxX &&
-                                      lastPos.y >= bbox.minY && lastPos.y <= bbox.maxY;
-                if (lastPosInZone) {
-                    useSmoothing = true;
-                } else {
-                    console.log(`🔄 Last position outside current anchor zone, skipping smoothing`);
-                }
-            }
-            
-            if (useSmoothing && lastPos) {
+            if (lastPos) {
                 const jumpDist = Math.sqrt((x - lastPos.x) ** 2 + (y - lastPos.y) ** 2);
                 
                 if (jumpDist > MAX_JUMP_DISTANCE) {
@@ -1230,9 +1210,10 @@
                     x = lastPos.x * POSITION_SMOOTHING + x * (1 - POSITION_SMOOTHING);
                     y = lastPos.y * POSITION_SMOOTHING + y * (1 - POSITION_SMOOTHING);
                 }
+                // Di chuyển < 1m: không smoothing, để tag phản hồi nhanh
             }
             
-            // 🆕 Giới hạn cuối cùng trong vùng anchor - NGHIÊM NGẶT
+            // 🆕 Giới hạn cuối cùng trong vùng anchor
             const finalConstrained = constrainToAnchorZone(x, y, anchorList);
             x = finalConstrained.x;
             y = finalConstrained.y;
