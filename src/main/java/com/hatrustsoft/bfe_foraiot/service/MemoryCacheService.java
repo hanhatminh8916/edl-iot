@@ -209,6 +209,45 @@ public class MemoryCacheService {
         
         return false;
     }
+    
+    // ==================== TAG POSITIONS CACHE (cho positioning-2d.html) ====================
+    
+    private List<com.hatrustsoft.bfe_foraiot.entity.TagLastPosition> cachedTagPositions = null;
+    private LocalDateTime tagPositionsCacheTime = null;
+    private static final long TAG_POSITIONS_CACHE_SECONDS = 5; // 5 giây
+    
+    /**
+     * 🚀 Lấy tất cả tag positions từ cache
+     * GIẢM: 60-80 queries → 0 queries (cache hit)
+     */
+    public List<com.hatrustsoft.bfe_foraiot.entity.TagLastPosition> getAllCachedTagPositions() {
+        LocalDateTime now = VietnamTimeUtils.now();
+        
+        // Cache expired hoặc chưa có cache
+        if (cachedTagPositions == null || tagPositionsCacheTime == null || 
+            tagPositionsCacheTime.plusSeconds(TAG_POSITIONS_CACHE_SECONDS).isBefore(now)) {
+            return null; // Cache miss
+        }
+        
+        return cachedTagPositions; // Cache hit
+    }
+    
+    /**
+     * 💾 Cache tag positions
+     */
+    public void cacheTagPositions(List<com.hatrustsoft.bfe_foraiot.entity.TagLastPosition> positions) {
+        cachedTagPositions = positions;
+        tagPositionsCacheTime = VietnamTimeUtils.now();
+        log.debug("💾 Cached {} tag positions", positions != null ? positions.size() : 0);
+    }
+    
+    /**
+     * 🗑️ Clear tag positions cache
+     */
+    public void clearTagPositionsCache() {
+        cachedTagPositions = null;
+        tagPositionsCacheTime = null;
+    }
 
     // ==================== DANGER ALERT DEBOUNCE ====================
     
@@ -256,7 +295,10 @@ public class MemoryCacheService {
             "messengerUsersCacheSize", messengerUsersCache != null ? messengerUsersCache.size() : 0,
             "helmetUpdateTrackingSize", lastHelmetUpdateTime.size(),
             "tagPositionTrackingSize", lastTagPositionSaveTime.size(),
-            "dangerAlertTrackingSize", lastDangerAlertTime.size()
+            "dangerAlertTrackingSize", lastDangerAlertTime.size(),
+            "tagPositionsCached", cachedTagPositions != null ? cachedTagPositions.size() : 0,
+            "tagPositionsCacheAge", tagPositionsCacheTime != null ? 
+                java.time.Duration.between(tagPositionsCacheTime, VietnamTimeUtils.now()).getSeconds() : -1
         );
     }
 }

@@ -49,6 +49,43 @@
             <ttl unit="minutes">5</ttl>
         </expiry>
     </cache>
+    
+    <!-- Tag Position Caches - Very short TTL for real-time data -->
+    <cache alias="tagPositionByMac" uses-template="default">
+        <expiry>
+            <ttl unit="seconds">5</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">100</heap>
+        </resources>
+    </cache>
+    
+    <cache alias="tagPositionsOnline" uses-template="default">
+        <expiry>
+            <ttl unit="seconds">5</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">50</heap>
+        </resources>
+    </cache>
+    
+    <cache alias="tagPositionsOffline" uses-template="default">
+        <expiry>
+            <ttl unit="seconds">10</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">50</heap>
+        </resources>
+    </cache>
+    
+    <cache alias="allTagPositions" uses-template="default">
+        <expiry>
+            <ttl unit="seconds">5</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">50</heap>
+        </resources>
+    </cache>
 
     <!-- Update timestamps cache -->
     <cache alias="default-update-timestamps-region">

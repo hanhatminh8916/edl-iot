@@ -16,15 +16,20 @@ import com.hatrustsoft.bfe_foraiot.entity.TagLastPosition;
 public interface TagLastPositionRepository extends JpaRepository<TagLastPosition, Long> {
     
     // Tìm theo MAC address
+    @org.springframework.cache.annotation.Cacheable(value = "tagPositionByMac", key = "#mac")
     Optional<TagLastPosition> findByMac(String mac);
     
     // Lấy tất cả tag online
+    @org.springframework.cache.annotation.Cacheable(value = "tagPositionsOnline")
     List<TagLastPosition> findByIsOnlineTrue();
     
-    // Lấy tất cả tag offline
+    // Lấy tất cả tag offline  
+    @org.springframework.cache.annotation.Cacheable(value = "tagPositionsOffline")
     List<TagLastPosition> findByIsOnlineFalse();
     
-    // Lấy tất cả tags (cả online và offline)
+    // Lấy tất cả tags (cả online và offline) - Cache 5 giây
+    @org.springframework.cache.annotation.Cacheable(value = "allTagPositions")
+    @Override
     List<TagLastPosition> findAll();
     
     // Đánh dấu offline các tag không hoạt động trong khoảng thời gian

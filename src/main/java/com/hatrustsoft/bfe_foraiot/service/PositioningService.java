@@ -112,6 +112,9 @@ public class PositioningService {
         }
         
         tagLastPositionRepository.save(tagPos);
+        
+        // 🔄 Invalidate cache khi save mới
+        memoryCacheService.clearTagPositionsCache();
     }
     
     /**
@@ -220,10 +223,23 @@ public class PositioningService {
     }
     
     /**
-     * 📋 Lấy tất cả tags (online + offline) từ DB
+     * 📋 Lấy tất cả tags (online + offline)
+     * 🚀 OPTIMIZED: Dùng memory cache thay vì DB query
      */
     public List<TagLastPosition> getAllTagPositions() {
-        return tagLastPositionRepository.findAll();
+        // 🚀 Lấy từ Redis/Memory cache thay vì DB
+        List<TagLastPosition> cached = memoryCacheService.getAllCachedTagPositions();
+        
+        if (cached != null && !cached.isEmpty()) {
+            log.debug("📦 Cache HIT: {} tag positions from memory", cached.size());
+            return cached;
+        }
+        
+        // Cache MISS → Load từ DB và cache lại
+        log.warn("📦 Cache MISS: Loading {} tag positions from DB", cached != null ? cached.size() : 0);
+        List<TagLastPosition> tags = tagLastPositionRepository.findAll();
+        memoryCacheService.cacheTagPositions(tags);
+        return tags;
     }
     
     /**
