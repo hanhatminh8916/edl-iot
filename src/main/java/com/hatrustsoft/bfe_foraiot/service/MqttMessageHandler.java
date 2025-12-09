@@ -269,10 +269,10 @@ public class MqttMessageHandler implements MessageHandler {
                 // 📡 Stream realtime (không lưu vào DB/Redis)
                 positioningService.publishRealtimePosition(realtimeDTO);
                 
-                log.info("📍 UWB Realtime: MAC={}, A0={}, A1={}, A2={}, Ready={}", 
+                log.info("📍 UWB Realtime: MAC={}, A0={}, A1={}, A2={}, A3={}, Ready={}, Anchors={}", 
                     macAddress, 
-                    uwbData.get("A0"), uwbData.get("A1"), uwbData.get("A2"),
-                    uwbReady);
+                    uwbData.get("A0"), uwbData.get("A1"), uwbData.get("A2"), uwbData.get("A3"),
+                    uwbReady, uwbData.get("anchorCount"));
             }
             
             // 🔧 Log khác nhau cho MAC đã xác nhận và chưa xác nhận

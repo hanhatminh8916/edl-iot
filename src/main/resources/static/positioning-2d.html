@@ -1026,57 +1026,85 @@
         let helmetPositions = {}; // Store helmet positions by MAC
         
         /**
-        
-        /**
          * 🎯 CỐ ĐỊNH VỊ TRÍ ANCHOR CHO UWB POSITIONING
-         * Các anchor A0, A1, A2 được đặt cố định trong không gian 20m x 20m
-         * Đồng bộ với dữ liệu UWB từ ESP32: A0, A1, A2
+         * Hỗ trợ 4 anchors: A0, A1, A2, A3 trong không gian 20m x 20m
          * 
-         * Layout thực tế (nhìn từ màn hình):
-         *       A1 (1, 11) ← phía trên trái
-         *       |
-         *       |
-         *  A0 (1, 2) ←----→ A2 (18, 1) phía dưới
+         * Layout thực tế (nhìn từ màn hình - trục Y hướng lên):
+         *      20m ┌─────────────────────────────┐
+         *          │                             │
+         *      17m │  A0 (3,17)       A3 (17,17) │
+         *          │                             │
+         *          │                             │
+         *          │         [TAG1]              │
+         *          │                             │
+         *          │                             │
+         *       3m │  A1 (3,3)        A2 (17,3)  │
+         *          │                             │
+         *       0m └─────────────────────────────┘
+         *          0m         10m            20m
          */
         const UWB_ANCHORS = {
-            A0: { x: 1, y: 2 },    // Anchor A0 - góc dưới trái
-            A1: { x: 1, y: 11 },   // Anchor A1 - phía trên trái  
-            A2: { x: 18, y: 1 }    // Anchor A2 - góc dưới phải
+            A0: { x: 3, y: 17 },   // Anchor A0 - góc trên trái
+            A1: { x: 3, y: 3 },    // Anchor A1 - góc dưới trái  
+            A2: { x: 17, y: 3 },   // Anchor A2 - góc dưới phải
+            A3: { x: 17, y: 17 }   // Anchor A3 - góc trên phải (🆕)
         };
         
         /**
-         * Tính tọa độ tag từ UWB data sử dụng Weighted Centroid
+         * Tính tọa độ tag từ UWB data sử dụng Weighted Centroid với 4 anchors
          * Phương pháp này đơn giản và ổn định hơn trilateration thuần túy
          */
         function calculatePositionFromUWB(uwb, mac) {
-            const a0 = UWB_ANCHORS.A0;
-            const a1 = UWB_ANCHORS.A1;
-            const a2 = UWB_ANCHORS.A2;
+            const anchors = [];
+            const distances = [];
             
-            // Khoảng cách từ UWB (meters)
-            const d0 = uwb.A0 !== undefined && uwb.A0 > 0 ? uwb.A0 : -1;
-            const d1 = uwb.A1 !== undefined && uwb.A1 > 0 ? uwb.A1 : -1;
-            const d2 = uwb.A2 !== undefined && uwb.A2 > 0 ? uwb.A2 : -1;
+            // Thu thập tất cả anchors có khoảng cách hợp lệ
+            if (uwb.A0 !== undefined && uwb.A0 > 0) {
+                anchors.push(UWB_ANCHORS.A0);
+                distances.push(uwb.A0);
+            }
+            if (uwb.A1 !== undefined && uwb.A1 > 0) {
+                anchors.push(UWB_ANCHORS.A1);
+                distances.push(uwb.A1);
+            }
+            if (uwb.A2 !== undefined && uwb.A2 > 0) {
+                anchors.push(UWB_ANCHORS.A2);
+                distances.push(uwb.A2);
+            }
+            if (uwb.A3 !== undefined && uwb.A3 > 0) {
+                anchors.push(UWB_ANCHORS.A3);
+                distances.push(uwb.A3);
+            }
             
-            if (d0 <= 0 || d1 <= 0 || d2 <= 0) {
-                console.log('⚠️ Invalid UWB distances:', {d0, d1, d2});
+            // Cần ít nhất 3 anchors
+            if (anchors.length < 3) {
+                console.log(`⚠️ Not enough anchors: ${anchors.length}/3 required`);
                 return null;
             }
             
-            console.log(`📏 UWB distances for ${mac}: A0=${d0.toFixed(2)}m, A1=${d1.toFixed(2)}m, A2=${d2.toFixed(2)}m`);
+            console.log(`📏 UWB distances for ${mac}:`, 
+                `A0=${uwb.A0?.toFixed(2) || 'N/A'}m`,
+                `A1=${uwb.A1?.toFixed(2) || 'N/A'}m`,
+                `A2=${uwb.A2?.toFixed(2) || 'N/A'}m`,
+                `A3=${uwb.A3?.toFixed(2) || 'N/A'}m`);
             
             // 🎯 Phương pháp Weighted Centroid: 
             // Tag gần anchor nào hơn thì weight lớn hơn (weight = 1/distance²)
-            const w0 = 1 / (d0 * d0);
-            const w1 = 1 / (d1 * d1);
-            const w2 = 1 / (d2 * d2);
-            const totalWeight = w0 + w1 + w2;
+            let totalWeight = 0;
+            let weightedX = 0;
+            let weightedY = 0;
             
-            // Tọa độ = weighted average của các anchor
-            let x = (a0.x * w0 + a1.x * w1 + a2.x * w2) / totalWeight;
-            let y = (a0.y * w0 + a1.y * w1 + a2.y * w2) / totalWeight;
+            for (let i = 0; i < anchors.length; i++) {
+                const weight = 1 / (distances[i] * distances[i]);
+                weightedX += anchors[i].x * weight;
+                weightedY += anchors[i].y * weight;
+                totalWeight += weight;
+            }
             
-            console.log(`📍 Weighted position: (${x.toFixed(2)}, ${y.toFixed(2)}) weights: w0=${w0.toFixed(2)}, w1=${w1.toFixed(2)}, w2=${w2.toFixed(2)}`);
+            let x = weightedX / totalWeight;
+            let y = weightedY / totalWeight;
+            
+            console.log(`📍 Weighted position (${anchors.length} anchors): (${x.toFixed(2)}, ${y.toFixed(2)})`);
             
             // Giới hạn trong khu vực
             x = Math.max(0, Math.min(areaSize, x));
@@ -1089,11 +1117,18 @@
          * Xử lý helmet data từ WebSocket
          */
         function handleHelmetData(data) {
-            console.log('📡 Received helmet data:', data.mac);
+            console.log('📡 Received helmet data:', data.mac, data.uwb);
             
-            // Kiểm tra có UWB data không
-            if (!data.uwb || data.uwb.ready !== 1) {
-                console.log('⚠️ UWB not ready for', data.mac);
+            // Kiểm tra có UWB data không - check ready flag hoặc số anchors
+            if (!data.uwb) {
+                console.log('⚠️ No UWB data for', data.mac);
+                return;
+            }
+            
+            // Kiểm tra ready flag (backend tự set dựa trên số anchors hợp lệ)
+            const isReady = data.uwb.ready === 1 || data.uwbReady === true;
+            if (!isReady) {
+                console.log('⚠️ UWB not ready for', data.mac, 'anchorCount:', data.uwb.anchorCount);
                 return;
             }
             

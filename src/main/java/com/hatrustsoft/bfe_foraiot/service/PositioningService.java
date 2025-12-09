@@ -149,6 +149,7 @@ public class PositioningService {
     
     /**
      * Parse UWB data từ JsonNode
+     * Hỗ trợ 4 anchors: A0, A1, A2, A3
      */
     public Map<String, Double> parseUwbData(JsonNode uwbNode) {
         Map<String, Double> uwb = new HashMap<>();
@@ -157,28 +158,50 @@ public class PositioningService {
             return uwb;
         }
         
-        // Parse khoảng cách đến các anchor
+        // Parse khoảng cách đến các anchor (hỗ trợ đến 4 anchors)
         if (uwbNode.has("A0")) uwb.put("A0", uwbNode.get("A0").asDouble());
         if (uwbNode.has("A1")) uwb.put("A1", uwbNode.get("A1").asDouble());
         if (uwbNode.has("A2")) uwb.put("A2", uwbNode.get("A2").asDouble());
+        if (uwbNode.has("A3")) uwb.put("A3", uwbNode.get("A3").asDouble()); // 🆕 Anchor A3
+        
+        // Parse other tags distances
+        if (uwbNode.has("Tag3")) uwb.put("Tag3", uwbNode.get("Tag3").asDouble());
+        if (uwbNode.has("Tag4")) uwb.put("Tag4", uwbNode.get("Tag4").asDouble());
         if (uwbNode.has("TAG2")) uwb.put("TAG2", uwbNode.get("TAG2").asDouble());
         
         // Parse baseline (calibration) values
         if (uwbNode.has("baseline_A1")) uwb.put("baseline_A1", uwbNode.get("baseline_A1").asDouble());
         if (uwbNode.has("baseline_A2")) uwb.put("baseline_A2", uwbNode.get("baseline_A2").asDouble());
         
-        // 🎯 Parse ready flag để frontend biết UWB sẵn sàng
-        if (uwbNode.has("ready")) uwb.put("ready", uwbNode.get("ready").asDouble());
+        // 🎯 AUTO-SET ready=1 nếu có đủ 3+ anchors với giá trị hợp lệ (> 0)
+        int validAnchors = 0;
+        if (uwb.get("A0") != null && uwb.get("A0") > 0) validAnchors++;
+        if (uwb.get("A1") != null && uwb.get("A1") > 0) validAnchors++;
+        if (uwb.get("A2") != null && uwb.get("A2") > 0) validAnchors++;
+        if (uwb.get("A3") != null && uwb.get("A3") > 0) validAnchors++;
+        
+        // Set ready flag - cần ít nhất 3 anchors để trilateration
+        uwb.put("ready", validAnchors >= 3 ? 1.0 : 0.0);
+        uwb.put("anchorCount", (double) validAnchors);
         
         return uwb;
     }
     
     /**
      * Check if UWB is ready for positioning
+     * Cần ít nhất 3 anchors với khoảng cách hợp lệ (> 0)
      */
     public boolean isUwbReady(JsonNode uwbNode) {
         if (uwbNode == null) return false;
-        return uwbNode.has("ready") && uwbNode.get("ready").asInt() == 1;
+        
+        // Đếm số anchor có giá trị hợp lệ
+        int validAnchors = 0;
+        if (uwbNode.has("A0") && uwbNode.get("A0").asDouble() > 0) validAnchors++;
+        if (uwbNode.has("A1") && uwbNode.get("A1").asDouble() > 0) validAnchors++;
+        if (uwbNode.has("A2") && uwbNode.get("A2").asDouble() > 0) validAnchors++;
+        if (uwbNode.has("A3") && uwbNode.get("A3").asDouble() > 0) validAnchors++;
+        
+        return validAnchors >= 3;
     }
     
     /**
