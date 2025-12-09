@@ -420,7 +420,7 @@ public class MessengerService {
             "%s Nhân viên: %s\n" +
             "📋 Loại cảnh báo: %s\n" +
             "⏰ Thời gian: %s\n\n" +
-            "👷 Công nhân đã tự xử lý tình huống.\n" +
+            "👷 Tình huống của công nhân đã được xử lý.\n" +
             "Hệ thống tự động ghi nhận.",
             icon,
             employeeName,
