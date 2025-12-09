@@ -1104,7 +1104,13 @@
          * Phương pháp này chính xác hơn Linear Least Squares
          */
         function calculatePositionFromUWB(uwb, mac) {
-            // 🆕 Lấy vị trí anchor từ `anchors` array (load từ database) thay vì hardcoded
+            // 🆕 Kiểm tra anchors đã được load từ database chưa
+            if (!anchors || anchors.length === 0) {
+                console.log(`⏳ Waiting for anchors to load from database...`);
+                return lastPositions[mac] || null;
+            }
+            
+            // Lấy vị trí anchor từ `anchors` array (load từ database)
             const anchorList = [];
             const distances = [];
             
@@ -1116,18 +1122,20 @@
                     if (dbAnchor) {
                         anchorList.push({ x: dbAnchor.x, y: dbAnchor.y, name: key });
                         distances.push(uwb[key]);
+                    } else {
+                        console.log(`⚠️ Anchor ${key} not found in loaded anchors:`, anchors.map(a => a.id));
                     }
                 }
             }
             
             // Cần ít nhất 3 anchors
             if (anchorList.length < 3) {
-                console.log(`⚠️ Not enough anchors: ${anchorList.length}/3 required (matched from DB)`);
+                console.log(`⚠️ Not enough anchors matched: ${anchorList.length}/3 (DB has ${anchors.length} anchors)`);
                 return lastPositions[mac] || null;
             }
             
-            console.log(`📏 UWB distances for ${mac}:`, 
-                anchorList.map((a, i) => `${a.name}=${distances[i].toFixed(2)}m at (${a.x.toFixed(1)}, ${a.y.toFixed(1)})`).join(', '));
+            console.log(`📏 UWB for ${mac}:`, 
+                anchorList.map((a, i) => `${a.name}=${distances[i].toFixed(2)}m`).join(', '));
             
             // 🎯 Gradient Descent để minimize error function
             // Error = Σ (sqrt((x-xi)² + (y-yi)²) - ri)²
@@ -1235,42 +1243,50 @@
             // Tính tọa độ từ UWB
             const position = calculatePositionFromUWB(data.uwb, data.mac);
             
-            if (!position) {
-                return;
-            }
-            
-            // Cập nhật hoặc tạo tag mới
+            // 🆕 Cập nhật tag ngay cả khi position null (giữ vị trí cuối)
             let tag = tags.find(t => t.helmet === data.mac);
+            tagLastDataTime[data.mac] = Date.now();
             
-            if (tag) {
-                // Cập nhật vị trí
-                tag.x = position.x;
-                tag.y = position.y;
-                tag.status = 'online';
-                console.log(`🔄 Updated tag ${tag.id} position`);
-            } else {
-                // Tạo tag mới
-                const newTag = {
-                    id: 'T' + (tags.length + 1),
-                    name: data.employeeName || data.mac,
-                    x: position.x,
-                    y: position.y,
-                    vx: 0,
-                    vy: 0,
-                    status: 'online',
-                    helmet: data.mac
+            if (position) {
+                if (tag) {
+                    // Cập nhật vị trí
+                    tag.x = position.x;
+                    tag.y = position.y;
+                    tag.status = 'online';
+                    tag.uwb = data.uwb;
+                    tag.battery = data.battery;
+                } else {
+                    // Tạo tag mới
+                    const newTag = {
+                        id: 'T' + (tags.length + 1),
+                        name: data.employeeName || data.mac,
+                        x: position.x,
+                        y: position.y,
+                        vx: 0,
+                        vy: 0,
+                        status: 'online',
+                        helmet: data.mac
+                    };
+                    tags.push(newTag);
+                    console.log(`➕ Created new tag ${newTag.id} for ${data.mac}`);
+                }
+                
+                // Lưu vào cache
+                helmetPositions[data.mac] = {
+                    position: position,
+                    timestamp: Date.now(),
+                    battery: data.battery,
+                    uwb: data.uwb
                 };
-                tags.push(newTag);
-                console.log(`➕ Created new tag ${newTag.id} for ${data.mac}`);
+            } else {
+                // Position null - giữ tag hiện tại
+                console.log('⚠️ Position null, keeping existing tag for', data.mac);
+                if (tag) {
+                    tag.status = 'online';
+                    tag.uwb = data.uwb;
+                    tag.battery = data.battery;
+                }
             }
-            
-            // Lưu vào cache
-            helmetPositions[data.mac] = {
-                position: position,
-                timestamp: Date.now(),
-                battery: data.battery,
-                uwb: data.uwb
-            };
         }
         
         /**
@@ -1359,42 +1375,48 @@
             // Tính tọa độ từ UWB
             const position = calculatePositionFromUWB(uwbData, data.mac);
             
-            if (!position) {
-                console.log('⚠️ Could not calculate position');
-                return;
-            }
-            
             // 📊 Track last data time for offline detection
             tagLastDataTime[data.mac] = Date.now();
             
             // Cập nhật hoặc tạo tag mới
             let tag = tags.find(t => t.helmet === data.mac);
             
-            if (tag) {
-                // Smooth movement - interpolate to new position
-                const smoothFactor = 0.3; // 0 = no change, 1 = instant jump
-                tag.x = tag.x + (position.x - tag.x) * smoothFactor;
-                tag.y = tag.y + (position.y - tag.y) * smoothFactor;
-                tag.status = 'online';
-                tag.battery = data.battery;
-                tag.uwb = uwbData;
-                console.log(`🔄 Updated tag ${tag.id} to (${tag.x.toFixed(2)}, ${tag.y.toFixed(2)})`);
+            // 🆕 Xử lý cả khi position null (giữ vị trí cuối, không xóa tag)
+            if (position) {
+                if (tag) {
+                    // Smooth movement - interpolate to new position
+                    const smoothFactor = 0.3; // 0 = no change, 1 = instant jump
+                    tag.x = tag.x + (position.x - tag.x) * smoothFactor;
+                    tag.y = tag.y + (position.y - tag.y) * smoothFactor;
+                    tag.status = 'online';
+                    tag.battery = data.battery;
+                    tag.uwb = uwbData;
+                    console.log(`🔄 Updated tag ${tag.id} to (${tag.x.toFixed(2)}, ${tag.y.toFixed(2)})`);
+                } else {
+                    // Tạo tag mới
+                    const newTag = {
+                        id: 'TAG' + (tags.length + 1),
+                        name: data.employeeName || data.mac.slice(-4),
+                        x: position.x,
+                        y: position.y,
+                        vx: 0,
+                        vy: 0,
+                        status: 'online',
+                        helmet: data.mac,
+                        battery: data.battery,
+                        uwb: uwbData
+                    };
+                    tags.push(newTag);
+                    console.log(`➕ Created new tag ${newTag.id} for ${data.mac} at (${position.x.toFixed(2)}, ${position.y.toFixed(2)})`);
+                }
             } else {
-                // Tạo tag mới
-                const newTag = {
-                    id: 'TAG' + (tags.length + 1),
-                    name: data.employeeName || data.mac.slice(-4),
-                    x: position.x,
-                    y: position.y,
-                    vx: 0,
-                    vy: 0,
-                    status: 'online',
-                    helmet: data.mac,
-                    battery: data.battery,
-                    uwb: uwbData
-                };
-                tags.push(newTag);
-                console.log(`➕ Created new tag ${newTag.id} for ${data.mac} at (${position.x.toFixed(2)}, ${position.y.toFixed(2)})`);
+                // Position null - giữ nguyên tag hiện tại, chỉ log warning
+                console.log('⚠️ Could not calculate position, keeping existing tag');
+                if (tag) {
+                    tag.status = 'online'; // Vẫn online vì có data
+                    tag.battery = data.battery;
+                    tag.uwb = uwbData;
+                }
             }
             
             // Lưu vào cache (for display purposes only)
