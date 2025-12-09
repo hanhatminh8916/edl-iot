@@ -21,8 +21,8 @@
     
     <!-- Stylesheets -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=189">
-    <link rel="stylesheet" href="css/location.css?v=189">
+    <link rel="stylesheet" href="css/style.css?v=190">
+    <link rel="stylesheet" href="css/location.css?v=190">
     <link rel="stylesheet" href="css/mobile-responsive.css">
     <style>
         .main-content {
@@ -1024,6 +1024,7 @@
         
         let stompClient = null;
         let helmetPositions = {}; // Store helmet positions by MAC
+        let lastPositions = {}; // 🆕 Store last valid positions for smoothing
         
         /**
          * 🎯 CỐ ĐỊNH VỊ TRÍ ANCHOR CHO UWB POSITIONING
@@ -1050,36 +1051,31 @@
             A3: { x: 17, y: 17 }   // Anchor A3 - góc trên phải (🆕)
         };
         
+        // 🆕 Smoothing factor (0 = no smoothing, 0.8 = very smooth)
+        const POSITION_SMOOTHING = 0.3;
+        const MAX_JUMP_DISTANCE = 5; // meters - max allowed jump per update
+        
         /**
          * Tính tọa độ tag từ UWB data sử dụng Trilateration (Least Squares)
-         * Phương pháp này chính xác hơn Weighted Centroid
+         * Với smoothing để tránh nhảy đột ngột
          */
         function calculatePositionFromUWB(uwb, mac) {
+            // 🆕 Thu thập anchors theo thứ tự CỐ ĐỊNH (quan trọng cho độ ổn định)
+            const anchorOrder = ['A0', 'A1', 'A2', 'A3'];
             const anchorList = [];
             const distances = [];
             
-            // Thu thập tất cả anchors có khoảng cách hợp lệ
-            if (uwb.A0 !== undefined && uwb.A0 > 0) {
-                anchorList.push(UWB_ANCHORS.A0);
-                distances.push(uwb.A0);
-            }
-            if (uwb.A1 !== undefined && uwb.A1 > 0) {
-                anchorList.push(UWB_ANCHORS.A1);
-                distances.push(uwb.A1);
-            }
-            if (uwb.A2 !== undefined && uwb.A2 > 0) {
-                anchorList.push(UWB_ANCHORS.A2);
-                distances.push(uwb.A2);
-            }
-            if (uwb.A3 !== undefined && uwb.A3 > 0) {
-                anchorList.push(UWB_ANCHORS.A3);
-                distances.push(uwb.A3);
+            for (const key of anchorOrder) {
+                if (uwb[key] !== undefined && uwb[key] > 0 && uwb[key] < 50) { // Filter invalid distances
+                    anchorList.push({ ...UWB_ANCHORS[key], name: key });
+                    distances.push(uwb[key]);
+                }
             }
             
             // Cần ít nhất 3 anchors
             if (anchorList.length < 3) {
                 console.log(`⚠️ Not enough anchors: ${anchorList.length}/3 required`);
-                return null;
+                return lastPositions[mac] || null; // 🆕 Return last known position
             }
             
             console.log(`📏 UWB distances for ${mac}:`, 
@@ -1120,17 +1116,37 @@
             
             if (!position) {
                 console.log('⚠️ Failed to solve trilateration');
-                return null;
+                return lastPositions[mac] || null; // 🆕 Return last known position
             }
             
             let x = position.x;
             let y = position.y;
+            
+            // 🆕 SMOOTHING: Kiểm tra nếu nhảy quá xa so với vị trí trước
+            const lastPos = lastPositions[mac];
+            if (lastPos) {
+                const jumpDist = Math.sqrt((x - lastPos.x) ** 2 + (y - lastPos.y) ** 2);
+                
+                if (jumpDist > MAX_JUMP_DISTANCE) {
+                    // Nhảy quá xa - có thể là lỗi, dùng smoothing mạnh
+                    console.log(`⚠️ Large jump detected: ${jumpDist.toFixed(2)}m, applying heavy smoothing`);
+                    x = lastPos.x + (x - lastPos.x) * 0.2; // Chỉ di chuyển 20%
+                    y = lastPos.y + (y - lastPos.y) * 0.2;
+                } else {
+                    // Smoothing bình thường
+                    x = lastPos.x * POSITION_SMOOTHING + x * (1 - POSITION_SMOOTHING);
+                    y = lastPos.y * POSITION_SMOOTHING + y * (1 - POSITION_SMOOTHING);
+                }
+            }
             
             console.log(`📍 Trilateration position (${n} anchors): (${x.toFixed(2)}, ${y.toFixed(2)})`);
             
             // Giới hạn trong khu vực
             x = Math.max(0, Math.min(areaSize, x));
             y = Math.max(0, Math.min(areaSize, y));
+            
+            // 🆕 Lưu vị trí cuối để smoothing
+            lastPositions[mac] = { x, y };
             
             return { x, y };
         }
