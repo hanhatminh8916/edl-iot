@@ -21,8 +21,8 @@
     
     <!-- Stylesheets -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=192">
-    <link rel="stylesheet" href="css/location.css?v=192">
+    <link rel="stylesheet" href="css/style.css?v=193">
+    <link rel="stylesheet" href="css/location.css?v=193">
     <link rel="stylesheet" href="css/mobile-responsive.css">
     <style>
         .main-content {
@@ -389,10 +389,6 @@
                             <input type="range" id="scaleSlider" min="10" max="40" value="20" step="1">
                             <span id="scaleValue">20</span> px/m
                         </div>
-                        <button class="btn btn-secondary" onclick="resetView()">Reset View</button>
-                        <button class="btn btn-primary" onclick="toggleAnimation()">
-                            <span id="animationBtn">⏸ Dừng</span>
-                        </button>
                     </div>
                 </div>
                 
@@ -1683,6 +1679,9 @@
             // Set canvas size
             canvas.width = areaSize * scale + 80;
             canvas.height = areaSize * scale + 80;
+            
+            // 🆕 Draw overview immediately
+            drawOverview();
             
             loadSafeZones(); // Load safe zones for color detection
             startAnchorSync(); // Load anchors from DB
