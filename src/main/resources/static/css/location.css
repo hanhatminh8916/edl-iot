@@ -415,8 +415,19 @@
     }
     
     .map-legend {
-        flex-direction: column;
-        gap: 0.5rem;
+        position: relative;
+        bottom: auto;
+        left: auto;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+        padding: 0.75rem;
+        justify-content: center;
+    }
+    
+    .legend-item {
+        font-size: 0.75rem;
     }
 }
 
