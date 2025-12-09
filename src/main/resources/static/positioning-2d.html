@@ -1197,9 +1197,24 @@
             
             console.log(`📍 Gradient descent position (${anchorList.length} anchors): (${x.toFixed(2)}, ${y.toFixed(2)})`);
             
-            // Smoothing với vị trí trước
+            // 🆕 NGHIÊM NGẶT: Kiểm tra vị trí có nằm trong vùng anchor không
+            // Nếu lastPos nằm ngoài vùng anchor hiện tại → bỏ qua smoothing
             const lastPos = lastPositions[mac];
-            if (lastPos) {
+            const bbox = getAnchorBoundingBox(anchorList);
+            
+            let useSmoothing = false;
+            if (lastPos && bbox) {
+                // Chỉ dùng smoothing nếu lastPos nằm trong vùng anchor hiện tại
+                const lastPosInZone = lastPos.x >= bbox.minX && lastPos.x <= bbox.maxX &&
+                                      lastPos.y >= bbox.minY && lastPos.y <= bbox.maxY;
+                if (lastPosInZone) {
+                    useSmoothing = true;
+                } else {
+                    console.log(`🔄 Last position outside current anchor zone, skipping smoothing`);
+                }
+            }
+            
+            if (useSmoothing && lastPos) {
                 const jumpDist = Math.sqrt((x - lastPos.x) ** 2 + (y - lastPos.y) ** 2);
                 
                 if (jumpDist > MAX_JUMP_DISTANCE) {
@@ -1211,10 +1226,9 @@
                     x = lastPos.x * POSITION_SMOOTHING + x * (1 - POSITION_SMOOTHING);
                     y = lastPos.y * POSITION_SMOOTHING + y * (1 - POSITION_SMOOTHING);
                 }
-                // Di chuyển < 1m: không smoothing, để tag phản hồi nhanh
             }
             
-            // 🆕 Giới hạn cuối cùng trong vùng anchor
+            // 🆕 Giới hạn cuối cùng trong vùng anchor - NGHIÊM NGẶT
             const finalConstrained = constrainToAnchorZone(x, y, anchorList);
             x = finalConstrained.x;
             y = finalConstrained.y;
