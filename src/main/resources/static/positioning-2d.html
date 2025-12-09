@@ -21,8 +21,8 @@
     
     <!-- Stylesheets -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=191">
-    <link rel="stylesheet" href="css/location.css?v=191">
+    <link rel="stylesheet" href="css/style.css?v=192">
+    <link rel="stylesheet" href="css/location.css?v=192">
     <link rel="stylesheet" href="css/mobile-responsive.css">
     <style>
         .main-content {
@@ -146,6 +146,49 @@
             z-index: 6;
             pointer-events: none;
             white-space: nowrap;
+        }
+
+        /* Zone Dropdown Styles */
+        .zone-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 200px;
+            z-index: 1000;
+            margin-top: 5px;
+        }
+
+        .zone-dropdown-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid #eee;
+        }
+
+        .zone-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .zone-dropdown-item:hover {
+            background: #e3f2fd;
+        }
+
+        .zone-dropdown-item i {
+            margin-right: 10px;
+            color: #2196F3;
+        }
+
+        .zone-dropdown-item.active {
+            background: #e3f2fd;
+            font-weight: bold;
+        }
+
+        /* Overview canvas click areas */
+        #canvasOverview {
+            cursor: pointer;
         }
 
         .info-panel {
@@ -310,59 +353,91 @@
                 <div>
                     <h1>📐 Sơ Đồ 2D Positioning System</h1>
                     <p id="viewMode" style="font-size: 16px; color: #666; margin-top: 8px;">
-                        <i class="fas fa-globe"></i> Chế độ: Tổng quan toàn bộ khu vực
+                        <i class="fas fa-map-marked-alt"></i> Chế độ: Khu vực chi tiết "<span id="currentZoneName">Khu 1</span>"
                     </p>
                 </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-secondary" onclick="switchToOverview()" id="btnOverview" style="display:none;">
-                        <i class="fas fa-th"></i> Xem tổng quan
-                    </button>
-                    <button class="btn btn-primary" onclick="switchToZone()" id="btnBackToZone" style="display:none;">
-                        <i class="fas fa-map-marked-alt"></i> Quay lại <span id="zoneName"></span>
-                    </button>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <!-- Zone Selector Dropdown -->
+                    <div class="dropdown" style="position: relative;">
+                        <button class="btn btn-primary" onclick="toggleZoneDropdown()" id="btnZoneSelector">
+                            <i class="fas fa-th-large"></i> Xem từng khu <i class="fas fa-caret-down"></i>
+                        </button>
+                        <div id="zoneDropdown" class="zone-dropdown" style="display: none;">
+                            <div class="zone-dropdown-item" onclick="selectZone('zone1')">
+                                <i class="fas fa-map-marker"></i> Khu 1 (A0-A3)
+                            </div>
+                            <div class="zone-dropdown-item" onclick="selectZone('zone2')">
+                                <i class="fas fa-map-marker"></i> Khu 2 (A4-A6)
+                            </div>
+                            <div class="zone-dropdown-item" onclick="selectZone('zone3')">
+                                <i class="fas fa-map-marker"></i> Khu 3 (A7-A10)
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-        <!-- Canvas Container -->
-        <div class="canvas-container">
-            <div class="canvas-header">
-                <h2 id="areaTitle">Khu Vực Giám Sát (20m × 20m)</h2>
-                <div class="controls">
-                    <div class="control-group">
-                        <label>Tỷ lệ:</label>
-                        <input type="range" id="scaleSlider" min="10" max="40" value="20" step="1">
-                        <span id="scaleValue">20</span> px/m
+        <!-- Two Maps Container -->
+        <div class="maps-container" style="display: flex; gap: 20px; flex-wrap: wrap;">
+            <!-- Detail Zone Map -->
+            <div class="canvas-container" style="flex: 2; min-width: 400px;">
+                <div class="canvas-header">
+                    <h2 id="areaTitle">Khu 1 (Khu vực chi tiết)</h2>
+                    <div class="controls">
+                        <div class="control-group">
+                            <label>Tỷ lệ:</label>
+                            <input type="range" id="scaleSlider" min="10" max="40" value="20" step="1">
+                            <span id="scaleValue">20</span> px/m
+                        </div>
+                        <button class="btn btn-secondary" onclick="resetView()">Reset View</button>
+                        <button class="btn btn-primary" onclick="toggleAnimation()">
+                            <span id="animationBtn">⏸ Dừng</span>
+                        </button>
                     </div>
-                    <button class="btn btn-secondary" onclick="resetView()">Reset View</button>
-                    <button class="btn btn-primary" onclick="toggleAnimation()">
-                        <span id="animationBtn">⏸ Dừng</span>
-                    </button>
                 </div>
-            </div>
-            
-            <!-- Canvas wrapper with demo tags -->
-            <div id="canvasWrapper" style="position: relative; display: inline-block;">
-                <canvas id="canvas2d" width="800" height="800"></canvas>
                 
-                <!-- Demo animated tags -->
-                <div class="demo-tag demo-tag-1" data-label="TAG1"></div>
+                <!-- Canvas wrapper with demo tags -->
+                <div id="canvasWrapper" style="position: relative; display: inline-block;">
+                    <canvas id="canvas2d" width="500" height="500"></canvas>
+                    
+                    <!-- Demo animated tags -->
+                    <div class="demo-tag demo-tag-1" data-label="TAG1"></div>
+                </div>
+                
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color anchor"></div>
+                        <span><strong>Anchor</strong> - Thiết bị định vị cố định (UWB)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color tag"></div>
+                        <span><strong>Tag Online</strong> - Đang hoạt động</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color tag-offline"></div>
+                        <span><strong>Tag Offline</strong> - Mất kết nối (vị trí cuối)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span>📏 Đường cam: Khoảng cách UWB realtime (meter)</span>
+                    </div>
+                </div>
             </div>
-            
-            <div class="legend">
-                <div class="legend-item">
-                    <div class="legend-color anchor"></div>
-                    <span><strong>Anchor</strong> - Thiết bị định vị cố định (UWB)</span>
+
+            <!-- Overview Map -->
+            <div class="canvas-container" style="flex: 1; min-width: 300px;">
+                <div class="canvas-header">
+                    <h2>🗺️ Bản Đồ Tổng Quan</h2>
                 </div>
-                <div class="legend-item">
-                    <div class="legend-color tag"></div>
-                    <span><strong>Tag Online</strong> - Đang hoạt động</span>
+                <div id="overviewWrapper" style="position: relative; display: inline-block;">
+                    <canvas id="canvasOverview" width="300" height="300"></canvas>
                 </div>
-                <div class="legend-item">
-                    <div class="legend-color tag-offline"></div>
-                    <span><strong>Tag Offline</strong> - Mất kết nối (vị trí cuối)</span>
-                </div>
-                <div class="legend-item">
-                    <span>📏 Đường cam: Khoảng cách UWB realtime (meter)</span>
+                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                    <p>📍 Click vào khu vực để xem chi tiết</p>
+                    <div id="overviewStats" style="margin-top: 10px;">
+                        <p><strong>Khu 1:</strong> <span id="zone1Tags">0</span> tag</p>
+                        <p><strong>Khu 2:</strong> <span id="zone2Tags">0</span> tag</p>
+                        <p><strong>Khu 3:</strong> <span id="zone3Tags">0</span> tag</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -400,6 +475,8 @@
     <script>
         const canvas = document.getElementById('canvas2d');
         const ctx = canvas.getContext('2d');
+        const canvasOverview = document.getElementById('canvasOverview');
+        const ctxOverview = canvasOverview.getContext('2d');
         
         // Configuration
         let scale = 20; // pixels per meter
@@ -407,17 +484,8 @@
         let isAnimating = false; // ✅ Tắt animation demo, chỉ dùng UWB realtime
 
         // Zone filtering
-        let currentZoneId = null;
+        let currentZoneId = 'zone1'; // Default to zone 1
         let currentZone = null;
-        let previousZoneId = null; // Store previous zone for navigation
-
-        // Check if zone parameter exists in URL
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('zone')) {
-            currentZoneId = urlParams.get('zone');
-            previousZoneId = currentZoneId; // Remember this zone
-            loadZoneInfo(currentZoneId);
-        }
 
         // Anchors - will be loaded from database
         let anchors = [];
@@ -425,23 +493,128 @@
         // Reference point for coordinate conversion (use first anchor as reference or fixed point)
         let referencePoint = null;
         
-        // Switch back to overview mode
-        function switchToOverview() {
-            currentZoneId = null; // Clear current zone but keep previousZoneId
-            loadAnchorsFromDatabase(); // Reload all anchors
-            
-            // Update UI
-            document.getElementById('viewMode').innerHTML = `
-                <i class="fas fa-globe"></i> Chế độ: Tổng quan toàn bộ khu vực
-            `;
-            document.getElementById('areaTitle').textContent = 'Khu Vực Giám Sát (20m × 20m)';
-            document.getElementById('btnOverview').style.display = 'none';
-            
-            // Show back to zone button if there was a previous zone
-            if (previousZoneId && currentZone) {
-                document.getElementById('btnBackToZone').style.display = 'inline-block';
-                document.getElementById('zoneName').textContent = currentZone.name;
+        // ========== ZONE DROPDOWN ==========
+        function toggleZoneDropdown() {
+            const dropdown = document.getElementById('zoneDropdown');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown')) {
+                document.getElementById('zoneDropdown').style.display = 'none';
             }
+        });
+        
+        function selectZone(zoneId) {
+            currentZoneId = zoneId;
+            document.getElementById('zoneDropdown').style.display = 'none';
+            
+            // Update zone name
+            const zoneNames = {
+                'zone1': 'Khu 1 (A0-A3)',
+                'zone2': 'Khu 2 (A4-A6)', 
+                'zone3': 'Khu 3 (A7-A10)'
+            };
+            document.getElementById('currentZoneName').textContent = zoneNames[zoneId];
+            document.getElementById('areaTitle').textContent = zoneNames[zoneId] + ' (Khu vực chi tiết)';
+            
+            // Highlight active item
+            document.querySelectorAll('.zone-dropdown-item').forEach(item => item.classList.remove('active'));
+            event.target.closest('.zone-dropdown-item').classList.add('active');
+            
+            // Clear last positions to reset smoothing
+            lastPositions = {};
+            
+            // Redraw
+            draw();
+            drawOverview();
+        }
+        
+        // ========== OVERVIEW CANVAS ==========
+        function drawOverview() {
+            const w = canvasOverview.width;
+            const h = canvasOverview.height;
+            const overviewScale = 5; // 5 pixels per meter for overview (60m total width)
+            
+            ctxOverview.clearRect(0, 0, w, h);
+            
+            // Background
+            ctxOverview.fillStyle = '#f5f5f5';
+            ctxOverview.fillRect(0, 0, w, h);
+            
+            // Draw 3 zone boxes
+            const zones = [
+                { id: 'zone1', x: 10, y: 10, w: 80, h: 80, color: currentZoneId === 'zone1' ? '#4CAF50' : '#2196F3', label: 'Khu 1' },
+                { id: 'zone2', x: 110, y: 10, w: 80, h: 80, color: currentZoneId === 'zone2' ? '#4CAF50' : '#2196F3', label: 'Khu 2' },
+                { id: 'zone3', x: 210, y: 10, w: 80, h: 80, color: currentZoneId === 'zone3' ? '#4CAF50' : '#2196F3', label: 'Khu 3' },
+            ];
+            
+            zones.forEach(zone => {
+                // Zone background
+                ctxOverview.fillStyle = zone.color + '20';
+                ctxOverview.fillRect(zone.x, zone.y, zone.w, zone.h);
+                
+                // Zone border
+                ctxOverview.strokeStyle = zone.color;
+                ctxOverview.lineWidth = zone.id === currentZoneId ? 3 : 1;
+                ctxOverview.strokeRect(zone.x, zone.y, zone.w, zone.h);
+                
+                // Zone label
+                ctxOverview.fillStyle = '#333';
+                ctxOverview.font = '12px Arial';
+                ctxOverview.textAlign = 'center';
+                ctxOverview.fillText(zone.label, zone.x + zone.w/2, zone.y + zone.h + 15);
+                
+                // Draw mini anchors (4 corners)
+                ctxOverview.fillStyle = '#2196F3';
+                const padding = 8;
+                [[padding, padding], [zone.w-padding, padding], [padding, zone.h-padding], [zone.w-padding, zone.h-padding]].forEach(([ax, ay]) => {
+                    ctxOverview.beginPath();
+                    ctxOverview.arc(zone.x + ax, zone.y + ay, 4, 0, Math.PI * 2);
+                    ctxOverview.fill();
+                });
+            });
+            
+            // Draw tags in overview (simplified)
+            const tagCounts = { zone1: 0, zone2: 0, zone3: 0 };
+            Object.values(helmetPositions).forEach(tag => {
+                if (tag.x !== undefined && tag.y !== undefined) {
+                    // Determine which zone tag is in based on position
+                    tagCounts.zone1++; // For now all in zone 1
+                    
+                    // Draw mini tag dot in zone 1
+                    const miniX = 10 + (tag.x / areaSize) * 80;
+                    const miniY = 10 + ((areaSize - tag.y) / areaSize) * 80;
+                    
+                    ctxOverview.fillStyle = '#f44336';
+                    ctxOverview.beginPath();
+                    ctxOverview.arc(miniX, miniY, 5, 0, Math.PI * 2);
+                    ctxOverview.fill();
+                }
+            });
+            
+            // Update stats
+            document.getElementById('zone1Tags').textContent = tagCounts.zone1;
+            document.getElementById('zone2Tags').textContent = tagCounts.zone2;
+            document.getElementById('zone3Tags').textContent = tagCounts.zone3;
+        }
+        
+        // Handle overview canvas clicks
+        canvasOverview.addEventListener('click', function(e) {
+            const rect = canvasOverview.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Check which zone was clicked
+            if (x >= 10 && x <= 90 && y >= 10 && y <= 90) {
+                selectZone('zone1');
+            } else if (x >= 110 && x <= 190 && y >= 10 && y <= 90) {
+                selectZone('zone2');
+            } else if (x >= 210 && x <= 290 && y >= 10 && y <= 90) {
+                selectZone('zone3');
+            }
+        });
             
             // Update URL without zone parameter
             window.history.pushState({}, '', 'positioning-2d.html');
@@ -929,6 +1102,9 @@
 
             // Update lists
             updateLists();
+            
+            // 🆕 Update overview map
+            drawOverview();
         }
 
         // Update anchor and tag lists
@@ -1051,6 +1227,35 @@
             A3: { x: 17, y: 17 }   // Anchor A3 - góc trên phải (🆕)
         };
         
+        // 🆕 Tính bounding box từ anchors để giới hạn tag
+        function getAnchorBoundingBox(anchorList) {
+            if (anchorList.length < 3) return null;
+            
+            const xs = anchorList.map(a => a.x);
+            const ys = anchorList.map(a => a.y);
+            
+            return {
+                minX: Math.min(...xs),
+                maxX: Math.max(...xs),
+                minY: Math.min(...ys),
+                maxY: Math.max(...ys)
+            };
+        }
+        
+        // 🆕 Giới hạn vị trí tag trong bounding box của anchors
+        function constrainToAnchorArea(x, y, anchorList) {
+            const bbox = getAnchorBoundingBox(anchorList);
+            if (!bbox) return { x, y };
+            
+            // Thêm padding nhỏ (0.5m) để không sát biên
+            const padding = 0.5;
+            
+            x = Math.max(bbox.minX - padding, Math.min(bbox.maxX + padding, x));
+            y = Math.max(bbox.minY - padding, Math.min(bbox.maxY + padding, y));
+            
+            return { x, y };
+        }
+        
         // 🆕 Smoothing factor (0 = no smoothing, 0.8 = very smooth)
         const POSITION_SMOOTHING = 0.3;
         const MAX_JUMP_DISTANCE = 5; // meters - max allowed jump per update
@@ -1129,9 +1334,10 @@
                 x -= learningRate * gradX;
                 y -= learningRate * gradY;
                 
-                // Giới hạn trong khu vực
-                x = Math.max(0, Math.min(areaSize, x));
-                y = Math.max(0, Math.min(areaSize, y));
+                // 🆕 Giới hạn trong vùng anchor (không cho bay ra ngoài)
+                const constrained = constrainToAnchorArea(x, y, anchorList);
+                x = constrained.x;
+                y = constrained.y;
             }
             
             console.log(`📍 Gradient descent position (${anchorList.length} anchors): (${x.toFixed(2)}, ${y.toFixed(2)})`);
@@ -1153,9 +1359,10 @@
                 // Di chuyển < 1m: không smoothing, để tag phản hồi nhanh
             }
             
-            // Giới hạn cuối cùng
-            x = Math.max(0, Math.min(areaSize, x));
-            y = Math.max(0, Math.min(areaSize, y));
+            // 🆕 Giới hạn cuối cùng trong vùng anchor
+            const finalConstrained = constrainToAnchorArea(x, y, anchorList);
+            x = finalConstrained.x;
+            y = finalConstrained.y;
             
             // Lưu vị trí cuối
             lastPositions[mac] = { x, y };
