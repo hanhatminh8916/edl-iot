@@ -488,62 +488,12 @@
             return { x: lngDiff, y: latDiff };
         }
         
-        // SessionStorage cache helpers
-        function saveToCache(key, data, ttlMinutes = 5) {
-            const cacheData = {
-                data: data,
-                timestamp: Date.now(),
-                ttl: ttlMinutes * 60 * 1000 // Convert to milliseconds
-            };
-            sessionStorage.setItem(key, JSON.stringify(cacheData));
-        }
-        
-        function getFromCache(key) {
-            const cached = sessionStorage.getItem(key);
-            if (!cached) return null;
-            
-            const cacheData = JSON.parse(cached);
-            const now = Date.now();
-            
-            // Check if cache is expired
-            if (now - cacheData.timestamp > cacheData.ttl) {
-                sessionStorage.removeItem(key);
-                return null;
-            }
-            
-            return cacheData.data;
-        }
-
         // Load anchors from database
         function loadAnchorsFromDatabase() {
-            // Try to get from cache first
-            const cachedAnchors = getFromCache('positioning_anchors');
-            if (cachedAnchors) {
-                console.log('✅ Loaded anchors from cache (SessionStorage)');
-                processAnchorsData(cachedAnchors);
-                return;
-            }
-            
-            // If not in cache, fetch from API
             fetch('/api/anchors')
                 .then(response => response.json())
                 .then(data => {
                     console.log('✅ Loaded anchors from DB:', data);
-                    
-                    // Save to cache for 5 minutes
-                    saveToCache('positioning_anchors', data, 5);
-                    
-                    processAnchorsData(data);
-                })
-                .catch(error => {
-                    console.error('❌ Error loading anchors:', error);
-                    anchors = [];
-                    draw();
-                });
-        }
-        
-        // Process anchors data (extracted from loadAnchorsFromDatabase)
-        function processAnchorsData(data) {
                     
                     if (data.length === 0) {
                         console.warn('⚠️ No anchors in database');
@@ -614,7 +564,12 @@
                     console.log('✅ Converted anchors to 2D:', anchors);
                     console.log('📊 Bounds:', { minX, maxX, minY, maxY, scaleFactor });
                     draw(); // Redraw canvas with new anchors
-        }
+                })
+                .catch(error => {
+                    console.error('❌ Error loading anchors:', error);
+                    anchors = [];
+                    draw();
+                });
         }
 
         // Safe zones data
@@ -622,41 +577,22 @@
         
         // Load safe zones from API
         function loadSafeZones() {
-            // Try to get from cache first
-            const cachedZones = getFromCache('positioning_safe_zones');
-            if (cachedZones) {
-                console.log('✅ Loaded safe zones from cache (SessionStorage)');
-                processSafeZonesData(cachedZones);
-                return;
-            }
-            
-            // If not in cache, fetch from API
             fetch('/api/safe-zones')
                 .then(response => response.json())
                 .then(zones => {
-                    console.log('✅ Loaded safe zones from DB:', zones);
-                    
-                    // Save to cache for 5 minutes
-                    saveToCache('positioning_safe_zones', zones, 5);
-                    
-                    processSafeZonesData(zones);
+                    safeZones = zones.filter(z => z.active).map(zone => ({
+                        id: zone.id,
+                        name: zone.zoneName,
+                        coordinates: zone.polygonCoordinates,
+                        color: zone.color || '#4CAF50'
+                    }));
+                    console.log('✅ Loaded', safeZones.length, 'safe zones');
+                    draw();
                 })
                 .catch(error => {
                     console.error('❌ Error loading safe zones:', error);
                     safeZones = [];
                 });
-        }
-        
-        // Process safe zones data
-        function processSafeZonesData(zones) {
-            safeZones = zones.filter(z => z.active).map(zone => ({
-                id: zone.id,
-                name: zone.zoneName,
-                coordinates: zone.polygonCoordinates,
-                color: zone.color || '#4CAF50'
-            }));
-            console.log('✅ Processed', safeZones.length, 'safe zones');
-            draw();
         }
         
         // Check if point is inside polygon (Ray casting algorithm)
