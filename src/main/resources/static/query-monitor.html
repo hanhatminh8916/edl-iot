@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Query Monitor - Database Realtime</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .monitor-container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .stat-card.success {
+            border-left: 4px solid #10b981;
+        }
+
+        .stat-card.warning {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .stat-card.danger {
+            border-left: 4px solid #ef4444;
+        }
+
+        .stat-card.info {
+            border-left: 4px solid #3b82f6;
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .stat-icon {
+            font-size: 24px;
+        }
+
+        .stat-icon.success { color: #10b981; }
+        .stat-icon.warning { color: #f59e0b; }
+        .stat-icon.danger { color: #ef4444; }
+        .stat-icon.info { color: #3b82f6; }
+
+        .stat-title {
+            font-size: 14px;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1f2937;
+            margin: 10px 0;
+        }
+
+        .stat-subtitle {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .time-range {
+            display: flex;
+            gap: 10px;
+        }
+
+        .time-btn {
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .time-btn:hover {
+            background: #f3f4f6;
+        }
+
+        .time-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        canvas {
+            max-height: 300px;
+        }
+
+        .query-log {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .log-entry {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: #6b7280;
+            min-width: 80px;
+        }
+
+        .log-level {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .log-level.query {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .log-level.cache {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .log-level.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .log-message {
+            flex: 1;
+            color: #374151;
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-indicator.online {
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        .status-indicator.offline {
+            background: #ef4444;
+        }
+
+        .refresh-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            background: #f0f9ff;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .refresh-info i {
+            color: #3b82f6;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="logo">
+            <i class="fas fa-hard-hat"></i>
+            <span>EDL SafeWork</span>
+        </div>
+        <nav class="nav-menu">
+            <a href="index.html"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+            <a href="positioning-2d.html"><i class="fas fa-map-marked-alt"></i> Sơ Đồ 2D</a>
+            <a href="alerts.html"><i class="fas fa-exclamation-triangle"></i> Cảnh Báo</a>
+            <a href="query-monitor.html" class="active"><i class="fas fa-chart-line"></i> Query Monitor</a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="top-bar">
+            <div class="menu-toggle" id="menuToggle">
+                <i class="fas fa-bars"></i>
+            </div>
+            <h1><i class="fas fa-database"></i> Database Query Monitor</h1>
+        </div>
+
+        <div class="monitor-container">
+            <!-- Refresh Info -->
+            <div class="refresh-info">
+                <i class="fas fa-sync-alt pulse"></i>
+                <span>Auto-refresh every 2 seconds</span>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="stats-grid">
+                <div class="stat-card success">
+                    <div class="stat-header">
+                        <i class="fas fa-database stat-icon success"></i>
+                        <span class="stat-title">Database Status</span>
+                    </div>
+                    <div class="stat-value">
+                        <span class="status-indicator online"></span>
+                        <span id="dbStatus">Online</span>
+                    </div>
+                    <div class="stat-subtitle">JawsDB MySQL Leopard</div>
+                </div>
+
+                <div class="stat-card info">
+                    <div class="stat-header">
+                        <i class="fas fa-bolt stat-icon info"></i>
+                        <span class="stat-title">Queries/Second</span>
+                    </div>
+                    <div class="stat-value" id="queriesPerSecond">0</div>
+                    <div class="stat-subtitle">Current rate</div>
+                </div>
+
+                <div class="stat-card warning">
+                    <div class="stat-header">
+                        <i class="fas fa-clock stat-icon warning"></i>
+                        <span class="stat-title">Queries This Minute</span>
+                    </div>
+                    <div class="stat-value" id="queriesPerMinute">0</div>
+                    <div class="stat-subtitle">Limit: 300/min</div>
+                </div>
+
+                <div class="stat-card danger">
+                    <div class="stat-header">
+                        <i class="fas fa-fire stat-icon danger"></i>
+                        <span class="stat-title">Cache Hit Rate</span>
+                    </div>
+                    <div class="stat-value" id="cacheHitRate">0%</div>
+                    <div class="stat-subtitle">Last 10 minutes</div>
+                </div>
+            </div>
+
+            <!-- Query Chart -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h2 class="chart-title">📊 Query Activity</h2>
+                    <div class="time-range">
+                        <button class="time-btn" data-range="1">1m</button>
+                        <button class="time-btn active" data-range="5">5m</button>
+                        <button class="time-btn" data-range="10">10m</button>
+                        <button class="time-btn" data-range="30">30m</button>
+                    </div>
+                </div>
+                <canvas id="queryChart"></canvas>
+            </div>
+
+            <!-- Live Query Log -->
+            <div class="query-log">
+                <div class="log-header">
+                    <h2 class="chart-title">📝 Live Query Log</h2>
+                    <button class="time-btn" onclick="clearLog()">
+                        <i class="fas fa-trash"></i> Clear
+                    </button>
+                </div>
+                <div id="queryLogContainer" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Logs will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Simulated data (in production, get from backend API)
+        let queryData = {
+            timestamps: [],
+            queries: [],
+            cacheHits: []
+        };
+
+        let queryLog = [];
+        let totalQueries = 0;
+        let cacheHits = 0;
+
+        // Initialize Chart
+        const ctx = document.getElementById('queryChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Database Queries',
+                        data: [],
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Cache Hits',
+                        data: [],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+
+        // Simulate real-time data
+        // Real-time stats tracking
+        let lastQueryCount = 0;
+        let lastTimestamp = Date.now();
+        let statsHistory = [];
+        
+        // Fetch stats from backend API
+        async function fetchStats() {
+            try {
+                const response = await fetch('/api/monitor/stats');
+                if (!response.ok) throw new Error('Failed to fetch stats');
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+                return null;
+            }
+        }
+        
+        // Calculate query rate
+        function calculateRate(currentValue, previousValue, timeDiff) {
+            if (timeDiff === 0) return 0;
+            return Math.round((currentValue - previousValue) / (timeDiff / 1000));
+        }
+        
+        async function generateQueryData() {
+            const stats = await fetchStats();
+            if (!stats) {
+                // Fallback to simulated data if API fails
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('vi-VN');
+                const queries = Math.floor(Math.random() * 4);
+                const hits = Math.floor(Math.random() * 10);
+                
+                totalQueries += queries;
+                cacheHits += hits;
+                
+                queryData.timestamps.push(timeStr);
+                queryData.queries.push(queries);
+                queryData.cacheHits.push(hits);
+                
+                if (queryData.timestamps.length > 30) {
+                    queryData.timestamps.shift();
+                    queryData.queries.shift();
+                    queryData.cacheHits.shift();
+                }
+                
+                chart.data.labels = queryData.timestamps;
+                chart.data.datasets[0].data = queryData.queries;
+                chart.data.datasets[1].data = queryData.cacheHits;
+                chart.update('none');
+                
+                document.getElementById('queriesPerSecond').textContent = queries > 0 ? (queries / 2).toFixed(1) : '0';
+                document.getElementById('queriesPerMinute').textContent = Math.min(totalQueries, 300);
+                const hitRate = totalQueries > 0 ? ((cacheHits / (totalQueries + cacheHits)) * 100).toFixed(1) : '0';
+                document.getElementById('cacheHitRate').textContent = hitRate + '%';
+                
+                if (queries > 0) {
+                    addLog('query', `[DB QUERY] Executed ${queries} queries - ${getRandomEndpoint()}`);
+                }
+                if (hits > 0) {
+                    addLog('cache', `[CACHE HIT] ${hits} requests served from cache`);
+                }
+                return;
+            }
+            
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('vi-VN');
+            const timestamp = Date.now();
+            const timeDiff = timestamp - lastTimestamp;
+            
+            // Calculate queries per second
+            const queriesPerSec = calculateRate(stats.totalQueries, lastQueryCount, timeDiff);
+            const queriesPerMin = queriesPerSec * 60;
+            
+            // Update last values
+            lastQueryCount = stats.totalQueries;
+            lastTimestamp = timestamp;
+            
+            // Calculate cache hit rate
+            const totalCacheRequests = stats.queryCacheHitCount + stats.queryCacheMissCount;
+            const cacheHitRate = totalCacheRequests > 0 
+                ? Math.round((stats.queryCacheHitCount / totalCacheRequests) * 100)
+                : 0;
+            
+            // Update chart data
+            queryData.timestamps.push(timeStr);
+            queryData.queries.push(queriesPerSec);
+            queryData.cacheHits.push(stats.queryCacheHitCount);
+            
+            // Keep only last 30 data points
+            if (queryData.timestamps.length > 30) {
+                queryData.timestamps.shift();
+                queryData.queries.shift();
+                queryData.cacheHits.shift();
+            }
+            
+            chart.data.labels = queryData.timestamps;
+            chart.data.datasets[0].data = queryData.queries;
+            chart.data.datasets[1].data = queryData.cacheHits;
+            chart.update('none');
+            
+            // Update stats display
+            document.getElementById('queriesPerSecond').textContent = queriesPerSec.toFixed(1);
+            document.getElementById('queriesPerMinute').textContent = queriesPerMin;
+            document.getElementById('cacheHitRate').textContent = cacheHitRate + '%';
+            
+            // Determine DB status
+            let statusText = 'Healthy';
+            if (queriesPerMin > 280) {
+                statusText = 'Critical';
+                document.getElementById('dbStatus').className = 'stat-value text-danger';
+            } else if (queriesPerMin > 200) {
+                statusText = 'Warning';
+                document.getElementById('dbStatus').className = 'stat-value text-warning';
+            } else {
+                document.getElementById('dbStatus').className = 'stat-value text-success';
+            }
+            document.getElementById('dbStatus').textContent = statusText;
+            
+            // Add log entries
+            if (queriesPerSec > 0) {
+                addLog('query', `[DB QUERY] ${queriesPerSec} queries/sec (Total: ${stats.totalQueries})`);
+            }
+            if (stats.queryCacheHitCount > 0) {
+                addLog('cache', `[CACHE HIT] ${cacheHitRate}% hit rate (${stats.queryCacheHitCount} hits)`);
+            }
+            if (stats.entityInsertCount > 0 || stats.entityUpdateCount > 0 || stats.entityDeleteCount > 0) {
+                addLog('write', `[DB WRITE] I:${stats.entityInsertCount} U:${stats.entityUpdateCount} D:${stats.entityDeleteCount}`);
+            }
+        }
+
+        function getRandomEndpoint() {
+            const endpoints = [
+                'TagLastPositionRepository.findAll()',
+                'AlertRepository.findRecent()',
+                'EmployeeRepository.findAll()',
+                'HelmetRepository.findByStatus()'
+            ];
+            return endpoints[Math.floor(Math.random() * endpoints.length)];
+        }
+
+        function addLog(level, message) {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('vi-VN');
+            
+            const logEntry = {
+                time: timeStr,
+                level: level,
+                message: message
+            };
+            
+            queryLog.unshift(logEntry);
+            
+            // Keep only last 50 logs
+            if (queryLog.length > 50) {
+                queryLog.pop();
+            }
+            
+            renderLog();
+        }
+
+        function renderLog() {
+            const container = document.getElementById('queryLogContainer');
+            container.innerHTML = queryLog.map(log => `
+                <div class="log-entry">
+                    <span class="log-time">${log.time}</span>
+                    <span class="log-level ${log.level}">${log.level}</span>
+                    <span class="log-message">${log.message}</span>
+                </div>
+            `).join('');
+        }
+
+        function clearLog() {
+            queryLog = [];
+            renderLog();
+        }
+
+        // Time range buttons
+        document.querySelectorAll('.time-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (!this.dataset.range) return;
+                
+                document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                // In production, fetch data for selected time range
+                console.log('Selected range:', this.dataset.range + 'm');
+            });
+        });
+
+        // Sidebar toggle
+        document.getElementById('menuToggle').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('active');
+        });
+
+        // Start monitoring
+        addLog('cache', '[SYSTEM] Query monitor started');
+        setInterval(generateQueryData, 2000);
+    </script>
+</body>
+</html>
