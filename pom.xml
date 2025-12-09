@@ -67,6 +67,18 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
+        <!-- Hibernate JCache for 2nd level cache -->
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-jcache</artifactId>
+        </dependency>
+        
+        <!-- EhCache 3 -->
+        <dependency>
+            <groupId>org.ehcache</groupId>
+            <artifactId>ehcache</artifactId>
+        </dependency>
+
         <!-- MQTT -->
         <dependency>
             <groupId>org.springframework.integration</groupId>

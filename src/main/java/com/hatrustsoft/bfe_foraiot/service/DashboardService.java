@@ -77,16 +77,16 @@ public class DashboardService {
     
     /**
      * 🔴 Lấy danh sách cảnh báo gần đây (hôm nay)
-     * 🚀 TỐI ƯU: Query với LIMIT động và ORDER BY trực tiếp trong DB
+     * 🚀 TỐI ƯU: Dùng JOIN FETCH để tránh N+1 query problem
      */
     public List<Map<String, Object>> getRecentAlerts(int limit) {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-        // Query alerts hôm nay, sắp xếp DESC
-        List<Alert> todayAlerts = alertRepository.findByTriggeredAtAfter(startOfDay);
+        
+        // 🚀 TỐI ƯU: Dùng custom query với JOIN FETCH
+        List<Alert> todayAlerts = alertRepository.findAlertsWithDetailsAfter(startOfDay);
         
         return todayAlerts.stream()
             .filter(a -> a.getTriggeredAt() != null)
-            .sorted((a1, a2) -> a2.getTriggeredAt().compareTo(a1.getTriggeredAt()))
             .limit(Math.min(limit, 50))
             .map(alert -> {
                 Map<String, Object> alertData = new HashMap<>();
@@ -97,7 +97,7 @@ public class DashboardService {
                 alertData.put("timestamp", alert.getTriggeredAt().toString());
                 alertData.put("time", alert.getTriggeredAt().toLocalTime().toString().substring(0, 5));
                 
-                // Lấy thông tin nhân viên từ Helmet -> Employee
+                // Lấy thông tin nhân viên (đã JOIN FETCH - không query thêm)
                 if (alert.getHelmet() != null && alert.getHelmet().getEmployee() != null) {
                     alertData.put("employeeName", alert.getHelmet().getEmployee().getName());
                 } else {
