@@ -1464,7 +1464,7 @@
         }
         
         // Start offline check interval
-        setInterval(checkTagsOfflineStatus, 5000); // Check every 5 seconds
+        setInterval(checkTagsOfflineStatus, 10000); // Check every 10 seconds (optimized)
         
         // ==========================================
         // END WEBSOCKET
@@ -1477,7 +1477,7 @@
             setInterval(() => {
                 console.log('🔄 Refreshing anchors...');
                 loadAnchorsFromDatabase();
-            }, 10000); // Refresh every 10s
+            }, 30000); // Refresh every 30s (optimized)
         }
         
         /**
@@ -1564,7 +1564,7 @@
             updateDemoTagDistances();
             
             // ⏰ Refresh tag status every 10 seconds (sync offline status from backend)
-            setInterval(refreshTagStatus, 10000);
+            setInterval(refreshTagStatus, 15000); // Optimized: 15s instead of 10s
         });
         
         /**

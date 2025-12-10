@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupCheckboxes();
     
     // Auto refresh alerts every 30 seconds
-    setInterval(loadAlerts, 30000);
+    setInterval(loadAlerts, 60000); // Optimized: 60s instead of 30s
 });
 
 // Load alerts from API

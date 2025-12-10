@@ -41,13 +41,13 @@ public class CacheConfig {
             "allTags"          // Repository findAll()
         ));
         
-        // Configure Caffeine with 10 seconds TTL
+        // Configure Caffeine with 20 seconds TTL (optimized for query limit)
         cacheManager.setCaffeine(Caffeine.newBuilder()
-            .expireAfterWrite(10, TimeUnit.SECONDS)
+            .expireAfterWrite(20, TimeUnit.SECONDS)
             .maximumSize(1000)
             .recordStats()); // Enable stats for monitoring
         
-        log.info("🚀 Cache Manager initialized with Caffeine (10s TTL)");
+        log.info("🚀 Cache Manager initialized with Caffeine (20s TTL - optimized)");
         log.info("📦 Cache regions: tagPositions, offlineTags, allTags");
         
         return cacheManager;

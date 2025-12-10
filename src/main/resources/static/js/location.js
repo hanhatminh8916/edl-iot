@@ -1637,7 +1637,7 @@ window.addEventListener("load", function() {
     connectWebSocket();
     
     // Keep polling as fallback (reduced frequency)
-    setInterval(loadWorkers, 30000); // Every 30s instead of 10s
+    setInterval(loadWorkers, 60000); // Every 60s (optimized for query limit)
     
     // Fullscreen button handler
     const btnExpand = document.querySelector('.btn-expand');

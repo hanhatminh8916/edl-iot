@@ -48,13 +48,6 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- PostgreSQL (for Supabase) -->
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-
         <!-- H2 Database (In-Memory for testing) -->
         <dependency>
             <groupId>com.h2database</groupId>

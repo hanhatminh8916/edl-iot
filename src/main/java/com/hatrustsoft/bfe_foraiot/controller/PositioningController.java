@@ -59,13 +59,13 @@ public class PositioningController {
         
         log.info("📍 [DB QUERY] Returning {} tag positions", result.size());
         return ResponseEntity.ok()
-            .cacheControl(CacheControl.maxAge(10, TimeUnit.SECONDS))
+            .cacheControl(CacheControl.maxAge(20, TimeUnit.SECONDS))
             .body(result);
     }
     
     /**
      * ⚪ Lấy chỉ các offline tags
-     * 🚀 CACHED: 10 giây
+     * 🚀 CACHED: 20 giây (optimized)
      */
     @GetMapping("/tags/offline")
     @Cacheable(value = "offlineTags", key = "'all'")
@@ -80,7 +80,7 @@ public class PositioningController {
         
         log.info("⚪ [DB QUERY] Returning {} offline tags", result.size());
         return ResponseEntity.ok()
-            .cacheControl(CacheControl.maxAge(10, TimeUnit.SECONDS))
+            .cacheControl(CacheControl.maxAge(20, TimeUnit.SECONDS))
             .body(result);
     }
     

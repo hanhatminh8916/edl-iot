@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Update every 30 seconds
-    setInterval(loadDashboardData, 30000);
+    setInterval(loadDashboardData, 45000); // Optimized: 45s instead of 30s
 });
 
 /**
